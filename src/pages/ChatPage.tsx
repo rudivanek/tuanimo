@@ -925,6 +925,7 @@ export function ChatPage() {
         threadBoundaryAttempts,
         devFlags,
         chipMetaForMessage,
+        isFirstEverMessage,
       );
 
       if (aiResponse.boundary_triggered) {
@@ -940,15 +941,6 @@ export function ChatPage() {
         });
         showInlineToast('Tuve un problema al responder. Inténtalo otra vez.');
         return;
-      }
-      if (isFirstEverMessage) {
-        try {
-          const insightSeedKey = `elena_insight_seed_${user.id}`;
-          if (!sessionStorage.getItem(insightSeedKey)) {
-            replyText += '\n\nA veces, cuando volvemos a hablar varios días, empiezan a aparecer patrones… si en algún momento quieres, puedo ayudarte a verlos.';
-            sessionStorage.setItem(insightSeedKey, '1');
-          }
-        } catch {}
       }
       const encryptedReply = await encryptForUser(replyText, profile);
 

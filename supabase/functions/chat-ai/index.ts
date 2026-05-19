@@ -30,6 +30,7 @@ interface ChatRequest {
   boundaryAttempts?: number;
   devFlags?: DevFlags;
   chipMeta?: { id: string; label: string; intentKey: string; signal?: string } | null;
+  isFirstSession?: boolean;
 }
 
 const BANNED_LABEL_WORDS: string[] = [
@@ -869,6 +870,27 @@ Rules:
 - If it does not feel natural, omit it entirely.`;
 }
 
+// ── First session block ───────────────────────────────────────────────────────
+function buildFirstSessionBlock(turnNumber: number): string {
+  if (turnNumber > 3) return '';
+  return `
+
+FIRST SESSION INSTRUCTION — Active this conversation only:
+This is the user's very first conversation with Elena. They have never sent a message before.
+Turn number: ${turnNumber}
+
+Adjust your behavior for this turn:
+- Respond with extra warmth and openness — this is their first impression.
+- Do not reference past conversations, patterns, or prior context (there is none).
+- If this is turn 1: after your main response, add ONE soft closing sentence (max 15 words) that gently hints that patterns and insights can emerge over time — keep it light, forward-looking, never salesy. Example shapes:
+  - "Con el tiempo, puedo ayudarte a ver lo que va surgiendo."
+  - "Si seguimos hablando, puedo ayudarte a notar lo que se repite."
+  - "Poco a poco, pueden aparecer patrones que vale la pena mirar."
+- If this is turn 2 or 3: do NOT add the insight hint — respond normally with first-session warmth only.
+- Do NOT use "a veces" in the closing hint.
+- The closing hint must feel organic, never forced. If it does not fit the emotional tone of this exchange, omit it entirely.`;
+}
+
 // ── Session closing detection ─────────────────────────────────────────────────
 // Detects whether the conversation appears to be naturally winding down.
 // Used to activate the closing block injection below.
@@ -1101,6 +1123,8 @@ Deno.serve(async (req: Request) => {
       ? body.chipMeta
       : null;
 
+    const isFirstSession = body.isFirstSession === true;
+
     const devFlags: DevFlags = (body.devFlags && typeof body.devFlags === 'object') ? body.devFlags : {};
 
     const rawHistory = Array.isArray(body.conversationHistory) ? body.conversationHistory : [];
@@ -1206,6 +1230,9 @@ Deno.serve(async (req: Request) => {
     const returnTriggerBlock = useReturnTrigger ? buildReturnTriggerBlock() : '';
     const useSessionClosing = detectSessionClosing(message, conversationHistory, modeUsed);
     const sessionClosingBlock = useSessionClosing ? buildSessionClosingBlock() : '';
+
+    const userTurnCount = conversationHistory.filter(m => m.role === 'user').length + 1;
+    const firstSessionBlock = isFirstSession ? buildFirstSessionBlock(userTurnCount) : '';
 
     const chipCombinationNote = (() => {
       if (!chipMeta || typeof chipMeta.insertText !== 'string' || !chipMeta.insertText.trim()) return '';
@@ -2734,7 +2761,7 @@ State meanings:
 
 crisis values: "NO", "MAYBE", "YES" — use MAYBE or YES only for genuine safety concerns.
 
-DO NOT include any text outside the JSON object.${recognitionBlock}${returnTriggerBlock}${sessionClosingBlock}${chipSignalBlock}${boundaryEscalationInstruction}${buildStanceInstruction(uxStance, uxIntensity, memoryAnchors, userRequestedList)}`;
+DO NOT include any text outside the JSON object.${recognitionBlock}${returnTriggerBlock}${sessionClosingBlock}${chipSignalBlock}${firstSessionBlock}${boundaryEscalationInstruction}${buildStanceInstruction(uxStance, uxIntensity, memoryAnchors, userRequestedList)}`;
 
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openaiKey) {
