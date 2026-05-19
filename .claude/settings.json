@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /tmp/cc-agent/64114021/project && git add -A && git diff --cached --quiet || git commit -m \"Auto-commit: session changes\" && git push 2>/dev/null || true",
+            "timeout": 60,
+            "statusMessage": "Pushing changes to GitHub..."
+          }
+        ]
+      }
+    ]
+  }
+}
