@@ -436,7 +436,7 @@ interface ChatResponse {
   chips: string[];
 }
 
-interface TokenUsage {
+interface OpenAIUsage {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
@@ -1043,7 +1043,7 @@ async function logTokenUsageAndIncrement(
   userId: string,
   operation: string,
   model: string,
-  usage: TokenUsage | null,
+  usage: OpenAIUsage | null,
 ) {
   const svc = getServiceClient();
   const safeUsage = {
@@ -1143,7 +1143,7 @@ Deno.serve(async (req: Request) => {
     }
     const user = { id: userId };
 
-    // ── Enforce BEFORE calling AI ──────────────────────────────────────────────
+    // ── Enforce BEFORE calling OpenAI ─────────────────────────────────────────
     const budgetResponse = await enforceBudget(user.id);
     if (budgetResponse) return budgetResponse;
 
@@ -2800,33 +2800,29 @@ crisis values: "NO", "MAYBE", "YES" — use MAYBE or YES only for genuine safety
 
 DO NOT include any text outside the JSON object.${recognitionBlock}${returnTriggerBlock}${sessionClosingBlock}${chipSignalBlock}${firstSessionBlock}${boundaryEscalationInstruction}${buildStanceInstruction(uxStance, uxIntensity, memoryAnchors, userRequestedList)}`;
 
-    // ── Anthropic Claude API call with prompt caching ─────────────────────────
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) {
-      throw new Error("Anthropic API key not configured");
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) {
+      throw new Error("OpenAI API key not configured");
     }
 
-    const anthropicMessages = [
-      ...conversationHistory.map(m => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })),
-      { role: "user" as const, content: message },
+    const openaiMessages = [
+      { role: "system", content: systemPrompt },
+      ...conversationHistory,
+      { role: "user", content: message },
     ];
 
-    function buildAnthropicBody(msgs: Array<{ role: string; content: string }>) {
+    const openaiHeaders = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${openaiKey}`,
+    };
+
+    function buildOpenAIBody(msgs: Array<{ role: string; content: string }>) {
       return JSON.stringify({
-        model: "claude-sonnet-4-6-20250514",
-        max_tokens: 2500,
-        temperature: 0.8,
-        system: [
-          {
-            type: "text",
-            text: systemPrompt,
-            cache_control: { type: "ephemeral" },
-          },
-        ],
+        model: "gpt-4o-mini",
         messages: msgs,
+        temperature: 0.8,
+        max_tokens: 2500,
+        response_format: { type: "json_object" },
       });
     }
 
@@ -2848,23 +2844,17 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
       }
     }
 
-    const anthropicHeaders: Record<string, string> = {
-      "Content-Type": "application/json",
-      "x-api-key": anthropicKey,
-      "anthropic-version": "2023-06-01",
-    };
-
-    async function callAnthropic(body: string): Promise<{ data: Record<string, unknown> | null; error: Response | null }> {
-      let res = await fetch("https://api.anthropic.com/v1/messages", {
+    async function callOpenAI(body: string): Promise<{ data: Record<string, unknown> | null; error: Response | null }> {
+      let res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
-        headers: anthropicHeaders,
+        headers: openaiHeaders,
         body,
       });
       if (!res.ok && res.status >= 500) {
         await new Promise(r => setTimeout(r, 1200));
-        res = await fetch("https://api.anthropic.com/v1/messages", {
+        res = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
-          headers: anthropicHeaders,
+          headers: openaiHeaders,
           body,
         });
       }
@@ -2872,43 +2862,23 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
       return { data: await res.json(), error: null };
     }
 
-    function extractUsage(data: Record<string, unknown>): TokenUsage | null {
-      const usage = data.usage as { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number } | undefined;
-      if (!usage) return null;
-      const inputTokens = (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0);
-      return {
-        prompt_tokens: inputTokens,
-        completion_tokens: usage.output_tokens ?? 0,
-        total_tokens: inputTokens + (usage.output_tokens ?? 0),
-      };
-    }
+    const { data: openaiData1, error: openaiErr1 } = await callOpenAI(buildOpenAIBody(openaiMessages));
 
-    function extractContent(data: Record<string, unknown>): string {
-      const content = data.content as Array<{ type: string; text?: string }> | undefined;
-      if (!content || !Array.isArray(content)) return "";
-      return content
-        .filter(block => block.type === "text" && typeof block.text === "string")
-        .map(block => block.text!)
-        .join("");
-    }
-
-    const { data: claudeData1, error: claudeErr1 } = await callAnthropic(buildAnthropicBody(anthropicMessages));
-
-    if (!claudeData1) {
-      const errorData = await claudeErr1!.json().catch(() => ({}));
-      console.error("Anthropic error after retry:", JSON.stringify(errorData), { status: claudeErr1!.status });
+    if (!openaiData1) {
+      const errorData = await openaiErr1!.json().catch(() => ({}));
+      console.error("OpenAI error after retry:", JSON.stringify(errorData), { status: openaiErr1!.status });
       return new Response(
-        JSON.stringify({ error: "AI_UNAVAILABLE" }),
+        JSON.stringify({ error: "OPENAI_UNAVAILABLE" }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    let rawContent: string = extractContent(claudeData1);
-    let stopReason: string = (claudeData1.stop_reason as string) ?? "unknown";
-    let usage: TokenUsage | null = extractUsage(claudeData1);
+    let rawContent: string = (openaiData1.choices as Array<{ message: { content: string }; finish_reason: string }>)[0].message.content;
+    let finishReason: string = (openaiData1.choices as Array<{ finish_reason: string }>)[0].finish_reason;
+    let usage: OpenAIUsage | null = (openaiData1.usage as OpenAIUsage) ?? null;
 
-    if (stopReason === "max_tokens") {
-      console.warn("[chat-ai] Anthropic response truncated (stop_reason=max_tokens)", {
+    if (finishReason === "length") {
+      console.warn("[chat-ai] OpenAI response truncated (finish_reason=length)", {
         rawContentLength: rawContent?.length ?? 0,
       });
     }
@@ -2924,23 +2894,21 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
     if (firstTrimmed.length === 0) {
       console.warn("[chat-ai] Empty reply on first attempt — retrying with simplified prompt", {
         rawContentLength: rawContent?.length ?? 0,
-        stopReason,
+        finishReason,
       });
 
       const retryMessages = [
-        ...conversationHistory.slice(-4).map(m => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        })),
-        { role: "user" as const, content: message },
+        { role: "system", content: systemPrompt },
+        ...conversationHistory.slice(-4),
+        { role: "user", content: message },
       ];
 
-      const { data: retryData } = await callAnthropic(buildAnthropicBody(retryMessages));
+      const { data: retryData, error: retryErr } = await callOpenAI(buildOpenAIBody(retryMessages));
 
       if (retryData) {
-        const retryRaw: string = extractContent(retryData);
-        const retryStopReason: string = (retryData.stop_reason as string) ?? "unknown";
-        const retryUsage: TokenUsage | null = extractUsage(retryData);
+        const retryRaw: string = (retryData.choices as Array<{ message: { content: string }; finish_reason: string }>)[0].message.content;
+        const retryFinish: string = (retryData.choices as Array<{ finish_reason: string }>)[0].finish_reason;
+        const retryUsage: OpenAIUsage | null = (retryData.usage as OpenAIUsage) ?? null;
         const retryParsed = parseAIResponse(retryRaw);
 
         if (!retryParsed.reply || typeof retryParsed.reply !== "string") {
@@ -2951,22 +2919,23 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
 
         if (retryTrimmed.length > 0) {
           rawContent = retryRaw;
-          stopReason = retryStopReason;
+          finishReason = retryFinish;
           usage = retryUsage;
           aiResponse = retryParsed;
           aiResponse.reply = retryTrimmed;
           console.log("[chat-ai] Retry succeeded with non-empty reply");
         } else {
           console.warn("[chat-ai] Retry also returned empty reply — using fallback");
-          EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", "claude-sonnet-4-6", retryUsage));
+          EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", "gpt-4o-mini", retryUsage));
         }
       } else {
-        console.warn("[chat-ai] Retry Anthropic call failed");
+        console.warn("[chat-ai] Retry OpenAI call failed:", retryErr?.status);
       }
     }
 
+    // ── Log tokens (non-blocking — failures do not crash the response) ────────
     EdgeRuntime.waitUntil(
-      logTokenUsageAndIncrement(user.id, "chat", "claude-sonnet-4-6", usage)
+      logTokenUsageAndIncrement(user.id, "chat", "gpt-4o-mini", usage)
     );
 
     if (!aiResponse.meta) {
@@ -2984,7 +2953,7 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
     const trimmedReply = (aiResponse.reply ?? "").replace(/\s+/g, " ").trim();
     if (trimmedReply.length === 0) {
       console.warn("[chat-ai] Empty model output — used fallback", {
-        model: "claude-sonnet-4-6",
+        model: "gpt-4o-mini",
         hasMessages: conversationHistory?.length ?? 0,
         rawContentLength: rawContent?.length ?? 0,
       });
@@ -3013,28 +2982,9 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
         ...conversationHistory.slice(-4),
         { role: "user", content: message },
       ];
-      const guardSystemContent = guardMessages.find(m => m.role === "system")?.content ?? systemPrompt;
-      const guardAnthropicMessages = guardMessages
-        .filter(m => m.role !== "system")
-        .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
-
-      const guardBody = JSON.stringify({
-        model: "claude-sonnet-4-6-20250514",
-        max_tokens: 2500,
-        temperature: 0.8,
-        system: [
-          {
-            type: "text",
-            text: guardSystemContent,
-            cache_control: { type: "ephemeral" },
-          },
-        ],
-        messages: guardAnthropicMessages,
-      });
-
-      const { data: guardData } = await callAnthropic(guardBody);
+      const { data: guardData } = await callOpenAI(buildOpenAIBody(guardMessages));
       if (guardData) {
-        const guardRaw: string = extractContent(guardData);
+        const guardRaw: string = (guardData.choices as Array<{ message: { content: string } }>)[0].message.content;
         const guardParsed = parseAIResponse(guardRaw);
         if (!guardParsed.reply || typeof guardParsed.reply !== "string") {
           guardParsed.reply = guardRaw ?? "";
@@ -3044,7 +2994,7 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
           aiResponse.reply = guardTrimmed;
           aiResponse.meta = guardParsed.meta ?? aiResponse.meta;
           EdgeRuntime.waitUntil(
-            logTokenUsageAndIncrement(user.id, "chat", "claude-sonnet-4-6", extractUsage(guardData))
+            logTokenUsageAndIncrement(user.id, "chat", "gpt-4o-mini", (guardData.usage as OpenAIUsage) ?? null)
           );
           console.log("[chat-ai] Guard retry produced clean reply");
         } else {
@@ -3077,7 +3027,7 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
           severity: detectedCrisis,
           source: "chat-ai",
           threadId: threadId ?? null,
-          model: "claude-sonnet-4-6",
+          model: "gpt-4o-mini",
           meta: { ui_shown: true },
         })
       );
