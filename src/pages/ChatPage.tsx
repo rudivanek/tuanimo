@@ -11,7 +11,7 @@ import { DevPanel } from '../components/DevPanel';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { Send, MessageCircle, Trash2, GripVertical, ArrowLeft, Plus, Lock, Pencil, Check, X, Download, ChevronDown, BookOpen } from 'lucide-react';
 import { type Tone, TONE_LABELS, selectTone, getPreferredGreetingName } from '../lib/welcomeMessages';
-import { getLastUserChatTimestamp, buildContextualGreeting, getInsightSnippetForReturn, buildReturnGreetingWithInsight, getChatSignalForReturn, buildReturnGreetingWithSignal } from '../lib/contextualGreeting';
+import { getLastUserChatTimestamp, buildContextualGreeting, getInsightSnippetForReturn, buildReturnGreetingWithInsight, getChatSignalForReturn, buildReturnGreetingWithSignal, getFirstSessionTopicEnc, buildReturnGreetingWithMemory } from '../lib/contextualGreeting';
 import { FollowUpBox } from '../components/FollowUpBox';
 import { DiaryDraftSuggestion } from '../components/DiaryDraftSuggestion';
 import { ChatLinkedJournalBanner } from '../components/ChatLinkedJournalBanner';
@@ -397,21 +397,43 @@ export function ChatPage() {
 
       const forceInsightGreeting = import.meta.env.DEV && !!localStorage.getItem('elena_dev_force_insight_greeting');
 
-      let text: string;
-      if (forceInsightGreeting || (hoursAbsent !== null && hoursAbsent >= 48)) {
-        const insightSnippet = await getInsightSnippetForReturn();
-        if (insightSnippet) {
-          text = buildReturnGreetingWithInsight(name, insightSnippet);
-        } else if (hoursAbsent !== null && hoursAbsent <= 168) {
-          const signalData = await getChatSignalForReturn();
-          text = signalData
-            ? buildReturnGreetingWithSignal(name, signalData.type)
-            : buildContextualGreeting(lastChatAt, name);
-        } else {
-          text = buildContextualGreeting(lastChatAt, name);
-        }
-      } else {
+      let text: string = '';
+      if (hoursAbsent === null) {
+        // First-time user — use new calibrating greetings
         text = buildContextualGreeting(lastChatAt, name);
+      } else {
+        // Returning user — try memory-aware greeting first
+        let usedMemoryGreeting = false;
+        try {
+          const topicEnc = await getFirstSessionTopicEnc(user.id);
+          if (topicEnc) {
+            const topic = await decryptForUser(topicEnc, profile);
+            if (topic && topic.length > 5) {
+              text = buildReturnGreetingWithMemory(name, topic);
+              usedMemoryGreeting = true;
+            }
+          }
+        } catch (memErr) {
+          console.log('[greeting] Could not load first session topic:', memErr);
+        }
+
+        if (!usedMemoryGreeting) {
+          if (forceInsightGreeting || hoursAbsent >= 48) {
+            const insightSnippet = await getInsightSnippetForReturn();
+            if (insightSnippet) {
+              text = buildReturnGreetingWithInsight(name, insightSnippet);
+            } else if (hoursAbsent <= 168) {
+              const signalData = await getChatSignalForReturn();
+              text = signalData
+                ? buildReturnGreetingWithSignal(name, signalData.type)
+                : buildContextualGreeting(lastChatAt, name);
+            } else {
+              text = buildContextualGreeting(lastChatAt, name);
+            }
+          } else {
+            text = buildContextualGreeting(lastChatAt, name);
+          }
+        }
       }
       const encryptedText = await encryptForUser(text, profile);
 
@@ -964,6 +986,48 @@ export function ChatPage() {
       const detectedMood = await moodPromise;
       setCurrentMood(detectedMood);
       lastMoodUpdateAtRef.current = Date.now();
+
+      // ── Auto-save first session topic for return greeting ─────────────────
+      // After 3+ user messages in the first session, extract a short topic
+      // summary from the conversation and save it as encrypted user memory.
+      // This runs once — the 'first_session_topic' key is checked before saving.
+      const userMsgCount = messages.filter(m => m.sender === 'user').length + 1; // +1 for current
+      if (isFirstEverMessage === false && userMsgCount >= 3) {
+        // isFirstEverMessage was set to false on Turn 1. By Turn 3+, we have enough context.
+        // Check if we already saved a topic (avoid duplicate saves)
+        try {
+          const existingTopic = await supabase
+            .from('user_memory')
+            .select('key')
+            .eq('user_id', user.id)
+            .eq('key', 'first_session_topic')
+            .maybeSingle();
+
+          if (!existingTopic.data) {
+            // Build a short topic from the user's messages in this conversation
+            const userMessages = messages
+              .filter(m => m.sender === 'user' && m.content?.trim())
+              .map(m => m.content.trim());
+            // Add the current message (not yet in messages state)
+            userMessages.push(messageToSend);
+
+            // Take the first 3 user messages and create a brief topic (max 120 chars)
+            const topicParts = userMessages.slice(0, 3);
+            const topicSummary = topicParts
+              .map(msg => msg.length > 50 ? msg.slice(0, 47) + '...' : msg)
+              .join(' → ')
+              .slice(0, 120);
+
+            if (topicSummary.length > 5) {
+              const encryptedTopic = await encryptForUser(topicSummary, profile);
+              await saveUserMemory('first_session_topic', encryptedTopic);
+              console.log('[chat] First session topic saved:', topicSummary.slice(0, 40) + '...');
+            }
+          }
+        } catch (topicError) {
+          console.log('[chat] Could not save first session topic:', topicError);
+        }
+      }
 
       const effectiveAiMessage = aiMessage ?? {
         id: `local-${Date.now()}`,
