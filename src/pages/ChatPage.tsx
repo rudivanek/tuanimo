@@ -992,7 +992,8 @@ export function ChatPage() {
       // summary from the conversation and save it as encrypted user memory.
       // This runs once — the 'first_session_topic' key is checked before saving.
       const userMsgCount = messages.filter(m => m.sender === 'user').length + 1; // +1 for current
-      if (isFirstEverMessage === false && userMsgCount >= 3) {
+      console.log('[chat] Topic save check:', { userMsgCount, isFirstEverMessage });
+      if (userMsgCount >= 3) {
         // isFirstEverMessage was set to false on Turn 1. By Turn 3+, we have enough context.
         // Check if we already saved a topic (avoid duplicate saves)
         try {
