@@ -1,10 +1,9 @@
 import { supabase } from './supabaseClient';
 
 const FIRST_TIME: string[] = [
-  'Hola {name} 🌷\n\nEstoy aquí para escucharte.\n\nPuedes contarme algo que tengas en la cabeza ahora mismo… no tiene que estar ordenado.\n\n¿Qué te trajo por aquí hoy?',
-  'Hola {name}\n\nQué bueno verte por aquí.\n\nNo necesitas saber bien qué decir — puedes empezar por lo que tengas en mente.\n\n¿Qué hay en tu cabeza ahora mismo?',
-  'Hola {name} 🌷\n\nPodemos ir con calma.\n\nPuedes escribir lo que sea, tal como venga — no tiene que ser perfecto.\n\n¿Qué está ocupando tu mente hoy?',
-  'Hola {name}\n\nEstoy aquí contigo.\n\nPuedes contarme algo de lo que tienes en mente, aunque no lo tengas del todo claro.\n\n¿Qué está pasando por dentro hoy?',
+  'Hola {name} 🌷\n\n¿Cómo llega este momento — tranquilo, algo pesado, o todavía no sabes bien?',
+  'Hola {name} 🌷\n\n¿Cómo estás llegando a este momento? No tiene que ser algo grande — lo que sea que traes cuenta.',
+  'Hola {name} 🌷\n\nAntes de todo: ¿cómo se siente este momento por dentro?',
 ];
 
 const YESTERDAY: string[] = [
