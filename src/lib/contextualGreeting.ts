@@ -9,9 +9,9 @@ const FIRST_TIME: string[] = [
 // ── Return greetings that reference what the user shared in their first session ──
 // These use {topic} as a placeholder for the decrypted first_session_topic memory.
 const RETURN_WITH_MEMORY: string[] = [
-  'Hola {name} 🌷\n\nLa última vez me contaste sobre {topic}.\n\n¿Cómo ha estado eso?',
-  'Hola {name} 🌷\n\nMe quedé pensando en lo que compartiste — {topic}.\n\n¿Cómo llega ese tema hoy?',
-  'Hola {name} 🌷\n\nRecuerdo que hablamos de {topic}.\n\n¿Algo ha cambiado desde entonces?',
+  'Hola {name} 🌷\n\nLa última vez me contabas que {topic}.\n\n¿Cómo ha estado eso?',
+  'Hola {name} 🌷\n\nMe quedé pensando en lo que compartiste — que {topic}.\n\n¿Cómo llega ese tema hoy?',
+  'Hola {name} 🌷\n\nRecuerdo que hablamos de que {topic}.\n\n¿Algo ha cambiado desde entonces?',
 ];
 
 const YESTERDAY: string[] = [
