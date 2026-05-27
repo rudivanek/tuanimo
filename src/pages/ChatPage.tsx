@@ -1004,24 +1004,35 @@ export function ChatPage() {
             .maybeSingle();
 
           if (!existingTopic.data) {
-            // Build a short topic from the user's messages in this conversation
+            // Build a short, natural topic from the user's messages.
+            // Strategy: the 1st message is usually vague ("algo pesado"),
+            // the 2nd names the situation ("es mi jefe"), the 3rd adds weight.
+            // Pick the most specific one (prefer 2nd, then 3rd, then 1st).
             const userMessages = messages
               .filter(m => m.sender === 'user' && m.content?.trim())
               .map(m => m.content.trim());
-            // Add the current message (not yet in messages state)
             userMessages.push(messageToSend);
 
-            // Take the first 3 user messages and create a brief topic (max 120 chars)
-            const topicParts = userMessages.slice(0, 3);
-            const topicSummary = topicParts
-              .map(msg => msg.length > 50 ? msg.slice(0, 47) + '...' : msg)
-              .join(' → ')
-              .slice(0, 120);
+            // Pick the best message for the topic (2nd > 3rd > 1st)
+            const best = userMessages[1] ?? userMessages[2] ?? userMessages[0] ?? '';
+            // Clean: lowercase first char, remove trailing punctuation, trim to 80 chars
+            let topicSummary = best
+              .replace(/^[¿¡]+/, '')     // remove leading ¿¡
+              .replace(/[.!?,;…]+$/, '') // remove trailing punctuation
+              .trim();
+            // Lowercase the first letter for natural flow in greeting ("me contaste sobre X")
+            if (topicSummary.length > 0) {
+              topicSummary = topicSummary[0].toLowerCase() + topicSummary.slice(1);
+            }
+            // Truncate cleanly at word boundary
+            if (topicSummary.length > 80) {
+              topicSummary = topicSummary.slice(0, 77).replace(/\s+\S*$/, '') + '…';
+            }
 
             if (topicSummary.length > 5) {
               const encryptedTopic = await encryptForUser(topicSummary, profile);
               await saveUserMemory('first_session_topic', encryptedTopic);
-              console.log('[chat] First session topic saved:', topicSummary.slice(0, 40) + '...');
+              console.log('[chat] First session topic saved:', topicSummary);
             }
           }
         } catch (topicError) {
