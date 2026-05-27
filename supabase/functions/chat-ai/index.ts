@@ -2816,7 +2816,7 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
 
     function buildAnthropicBody(msgs: Array<{ role: string; content: string }>) {
       return JSON.stringify({
-        model: "claude-sonnet-4-6-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2500,
         temperature: 0.8,
         system: [
@@ -3019,7 +3019,7 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
         .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
 
       const guardBody = JSON.stringify({
-        model: "claude-sonnet-4-6-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2500,
         temperature: 0.8,
         system: [
