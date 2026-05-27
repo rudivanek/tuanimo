@@ -1,79 +1,157 @@
-// src/lib/contextualGreeting.ts
-// Contextual greeting system for chat welcome messages.
-// Selects appropriate greeting based on time since last chat session.
-
 import { supabase } from './supabaseClient';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+const FIRST_TIME: string[] = [
+  'Hola {name} 🌷\n\n¿Cómo llega este momento — tranquilo, algo pesado, o todavía no sabes bien?',
+  'Hola {name} 🌷\n\n¿Cómo estás llegando a este momento? No tiene que ser algo grande — lo que sea que traes cuenta.',
+  'Hola {name} 🌷\n\nAntes de todo: ¿cómo se siente este momento por dentro?',
+];
 
-type GreetingVariant = 'FIRST_TIME' | 'YESTERDAY' | 'PAST_WEEK' | 'LONG_ABSENCE';
+// ── Return greetings that reference what the user shared in their first session ──
+// These use {topic} as a placeholder for the decrypted first_session_topic memory.
+const RETURN_WITH_MEMORY: string[] = [
+  'Hola {name} 🌷\n\nLa última vez me contaste sobre {topic}.\n\n¿Cómo ha estado eso?',
+  'Hola {name} 🌷\n\nMe quedé pensando en lo que compartiste — {topic}.\n\n¿Cómo llega ese tema hoy?',
+  'Hola {name} 🌷\n\nRecuerdo que hablamos de {topic}.\n\n¿Algo ha cambiado desde entonces?',
+];
 
-// ── Variant selection ─────────────────────────────────────────────────────────
+const YESTERDAY: string[] = [
+  'Hola {name} 🌷\n\n¿Cómo ha estado este día desde ayer?',
+  'Hola {name}\n\nAquí estoy.\n\n¿Qué ha habido desde ayer?',
+  'Hola {name} 🌷\n\n¿Algo ha cambiado desde ayer?',
+  'Hola {name}\n\nGracias por volver.\n\n¿Qué tienes en la cabeza hoy?',
+];
 
-function selectVariant(lastChatAt: Date | null): GreetingVariant {
-  if (!lastChatAt) return 'FIRST_TIME';
-  const hoursAgo = (Date.now() - lastChatAt.getTime()) / (1000 * 60 * 60);
-  if (hoursAgo < 24) return 'YESTERDAY';
-  if (hoursAgo < 168) return 'PAST_WEEK';
-  return 'LONG_ABSENCE';
+const PAST_WEEK: string[] = [
+  'Hola {name} 🌷\n\n¿Cómo ha estado la semana desde la última vez?',
+  'Hola {name}\n\nAquí estoy para escucharte.\n\n¿Qué ha habido estos días?',
+  'Hola {name} 🌷\n\n¿Qué ha estado ocupando tu mente estos días?',
+  'Hola {name}\n\nQué bueno que volviste.\n\n¿Qué tienes ahora mismo?',
+];
+
+const LONG_ABSENCE: string[] = [
+  'Hola {name} 🌷\n\nMe alegra que estés aquí.\n\n¿Qué ha estado pasando estos días?',
+  'Hola {name}\n\nHa pasado un tiempo.\n\n¿Qué tienes en mente ahora?',
+  'Hola {name} 🌷\n\nAquí estoy.\n\n¿Qué te trajo de vuelta hoy?',
+  'Hola {name}\n\nEstoy aquí para escucharte.\n\n¿Qué está presente ahora mismo?',
+];
+
+function applyName(template: string, name: string | null): string {
+  if (name) return template.replace('{name}', name);
+  return template.replace(' {name}', '');
 }
 
-// ── Greeting templates ────────────────────────────────────────────────────────
-
-const FIRST_TIME_VARIANTS = [
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nEstoy aquí para escucharte.\n\nPuedes contarme algo que tengas en la cabeza ahora mismo… no tiene que estar ordenado.\n\n¿Cómo te sientes hoy?`,
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nEstoy aquí para escucharte.\n\nNo necesitas saber bien qué decir — puedes empezar por lo que tengas en mente.\n\n¿Cómo te sientes hoy?`,
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nEstoy aquí para escucharte.\n\nPuedes escribir lo que sea, tal como venga — no tiene que ser perfecto.\n\n¿Cómo te sientes hoy?`,
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nEstoy aquí para escucharte.\n\nPuedes contarme algo de lo que tienes en mente, aunque no lo tengas del todo claro.\n\n¿Cómo te sientes hoy?`,
-];
-
-const YESTERDAY_VARIANTS = [
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nQué bueno verte de nuevo.\n\n¿Cómo estás hoy?`,
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nMe da gusto que estés aquí.\n\n¿Cómo te sientes ahora mismo?`,
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nAquí estoy contigo.\n\n¿Qué tienes en mente hoy?`,
-];
-
-const PAST_WEEK_VARIANTS = [
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nQué gusto verte de nuevo.\n\n¿Cómo te has sentido desde la última vez?`,
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nMe da gusto verte por aquí.\n\n¿Qué ha pasado desde la última vez que hablamos?`,
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nAquí estoy para escucharte.\n\n¿Cómo te ha ido estos días?`,
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nVolviste 😊\n\n¿Cómo te sientes hoy?`,
-];
-
-const LONG_ABSENCE_VARIANTS = [
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nHacía tiempo que no hablábamos.\n\n¿Cómo has estado?`,
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nMe da gusto que hayas vuelto.\n\n¿Qué te trae por aquí hoy?`,
-  (name: string | null) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nQué bueno verte de nuevo.\n\n¿Cómo te has sentido últimamente?`,
-];
-
-function pickVariant<T>(arr: T[]): T {
+function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// ── Return greeting with insight snippet ──────────────────────────────────────
+function selectVariants(hoursSinceLast: number | null): string[] {
+  if (hoursSinceLast === null) return FIRST_TIME;
+  if (hoursSinceLast <= 36) return YESTERDAY;
+  if (hoursSinceLast <= 168) return PAST_WEEK;
+  return LONG_ABSENCE;
+}
 
-const RETURN_WITH_INSIGHT_VARIANTS = [
-  (name: string | null, snippet: string) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\n${snippet}\n\n¿Cómo te sientes hoy?`,
-  (name: string | null, snippet: string) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\n${snippet}\n\n¿Qué tienes en mente ahora mismo?`,
+export async function getLastUserChatTimestamp(userId: string): Promise<Date | null> {
+  const { data } = await supabase
+    .from('chat_messages')
+    .select('created_at')
+    .eq('user_id', userId)
+    .eq('sender', 'user')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data?.created_at ? new Date(data.created_at) : null;
+}
+
+export function buildContextualGreeting(
+  lastChatAt: Date | null,
+  name: string | null,
+): string {
+  const hoursSinceLast = lastChatAt
+    ? (Date.now() - lastChatAt.getTime()) / (1000 * 60 * 60)
+    : null;
+
+  const variants = selectVariants(hoursSinceLast);
+  const template = pickRandom(variants);
+  return applyName(template, name);
+}
+
+// ── First-session topic memory ─────────────────────────────────────────────────
+// Fetches the encrypted 'first_session_topic' key from user_memory.
+// Returns the raw encrypted value — caller must decrypt.
+export async function getFirstSessionTopicEnc(userId: string): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from('user_memory')
+      .select('value_enc')
+      .eq('user_id', userId)
+      .eq('key', 'first_session_topic')
+      .maybeSingle();
+    return data?.value_enc ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Builds a return greeting that references the first-session topic.
+// The topic should already be decrypted before passing here.
+export function buildReturnGreetingWithMemory(
+  name: string | null,
+  topic: string,
+): string {
+  const template = pickRandom(RETURN_WITH_MEMORY);
+  const withName = applyName(template, name);
+  return withName.replace('{topic}', topic);
+}
+
+// ── Insight return bridge ─────────────────────────────────────────────────────
+
+const RETURN_INSIGHT_OPENERS: string[] = [
+  'Estuve revisando un poco lo que has compartido.',
+  'Mientras no estabas, noté algo en tus conversaciones.',
+  'Algo que me quedó de lo que has compartido.',
+  'Hay algo que noté mientras no estabas.',
 ];
 
-// ── Early return signal lines ─────────────────────────────────────────────────
+function extractInsightForChat(raw: string): string {
+  const cleaned = raw
+    .replace(/\[\[COMPARISON\]\][\s\S]*?\[\[\/COMPARISON\]\]/g, '')
+    .replace(/\[\[MICRO_STEP\]\][\s\S]*?\[\[\/MICRO_STEP\]\]/g, '')
+    .replace(/\n+/g, ' ')
+    .trim();
+  const parts = cleaned.split(/(?<=[.!?¡¿])\s+/);
+  return parts.slice(0, 2).join(' ').slice(0, 250);
+}
+
+export async function getInsightSnippetForReturn(): Promise<string | null> {
+  try {
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const { data } = await supabase
+      .from('mood_weekly_insights')
+      .select('insight_text, week_start_date')
+      .gte('week_start_date', fourteenDaysAgo)
+      .order('week_start_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!data?.insight_text) return null;
+    return extractInsightForChat(data.insight_text as string);
+  } catch {
+    return null;
+  }
+}
+
+export function buildReturnGreetingWithInsight(
+  name: string | null,
+  insightSnippet: string,
+): string {
+  const greeting = name ? `Hola ${name} 🌷` : 'Hola 🌷';
+  const opener = pickRandom(RETURN_INSIGHT_OPENERS);
+  return `${greeting}\n\n${opener}\n\n${insightSnippet}\n\n¿Qué hay ahora mismo?`;
+}
 
 const EARLY_RETURN_SIGNAL_LINES: Record<string, string[]> = {
   positive: [
@@ -94,150 +172,42 @@ const EARLY_RETURN_SIGNAL_LINES: Record<string, string[]> = {
   ],
 };
 
-// ── Return greeting with memory ───────────────────────────────────────────────
-
-const RETURN_WITH_MEMORY_VARIANTS = [
-  (name: string | null, topic: string) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nLa última vez me contabas sobre ${topic}.\n\n¿Cómo has estado desde entonces?`,
-  (name: string | null, topic: string) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nLa última vez hablábamos de ${topic}.\n\n¿Cómo te has sentido estos días?`,
-  (name: string | null, topic: string) =>
-    `Hola${name ? ` ${name}` : ''} 🌷\n\nMe quedé pensando en lo que me contabas — ${topic}.\n\n¿Cómo estás hoy?`,
-];
-
-// ── Public API ────────────────────────────────────────────────────────────────
-
-/**
- * Returns the timestamp of the most recent user chat message, or null if none exists.
- */
-export async function getLastUserChatTimestamp(userId: string): Promise<Date | null> {
-  const { data, error } = await supabase
-    .from('chat_messages')
-    .select('created_at')
-    .eq('user_id', userId)
-    .eq('sender', 'user')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) return null;
-  return new Date(data.created_at);
-}
-
-/**
- * Builds the contextual greeting text based on when the user last chatted.
- */
-export function buildContextualGreeting(lastChatAt: Date | null, name: string | null): string {
-  const variant = selectVariant(lastChatAt);
-  switch (variant) {
-    case 'FIRST_TIME':
-      return pickVariant(FIRST_TIME_VARIANTS)(name);
-    case 'YESTERDAY':
-      return pickVariant(YESTERDAY_VARIANTS)(name);
-    case 'PAST_WEEK':
-      return pickVariant(PAST_WEEK_VARIANTS)(name);
-    case 'LONG_ABSENCE':
-      return pickVariant(LONG_ABSENCE_VARIANTS)(name);
-  }
-}
-
-/**
- * Returns the most recent weekly insight text snippet, or null if none exists.
- */
-export async function getInsightSnippetForReturn(): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('mood_weekly_insights')
-    .select('insight_text')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) return null;
-
-  const text = data.insight_text;
-  if (!text || text.trim().length < 10) return null;
-
-  // Return first sentence or first 120 chars, whichever is shorter
-  const firstSentence = text.split(/[.!?]/)[0]?.trim();
-  if (firstSentence && firstSentence.length >= 20) {
-    return firstSentence.length <= 120 ? firstSentence : firstSentence.slice(0, 120).trim();
-  }
-  return text.slice(0, 120).trim();
-}
-
-/**
- * Builds a return greeting that incorporates a weekly insight snippet.
- */
-export function buildReturnGreetingWithInsight(name: string | null, snippet: string): string {
-  return pickVariant(RETURN_WITH_INSIGHT_VARIANTS)(name, snippet);
-}
-
-/**
- * Queries chat_signal_daily_agg for the past 7 days and returns the dominant signal type
- * if its cumulative score is >= 2, otherwise null.
- */
 export async function getChatSignalForReturn(): Promise<{ type: string; score: number } | null> {
-  const since = new Date();
-  since.setDate(since.getDate() - 7);
-  const sinceDate = since.toISOString().split('T')[0];
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
 
-  const { data, error } = await supabase
-    .from('chat_signal_daily_agg')
-    .select('signal_type, score')
-    .gte('signal_date', sinceDate);
+    const { data } = await supabase
+      .from('chat_signal_daily_agg')
+      .select('signal_type, score')
+      .gte('signal_date', sevenDaysAgo);
 
-  if (error || !data || data.length === 0) return null;
+    if (!data?.length) return null;
 
-  const totals: Record<string, number> = {};
-  for (const row of data) {
-    totals[row.signal_type] = (totals[row.signal_type] ?? 0) + Number(row.score ?? 0);
+    const totals: Record<string, number> = {};
+    for (const row of data) {
+      totals[row.signal_type as string] =
+        (totals[row.signal_type as string] ?? 0) + (Number(row.score) || 0);
+    }
+
+    const sorted = Object.entries(totals).sort(([, a], [, b]) => b - a);
+    const [dominantType, dominantScore] = sorted[0] ?? [];
+
+    if (!dominantType || dominantScore < 2) return null;
+    return { type: dominantType, score: dominantScore };
+  } catch {
+    return null;
   }
-
-  const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
-  if (entries.length === 0) return null;
-
-  const [type, score] = entries[0];
-  if (score < 2) return null;
-
-  return { type, score };
 }
 
-/**
- * Builds a soft return greeting that acknowledges the user's dominant emotional signal
- * from their previous chat sessions.
- */
-export function buildReturnGreetingWithSignal(name: string | null, signalType: string): string {
+export function buildReturnGreetingWithSignal(
+  name: string | null,
+  signalType: string,
+): string {
+  const greeting = name ? `Hola ${name} 🌷` : 'Hola 🌷';
   const lines = EARLY_RETURN_SIGNAL_LINES[signalType];
-  const signalLine = lines ? pickVariant(lines) : null;
-
-  if (!signalLine) {
-    return buildContextualGreeting(null, name);
-  }
-
-  const nameStr = name ? ` ${name}` : '';
-  return `Hola${nameStr} 🌷\n\n${signalLine}\n\n¿Cómo te sientes hoy?`;
-}
-
-/**
- * Returns the encrypted value of the user's first session topic memory, or null if not set.
- */
-export async function getFirstSessionTopicEnc(userId: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('user_memory')
-    .select('value_enc')
-    .eq('user_id', userId)
-    .eq('key', 'first_session_topic')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) return null;
-  return data.value_enc ?? null;
-}
-
-/**
- * Builds a return greeting that references a topic from the user's first session.
- */
-export function buildReturnGreetingWithMemory(name: string | null, topic: string): string {
-  return pickVariant(RETURN_WITH_MEMORY_VARIANTS)(name, topic);
+  if (!lines?.length) return buildContextualGreeting(null, name);
+  const line = pickRandom(lines);
+  return `${greeting}\n\n${line}\n\n¿Cómo llega este momento?`;
 }
