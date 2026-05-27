@@ -994,7 +994,6 @@ export function ChatPage() {
       const userMsgCount = messages.filter(m => m.sender === 'user').length + 1; // +1 for current
       console.log('[chat] Topic save check:', { userMsgCount, isFirstEverMessage });
       if (userMsgCount >= 3) {
-        // isFirstEverMessage was set to false on Turn 1. By Turn 3+, we have enough context.
         // Check if we already saved a topic (avoid duplicate saves)
         try {
           const existingTopic = await supabase
