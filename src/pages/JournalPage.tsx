@@ -853,6 +853,7 @@ export function JournalPage() {
           };
           setIsDraftEntry(false);
           setSelectedEntry(updated);
+          if (finalizingDraft) setTab('entries');
           await loadEntries();
           queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
           if (canPlay('journal-saved')) audioManager.play('journal-saved');
