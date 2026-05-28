@@ -28,20 +28,25 @@ export function DiaryDraftSuggestion({
     return () => window.clearTimeout(id);
   }, [onMounted]);
 
+  const isFirstSession = reason === 'first_session';
   const isHeavy = reason?.startsWith('heaviness');
   const isRepetition = reason?.startsWith('repetition');
 
-  const label = isHeavy
-    ? 'Para darte un poco más de espacio'
-    : isRepetition
-      ? 'Algo que sigue presente'
-      : 'Para seguir pensando';
+  const label = isFirstSession
+    ? 'Lo que compartiste tiene peso'
+    : isHeavy
+      ? 'Para darte un poco más de espacio'
+      : isRepetition
+        ? 'Algo que sigue presente'
+        : 'Para seguir pensando';
 
-  const body = isHeavy
-    ? 'A veces ayuda escribir esto cuando ya no hay que explicarlo — solo seguir pensando con más calma.'
-    : isRepetition
-      ? 'Esto sigue apareciendo en la conversación. Escribirlo podría ayudarte a verlo con más claridad.'
-      : 'Si quieres, puedes escribir esto con más calma en tu diario. No tiene que estar ordenado.';
+  const body = isFirstSession
+    ? 'Si quieres, puedo guardarte una nota con lo esencial — para que mañana puedas volver a ello con más claridad.'
+    : isHeavy
+      ? 'A veces ayuda escribir esto cuando ya no hay que explicarlo — solo seguir pensando con más calma.'
+      : isRepetition
+        ? 'Esto sigue apareciendo en la conversación. Escribirlo podría ayudarte a verlo con más claridad.'
+        : 'Si quieres, puedes escribir esto con más calma en tu diario. No tiene que estar ordenado.';
 
   const handleCreate = async () => {
     setIsCreating(true);
