@@ -128,6 +128,7 @@ export function ChatPage() {
   const lastMoodUpdateAtRef = useRef<number>(0);
   const impressionTrackedRef = useRef<Record<string, true>>({});
   const welcomeInsertingRef = useRef<Set<string>>(new Set());
+  const suppressLoadRef = useRef(false);
 
   const stanceLockRef = useRef<StanceLock | null>(null);
   const boundaryAttemptsByThreadRef = useRef<Record<string, number>>({});
@@ -305,6 +306,7 @@ export function ChatPage() {
   }, [threads]);
 
   useEffect(() => {
+    if (suppressLoadRef.current) { suppressLoadRef.current = false; return; }
     if (currentThreadId && profile) loadMessages(currentThreadId);
   }, [currentThreadId, profile?.id]);
 
@@ -1818,15 +1820,11 @@ export function ChatPage() {
                     key={s}
                     onClick={async () => {
                       if (!currentThreadId) {
+                        suppressLoadRef.current = true;
                         const newThreadId = await createNewThread({ skipWelcome: true });
-                        if (!newThreadId) return;
-                        // Let loadMessages from thread creation settle before sending
-                        await new Promise(r => setTimeout(r, 200));
+                        if (!newThreadId) { suppressLoadRef.current = false; return; }
                         await handleSendMessage(s, newThreadId, null);
                       } else {
-                        setInputMessage(s);
-                        // Wait one tick for React state to commit, then send
-                        await new Promise(r => setTimeout(r, 50));
                         await handleSendMessage(s);
                       }
                     }}
