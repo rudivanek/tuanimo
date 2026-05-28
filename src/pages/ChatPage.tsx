@@ -9,8 +9,8 @@ import { useProfile } from '../hooks/useProfile';
 import { sendChatMessage, getUserMemories, saveUserMemory, TokenLimitError, type DevFlags } from '../lib/api';
 import { DevPanel } from '../components/DevPanel';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
-import { Send, MessageCircle, Trash2, GripVertical, ArrowLeft, Plus, Lock, Pencil, Check, X, Download, ChevronDown, BookOpen } from 'lucide-react';
-import { type Tone, TONE_LABELS, selectTone, getPreferredGreetingName } from '../lib/welcomeMessages';
+import { Send, MessageCircle, Trash2, GripVertical, ArrowLeft, Plus, Lock, Pencil, Check, X, Download, BookOpen } from 'lucide-react';
+import { getPreferredGreetingName } from '../lib/welcomeMessages';
 import { getLastUserChatTimestamp, buildContextualGreeting, getInsightSnippetForReturn, buildReturnGreetingWithInsight, getChatSignalForReturn, buildReturnGreetingWithSignal, getFirstSessionTopicEnc, buildReturnGreetingWithMemory } from '../lib/contextualGreeting';
 import { FollowUpBox } from '../components/FollowUpBox';
 import { DiaryDraftSuggestion } from '../components/DiaryDraftSuggestion';
@@ -112,8 +112,6 @@ export function ChatPage() {
   const [editingInHeader, setEditingInHeader] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
-  const [selectedTone, setSelectedTone] = useState<Tone>(selectTone());
-  const [showToneMenu, setShowToneMenu] = useState(false);
   const [pendingChip, setPendingChip] = useState<MessageChipMeta | null>(null);
   const [_currentMood, setCurrentMood] = useState<MoodState>({
     mood: 'neutral',
@@ -443,7 +441,7 @@ export function ChatPage() {
           sender: 'counselor',
           content_enc: encryptedText,
           enc_version: 2,
-          meta: { kind: 'welcome', tone: selectedTone },
+          meta: { kind: 'welcome' },
         })
         .select()
         .single();
@@ -1804,20 +1802,17 @@ export function ChatPage() {
             />
           )}
           {showFirstTimeWelcome && (
-            <div className="py-8 text-center">
-              <p className="text-[17px] font-semibold text-app-text mb-2 leading-snug">
-                Estoy aquí para escucharte.
-              </p>
-              <p className="text-sm text-app-muted leading-relaxed mb-6 max-w-xs mx-auto">
-                Puedes escribir lo que tengas en mente. No necesitas explicarlo perfecto.
+            <div className="py-6 px-2">
+              <p className="text-sm text-app-muted text-center leading-relaxed mb-5">
+                No necesitas explicarlo perfecto. Elige lo que más se acerque, o escribe directamente.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {[
-                  'Hoy me sentí…',
-                  'Algo que no me puedo sacar de la cabeza es…',
-                  'Últimamente me está pesando…',
-                  'No sé por qué, pero me siento…',
-                  'Hay algo que me preocupa y es…',
+                  'Estoy pasando por algo difícil',
+                  'Hay algo que no he hablado con nadie',
+                  'No sé bien qué me pasa',
+                  'Quiero entenderme mejor',
+                  'Hay una decisión que no puedo tomar',
                 ].map(s => (
                   <button
                     key={s}
@@ -1825,16 +1820,12 @@ export function ChatPage() {
                       if (!currentThreadId) {
                         const newThreadId = await createNewThread({ skipWelcome: true });
                         if (!newThreadId) return;
+                        await handleSendMessage(s, newThreadId, null);
+                      } else {
+                        await handleSendMessage(s);
                       }
-                      setInputMessage(s);
-                      setTimeout(() => {
-                        const el = chatInputRef.current;
-                        if (!el) return;
-                        el.focus();
-                        el.setSelectionRange(el.value.length, el.value.length);
-                      }, 0);
                     }}
-                    className="px-3.5 py-2 text-sm text-app-muted border border-app-border rounded-12 bg-app-surface hover:border-sage-strong/40 hover:text-app-text transition-colors"
+                    className="px-3.5 py-2.5 text-sm text-app-text border border-app-border rounded-12 bg-app-surface hover:border-sage-strong/40 hover:bg-sage-soft/30 transition-colors min-h-[44px]"
                   >
                     {s}
                   </button>
@@ -1883,36 +1874,6 @@ export function ChatPage() {
               Tus conversaciones ayudan a Elena a detectar patrones con el tiempo.
             </p>
           )}
-          <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-[11px] text-app-muted font-medium">Tono:</span>
-            <div className="relative">
-              <button
-                onClick={() => setShowToneMenu(v => !v)}
-                onBlur={() => setTimeout(() => setShowToneMenu(false), 150)}
-                className="flex items-center gap-1 text-[11px] text-app-muted hover:text-app-text bg-app-bg border border-app-border rounded-lg px-2 py-0.5 transition-colors"
-              >
-                {TONE_LABELS[selectedTone]}
-                <ChevronDown size={10} />
-              </button>
-              {showToneMenu && (
-                <div className="absolute bottom-full mb-1 left-0 bg-app-surface border border-app-border rounded-xl shadow-lg overflow-hidden z-20 min-w-[110px]">
-                  {(Object.keys(TONE_LABELS) as Tone[]).map(tone => (
-                    <button
-                      key={tone}
-                      onMouseDown={() => { setSelectedTone(tone); setShowToneMenu(false); }}
-                      className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors ${
-                        selectedTone === tone
-                          ? 'bg-sage-soft text-sage-strong font-medium'
-                          : 'text-app-text hover:bg-app-surface-2'
-                      }`}
-                    >
-                      {TONE_LABELS[tone]}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
           <div className="flex gap-2 items-end">
             <textarea
               ref={chatInputRef}
