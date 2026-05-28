@@ -47,7 +47,7 @@ export function SuggestionChips({ chips, onSelect, source, isAdaptive = false, t
               hover:bg-sage/20 hover:border-sage-strong/40
               active:scale-95
               transition-all duration-150 ease-out
-              min-h-[36px] leading-tight text-left
+              min-h-[44px] leading-tight text-left
               opacity-0 animate-fade-in
             "
             style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'forwards' }}
