@@ -835,7 +835,10 @@ export function ChatPage() {
     setIsSending(true);
     if (!overrideMessage) {
       setInputMessage('');
-      if (chatInputRef.current) chatInputRef.current.style.height = 'auto';
+      if (chatInputRef.current) {
+        chatInputRef.current.style.height = '40px';
+        chatInputRef.current.style.overflowY = 'hidden';
+      }
     }
 
     setMessages(prev => {
@@ -1918,8 +1921,11 @@ export function ChatPage() {
               onChange={(e) => {
                 setInputMessage(e.target.value);
                 if (!e.target.value) setPendingChip(null);
-                e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                e.target.style.height = '40px';
+                const sh = e.target.scrollHeight;
+                const h = Math.min(sh, 120);
+                e.target.style.height = h + 'px';
+                e.target.style.overflowY = sh > 120 ? 'auto' : 'hidden';
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -1929,8 +1935,8 @@ export function ChatPage() {
               }}
               placeholder={isTokenExhausted ? (tokenExhaustReason === 'MONTHLY_LIMIT_REACHED' ? 'Elena volverá el próximo mes…' : 'Elena volverá mañana…') : 'Cuéntame lo que sientes o lo que tienes en mente…'}
               disabled={isSending || !currentThreadId || !!tokenLimitError || isTokenExhausted || !profile}
-              className={`flex-1 min-w-0 rounded-12 border border-app-border px-4 py-2.5 text-sm text-app-text placeholder:text-app-muted bg-app-surface focus:outline-none disabled:bg-app-surface-2 disabled:text-app-muted transition resize-none${isTokenExhausted ? ' opacity-70 cursor-not-allowed' : ''}`}
-              style={{ boxShadow: 'none' }}
+              className={`flex-1 min-w-0 rounded-12 border border-app-border px-4 py-2.5 text-sm text-app-text placeholder:text-app-muted bg-app-surface focus:outline-none disabled:bg-app-surface-2 disabled:text-app-muted transition resize-none overflow-hidden${isTokenExhausted ? ' opacity-70 cursor-not-allowed' : ''}`}
+              style={{ boxShadow: 'none', height: '40px' }}
               onFocus={(e) => { if (!isTokenExhausted) e.currentTarget.style.boxShadow = '0 0 0 3px var(--focus)'; }}
               onBlur={(e) => e.currentTarget.style.boxShadow = 'none'}
             />
