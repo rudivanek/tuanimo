@@ -139,6 +139,7 @@ export function ChatPage() {
   const [alreadyDismissed, setAlreadyDismissed] = useState(false);
   const [inlineToast, setInlineToast] = useState<string | null>(null);
   const [isFirstTimeUser, setIsFirstTimeUser] = useState<boolean | null>(null);
+  const [firstSessionTopicJustSaved, setFirstSessionTopicJustSaved] = useState(false);
   const inlineToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   interface LinkedEntry { id: string; title: string | null; is_draft: boolean; saved_at: string | null; }
@@ -1032,6 +1033,7 @@ export function ChatPage() {
             if (topicSummary.length > 5) {
               const encryptedTopic = await encryptForUser(topicSummary, profile);
               await saveUserMemory('first_session_topic', encryptedTopic);
+              setFirstSessionTopicJustSaved(true);
               console.log('[chat] First session topic saved:', topicSummary);
             }
           }
@@ -1240,7 +1242,7 @@ export function ChatPage() {
     !!latestCounselorMsg &&
     userMsgCount >= 3 &&
     crisisLvl < 2 &&
-    diarySuggEval.shouldSuggest &&
+    (diarySuggEval.shouldSuggest || firstSessionTopicJustSaved) &&
     !blockedByCooldown &&
     !isLinkedEntryLoading &&
     !linkedEntry;
@@ -1793,7 +1795,7 @@ export function ChatPage() {
             <DiaryDraftSuggestion
               onCreateDraft={handleCreateDiaryDraft}
               onDismiss={handleDismissDiarySuggestion}
-              reason={diarySuggEval.reason}
+              reason={firstSessionTopicJustSaved ? 'first_session' : diarySuggEval.reason}
               disabled={!currentThreadId}
               onMounted={handleDiarySuggestionMounted}
             />
