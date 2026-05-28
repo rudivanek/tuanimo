@@ -1186,6 +1186,21 @@ export function JournalPage() {
                   <Download size={16} />
                 </button>
               )}
+              {!isTokenExhausted ? (
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || !content.trim() || justSaved}
+                  className={`flex-shrink-0 rounded-10 px-3 py-1.5 transition-colors flex items-center gap-1.5 text-[13px] font-medium ${justSaved ? 'bg-emerald-600 text-white' : 'bg-sage-strong text-white hover:bg-[#4e7260] disabled:opacity-40 disabled:cursor-not-allowed'}`}
+                >
+                  {justSaved ? <Check size={13} /> : <BookOpen size={13} />}
+                  <span>{isSaving ? '...' : justSaved ? '¡Guardado!' : 'Guardar'}</span>
+                </button>
+              ) : (
+                <div className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-10 border border-app-border text-app-muted text-[13px] bg-app-surface-2 cursor-not-allowed select-none">
+                  <Lock size={12} />
+                  <span>Solo lectura</span>
+                </div>
+              )}
             </div>
 
             {/* Read-only persistent banner */}
@@ -1402,6 +1417,27 @@ export function JournalPage() {
                 placeholder="Escribe aquí tus pensamientos..."
                 className={`w-full h-full min-h-[300px] focus:outline-none resize-none text-[15px] text-app-text placeholder:text-app-muted leading-relaxed bg-transparent ${isTokenExhausted ? 'cursor-default select-text' : ''}`}
               />
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-app-border/50">
+                <Tag size={13} className="text-app-muted/60 flex-shrink-0" />
+                <input
+                  type="text"
+                  value={tags}
+                  onChange={isTokenExhausted ? undefined : (e) => setTags(e.target.value)}
+                  readOnly={isTokenExhausted}
+                  placeholder="Etiquetas (separadas por comas)"
+                  className={`flex-1 min-w-0 text-[13px] text-app-muted placeholder:text-app-muted/50 focus:outline-none bg-transparent ${isTokenExhausted ? 'cursor-default select-text' : ''}`}
+                />
+                {isNewEntry && prompts.length === 0 && !isTokenExhausted && (
+                  <button
+                    onClick={loadPrompts}
+                    disabled={isLoadingPrompts || !!tokenLimitError}
+                    title={tokenLimitError ? 'Límite de tokens alcanzado' : 'Obtener ideas'}
+                    className="flex-shrink-0 p-1.5 rounded-lg text-app-muted/60 hover:text-app-muted hover:bg-app-surface-2 transition-colors disabled:opacity-40"
+                  >
+                    <Sparkles size={13} />
+                  </button>
+                )}
+              </div>
               {!evidenceEnough && (
                 <p className="mt-3 text-[11px] text-app-muted/50 text-center leading-relaxed">
                   Cada entrada ayuda a Elena a reconocer patrones con el tiempo.
@@ -1447,48 +1483,6 @@ export function JournalPage() {
               </div>
             )}
 
-            {/* Bottom composer */}
-            <div className="bg-app-surface border-t border-app-border px-4 py-3 flex-shrink-0">
-              <div className="flex gap-2 items-center">
-                <Tag size={15} className="text-app-muted flex-shrink-0" />
-                <input
-                  type="text"
-                  value={tags}
-                  onChange={isTokenExhausted ? undefined : (e) => setTags(e.target.value)}
-                  readOnly={isTokenExhausted}
-                  placeholder="Etiquetas (separadas por comas)"
-                  className={`flex-1 min-w-0 rounded-12 border border-app-border px-4 py-2.5 text-sm text-app-text placeholder:text-app-muted focus:outline-none transition ${isTokenExhausted ? 'bg-app-surface-2 cursor-default' : 'bg-app-surface'}`}
-                  style={{ boxShadow: 'none' }}
-                  onFocus={isTokenExhausted ? undefined : (e) => e.currentTarget.style.boxShadow = '0 0 0 3px var(--focus)'}
-                  onBlur={isTokenExhausted ? undefined : (e) => e.currentTarget.style.boxShadow = 'none'}
-                />
-                {isNewEntry && prompts.length === 0 && !isTokenExhausted && (
-                  <button
-                    onClick={loadPrompts}
-                    disabled={isLoadingPrompts || !!tokenLimitError}
-                    title={tokenLimitError ? 'Límite de tokens alcanzado' : 'Obtener ideas'}
-                    className="flex-shrink-0 p-2.5 border border-app-border rounded-12 text-app-muted hover:bg-app-surface-2 transition-colors disabled:opacity-40"
-                  >
-                    <Sparkles size={15} />
-                  </button>
-                )}
-                {!isTokenExhausted ? (
-                  <button
-                    onClick={handleSave}
-                    disabled={isSaving || !content.trim() || justSaved}
-                    className={`flex-shrink-0 rounded-12 px-4 py-2.5 transition-colors flex items-center gap-1.5 text-sm font-medium ${justSaved ? 'bg-emerald-600 text-white' : 'bg-sage-strong text-white hover:bg-[#4e7260] disabled:opacity-40 disabled:cursor-not-allowed'}`}
-                  >
-                    {justSaved ? <Check size={15} /> : <BookOpen size={15} />}
-                    <span>{isSaving ? 'Guardando...' : justSaved ? '¡Guardado!' : 'Guardar'}</span>
-                  </button>
-                ) : (
-                  <div className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-12 border border-app-border text-app-muted text-sm bg-app-surface-2 cursor-not-allowed select-none">
-                    <Lock size={14} />
-                    <span>Solo lectura</span>
-                  </div>
-                )}
-              </div>
-            </div>
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center">
