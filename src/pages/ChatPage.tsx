@@ -126,7 +126,7 @@ export function ChatPage() {
   const editInputRef = useRef<HTMLInputElement>(null);
   const headerEditInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const lastMoodUpdateAtRef = useRef<number>(0);
   const impressionTrackedRef = useRef<Record<string, true>>({});
   const welcomeInsertingRef = useRef<Set<string>>(new Set());
@@ -833,7 +833,10 @@ export function ChatPage() {
     const isFirstEverMessage = isFirstTimeUser === true;
     if (isFirstTimeUser) setIsFirstTimeUser(false);
     setIsSending(true);
-    if (!overrideMessage) setInputMessage('');
+    if (!overrideMessage) {
+      setInputMessage('');
+      if (chatInputRef.current) chatInputRef.current.style.height = 'auto';
+    }
 
     setMessages(prev => {
       const updated = [...prev];
@@ -1662,7 +1665,7 @@ export function ChatPage() {
           />
         )}
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-app-bg">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-app-bg overscroll-y-contain">
           {isLoading ? (
             <div className="text-center text-app-muted py-8 text-sm">Cargando mensajes...</div>
           ) : messages.length === 0 ? (
@@ -1908,15 +1911,25 @@ export function ChatPage() {
             </div>
           </div>
           <div className="flex gap-2 items-end">
-            <input
+            <textarea
               ref={chatInputRef}
-              type="text"
+              rows={1}
               value={inputMessage}
-              onChange={(e) => { setInputMessage(e.target.value); if (!e.target.value) setPendingChip(null); }}
-              onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+              onChange={(e) => {
+                setInputMessage(e.target.value);
+                if (!e.target.value) setPendingChip(null);
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
               placeholder={isTokenExhausted ? (tokenExhaustReason === 'MONTHLY_LIMIT_REACHED' ? 'Elena volverá el próximo mes…' : 'Elena volverá mañana…') : 'Cuéntame lo que sientes o lo que tienes en mente…'}
               disabled={isSending || !currentThreadId || !!tokenLimitError || isTokenExhausted || !profile}
-              className={`flex-1 min-w-0 rounded-12 border border-app-border px-4 py-2.5 text-sm text-app-text placeholder:text-app-muted bg-app-surface focus:outline-none disabled:bg-app-surface-2 disabled:text-app-muted transition${isTokenExhausted ? ' opacity-70 cursor-not-allowed' : ''}`}
+              className={`flex-1 min-w-0 rounded-12 border border-app-border px-4 py-2.5 text-sm text-app-text placeholder:text-app-muted bg-app-surface focus:outline-none disabled:bg-app-surface-2 disabled:text-app-muted transition resize-none${isTokenExhausted ? ' opacity-70 cursor-not-allowed' : ''}`}
               style={{ boxShadow: 'none' }}
               onFocus={(e) => { if (!isTokenExhausted) e.currentTarget.style.boxShadow = '0 0 0 3px var(--focus)'; }}
               onBlur={(e) => e.currentTarget.style.boxShadow = 'none'}
