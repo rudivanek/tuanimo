@@ -34,6 +34,7 @@ interface ChatRequest {
 }
 
 const BANNED_LABEL_WORDS: string[] = [
+  // Clinical/abstract feeling labels
   "confusión", "confusion",
   "desorientación", "desorientacion",
   "ansiedad",
@@ -43,6 +44,30 @@ const BANNED_LABEL_WORDS: string[] = [
   "agotamiento",
   "bloqueo emocional",
   "estado emocional",
+  // Generic validation phrases
+  "a veces",
+  "es comprensible",
+  "es normal sentir",
+  "es normal que",
+  "es natural que",
+  "es natural sentir",
+  "puede ser difícil",
+  "puede ser dificil",
+  "puede ser pesado",
+  "sentirse así",
+  // General emotion explanations
+  "las emociones pueden",
+  "cuando las personas",
+  "el estrés suele",
+  "el estres suele",
+  "esos momentos pueden",
+  // Forbidden pivot phrases
+  "sin embargo",
+  "en lugar de eso",
+  "aunque no puedo",
+  "lamentablemente no puedo",
+  "no puedo ayudarte con eso",
+  "no puedo ofrecer",
 ];
 
 function containsBannedLabel(text: string): boolean {
