@@ -11,7 +11,7 @@ import { getJournalPrompts, TokenLimitError, generateAIReflectionPrompt } from '
 import { extractLanguageSignals } from '../lib/languageSignals';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { detectTopicRepetition } from '../lib/diaryDraft';
-import { BookOpen, Plus, Sparkles, Calendar, Tag, Trash2, GripVertical, ArrowLeft, Lock, Download, MessageCircle, X, ChevronRight } from 'lucide-react';
+import { BookOpen, Plus, Sparkles, Calendar, Tag, Trash2, GripVertical, ArrowLeft, Lock, Download, MessageCircle, X, ChevronRight, Check } from 'lucide-react';
 import { useLatestInsightAt } from '../hooks/useLatestInsightAt';
 import { hasNewInsightsSinceLastView } from '../lib/insightVisibility';
 import { ExportModal } from '../components/ExportModal';
@@ -1474,11 +1474,11 @@ export function JournalPage() {
                 {!isTokenExhausted ? (
                   <button
                     onClick={handleSave}
-                    disabled={isSaving || !content.trim()}
-                    className="flex-shrink-0 bg-sage-strong text-white rounded-12 px-4 py-2.5 hover:bg-[#4e7260] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 text-sm font-medium"
+                    disabled={isSaving || !content.trim() || justSaved}
+                    className={`flex-shrink-0 rounded-12 px-4 py-2.5 transition-colors flex items-center gap-1.5 text-sm font-medium ${justSaved ? 'bg-emerald-600 text-white' : 'bg-sage-strong text-white hover:bg-[#4e7260] disabled:opacity-40 disabled:cursor-not-allowed'}`}
                   >
-                    <BookOpen size={15} />
-                    <span>{isSaving ? 'Guardando...' : 'Guardar'}</span>
+                    {justSaved ? <Check size={15} /> : <BookOpen size={15} />}
+                    <span>{isSaving ? 'Guardando...' : justSaved ? '¡Guardado!' : 'Guardar'}</span>
                   </button>
                 ) : (
                   <div className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-12 border border-app-border text-app-muted text-sm bg-app-surface-2 cursor-not-allowed select-none">
