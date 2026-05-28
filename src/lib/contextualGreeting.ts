@@ -1,9 +1,7 @@
 import { supabase } from './supabaseClient';
 
 const FIRST_TIME: string[] = [
-  'Hola {name} 🌷\n\n¿Cómo llega este momento — tranquilo, algo pesado, o todavía no sabes bien?',
-  'Hola {name} 🌷\n\n¿Cómo estás llegando a este momento? No tiene que ser algo grande — lo que sea que traes cuenta.',
-  'Hola {name} 🌷\n\nAntes de todo: ¿cómo se siente este momento por dentro?',
+  'Hola {name}, soy Elena 🌷',
 ];
 
 // ── Return greetings that reference what the user shared in their first session ──
