@@ -1669,7 +1669,7 @@ export function ChatPage() {
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-app-bg overscroll-y-contain">
           {isLoading ? (
             <div className="text-center text-app-muted py-8 text-sm">Cargando mensajes...</div>
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && !showFirstTimeWelcome ? (
             <div className="text-center py-12">
               <MessageCircle size={44} className="mx-auto mb-4 text-sage-soft" />
               <p className="text-app-text font-medium">Comienza una conversación con Elena</p>
@@ -1820,8 +1820,13 @@ export function ChatPage() {
                       if (!currentThreadId) {
                         const newThreadId = await createNewThread({ skipWelcome: true });
                         if (!newThreadId) return;
+                        // Let loadMessages from thread creation settle before sending
+                        await new Promise(r => setTimeout(r, 200));
                         await handleSendMessage(s, newThreadId, null);
                       } else {
+                        setInputMessage(s);
+                        // Wait one tick for React state to commit, then send
+                        await new Promise(r => setTimeout(r, 50));
                         await handleSendMessage(s);
                       }
                     }}
