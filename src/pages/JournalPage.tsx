@@ -1478,12 +1478,12 @@ export function JournalPage() {
                     className="flex-shrink-0 bg-sage-strong text-white rounded-12 px-4 py-2.5 hover:bg-[#4e7260] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 text-sm font-medium"
                   >
                     <BookOpen size={15} />
-                    <span className="hidden sm:inline">{isSaving ? 'Guardando...' : 'Guardar'}</span>
+                    <span>{isSaving ? 'Guardando...' : 'Guardar'}</span>
                   </button>
                 ) : (
                   <div className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-12 border border-app-border text-app-muted text-sm bg-app-surface-2 cursor-not-allowed select-none">
                     <Lock size={14} />
-                    <span className="hidden sm:inline">Solo lectura</span>
+                    <span>Solo lectura</span>
                   </div>
                 )}
               </div>
