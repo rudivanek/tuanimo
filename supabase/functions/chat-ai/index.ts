@@ -1154,19 +1154,11 @@ Deno.serve(async (req: Request) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const jwt = authHeader.replace("Bearer ", "");
-    let userId: string;
-    try {
-      const b64 = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-      const payload = JSON.parse(atob(b64));
-      userId = payload.sub;
-      if (!userId) throw new Error("no sub");
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp && payload.exp < now) throw new Error("expired");
-    } catch {
+    const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !authUser) {
       throw new Error("Unauthorized: Invalid or expired token");
     }
-    const user = { id: userId };
+    const user = { id: authUser.id };
 
     // ── Enforce BEFORE calling AI ──────────────────────────────────────────────
     const budgetResponse = await enforceBudget(user.id);
