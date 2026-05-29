@@ -7,7 +7,6 @@ import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
 import { Layout } from './components/Layout';
 
-// Lazy-loaded pages — only downloaded when the user navigates to them
 const JournalPage = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
 const InsightsPage = lazy(() => import('./pages/InsightsPage').then(m => ({ default: m.InsightsPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
@@ -36,10 +35,8 @@ function PageLoader() {
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, loading } = useAuth();
-
   if (loading) return <LoadingScreen />;
   if (!user) return <Redirect to="/login" />;
-
   return (
     <Layout>
       <Suspense fallback={<PageLoader />}>
@@ -52,11 +49,9 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, loading } = useAuth();
   const { data: isAdmin, isLoading: adminLoading } = useAdmin();
-
   if (loading || adminLoading) return <LoadingScreen />;
   if (!user) return <Redirect to="/login" />;
-  if (!isAdmin) return <Redirect to="/app/chat" />;
-
+  if (!isAdmin) return <Redirect to="/chat" />;
   return (
     <Layout>
       <Suspense fallback={<PageLoader />}>
@@ -76,39 +71,34 @@ const TokenCostsRoute = () => <AdminRoute component={TokenCostsPage} />;
 const AdminUsersRoute = () => <AdminRoute component={AdminUsersPage} />;
 const CrisisEventsRoute = () => <AdminRoute component={CrisisEventsPage} />;
 const PlanLimitsRoute = () => <AdminRoute component={PlanLimitsPage} />;
-const RedirectToAppChat = () => <Redirect to="/app/chat" />;
 
 function HomeRoute() {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
-  if (user) return <Redirect to="/app/chat" />;
+  if (user) return <Redirect to="/chat" />;
   return <LandingPage />;
 }
 
 function App() {
   const { user, loading } = useAuth();
-
   if (loading) return <LoadingScreen />;
 
   return (
     <Switch>
       <Route path="/" component={HomeRoute} />
       <Route path="/login" component={LoginPage} />
-
-      <Route path="/app" component={RedirectToAppChat} />
-      <Route path="/app/chat" component={ChatRoute} />
-      <Route path="/app/journal" component={JournalRoute} />
-      <Route path="/app/insights" component={InsightsRoute} />
-      <Route path="/app/settings" component={SettingsRoute} />
-      <Route path="/app/admin" component={AdminPageRoute} />
-      <Route path="/app/admin/token-usage" component={TokenUsageRoute} />
-      <Route path="/app/admin/token-costs" component={TokenCostsRoute} />
-      <Route path="/app/admin/users" component={AdminUsersRoute} />
-      <Route path="/app/admin/crisis-events" component={CrisisEventsRoute} />
-      <Route path="/app/admin/plan-limits" component={PlanLimitsRoute} />
-
+      <Route path="/chat" component={ChatRoute} />
+      <Route path="/journal" component={JournalRoute} />
+      <Route path="/insights" component={InsightsRoute} />
+      <Route path="/settings" component={SettingsRoute} />
+      <Route path="/admin" component={AdminPageRoute} />
+      <Route path="/admin/token-usage" component={TokenUsageRoute} />
+      <Route path="/admin/token-costs" component={TokenCostsRoute} />
+      <Route path="/admin/users" component={AdminUsersRoute} />
+      <Route path="/admin/crisis-events" component={CrisisEventsRoute} />
+      <Route path="/admin/plan-limits" component={PlanLimitsRoute} />
       <Route>
-        {user ? <Redirect to="/app/chat" /> : <Redirect to="/" />}
+        {user ? <Redirect to="/chat" /> : <Redirect to="/" />}
       </Route>
     </Switch>
   );
