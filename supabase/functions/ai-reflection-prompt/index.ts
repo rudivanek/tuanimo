@@ -29,11 +29,16 @@ function getServiceClient() {
   );
 }
 
-function getUserIdFromJwt(authHeader: string): string | null {
+async function getVerifiedUserId(authHeader: string): Promise<string | null> {
   try {
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
-    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return payload.sub ?? null;
+    const client = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user }, error } = await client.auth.getUser();
+    if (error || !user) return null;
+    return user.id;
   } catch {
     return null;
   }
@@ -132,7 +137,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const userId = getUserIdFromJwt(authHeader);
+    const userId = await getVerifiedUserId(authHeader);
     if (!userId) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
