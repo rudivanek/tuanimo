@@ -31,14 +31,14 @@ export function Layout({ children }: LayoutProps) {
   });
 
   const navItems = [
-    { path: '/app/chat', icon: MessageCircle, label: 'Chat' },
-    { path: '/app/journal', icon: BookOpen, label: 'Diario' },
-    { path: '/app/insights', icon: BarChart3, label: 'Insights' },
-    { path: '/app/settings', icon: Settings, label: 'Ajustes' },
+    { path: '/chat', icon: MessageCircle, label: 'Chat' },
+    { path: '/journal', icon: BookOpen, label: 'Diario' },
+    { path: '/insights', icon: BarChart3, label: 'Insights' },
+    { path: '/settings', icon: Settings, label: 'Ajustes' },
   ];
 
   if (isAdmin) {
-    navItems.push({ path: '/app/admin', icon: Shield, label: 'Admin' });
+    navItems.push({ path: '/admin', icon: Shield, label: 'Admin' });
   }
 
   return (
@@ -71,7 +71,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="mx-auto max-w-[620px] bg-app-surface border border-app-border rounded-full shadow-sm px-3 py-2 flex items-center justify-between gap-2">
           {navItems.map(({ path, icon: Icon, label }) => {
             const active = location === path;
-            const showDot = path === '/app/insights' && badgeVisible && !active;
+            const showDot = path === '/insights' && badgeVisible && !active;
             return (
               <Link
                 key={path}
