@@ -1,19 +1,22 @@
+import { lazy, Suspense } from 'react';
 import { Route, Switch, Redirect } from 'wouter';
 import { useAuth } from './contexts/AuthContext';
 import { useAdmin } from './hooks/useAdmin';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
-import { JournalPage } from './pages/JournalPage';
-import { InsightsPage } from './pages/InsightsPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { AdminPage } from './pages/AdminPage';
-import { TokenUsagePage } from './pages/admin/TokenUsagePage';
-import { TokenCostsPage } from './pages/admin/TokenCostsPage';
-import { AdminUsersPage } from './pages/admin/AdminUsersPage';
-import { CrisisEventsPage } from './pages/admin/CrisisEventsPage';
-import { PlanLimitsPage } from './pages/admin/PlanLimitsPage';
 import { Layout } from './components/Layout';
+
+// Lazy-loaded pages — only downloaded when the user navigates to them
+const JournalPage = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
+const InsightsPage = lazy(() => import('./pages/InsightsPage').then(m => ({ default: m.InsightsPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
+const TokenUsagePage = lazy(() => import('./pages/admin/TokenUsagePage').then(m => ({ default: m.TokenUsagePage })));
+const TokenCostsPage = lazy(() => import('./pages/admin/TokenCostsPage').then(m => ({ default: m.TokenCostsPage })));
+const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })));
+const CrisisEventsPage = lazy(() => import('./pages/admin/CrisisEventsPage').then(m => ({ default: m.CrisisEventsPage })));
+const PlanLimitsPage = lazy(() => import('./pages/admin/PlanLimitsPage').then(m => ({ default: m.PlanLimitsPage })));
 
 function LoadingScreen() {
   return (
@@ -23,7 +26,15 @@ function LoadingScreen() {
   );
 }
 
-function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
+function PageLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center py-12">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+    </div>
+  );
+}
+
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, loading } = useAuth();
 
   if (loading) return <LoadingScreen />;
@@ -31,12 +42,14 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
 
   return (
     <Layout>
-      <Component />
+      <Suspense fallback={<PageLoader />}>
+        <Component />
+      </Suspense>
     </Layout>
   );
 }
 
-function AdminRoute({ component: Component }: { component: () => JSX.Element }) {
+function AdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, loading } = useAuth();
   const { data: isAdmin, isLoading: adminLoading } = useAdmin();
 
@@ -46,7 +59,9 @@ function AdminRoute({ component: Component }: { component: () => JSX.Element }) 
 
   return (
     <Layout>
-      <Component />
+      <Suspense fallback={<PageLoader />}>
+        <Component />
+      </Suspense>
     </Layout>
   );
 }
