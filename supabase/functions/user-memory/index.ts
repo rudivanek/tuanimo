@@ -27,19 +27,6 @@ Deno.serve(async (req: Request) => {
       throw new Error("Missing authorization header");
     }
 
-    const jwt = authHeader.replace("Bearer ", "");
-    let userId: string;
-    try {
-      const b64 = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-      const payload = JSON.parse(atob(b64));
-      userId = payload.sub;
-      if (!userId) throw new Error("no sub");
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp && payload.exp < now) throw new Error("expired");
-    } catch {
-      throw new Error("Unauthorized: Auth session missing!");
-    }
-
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -48,6 +35,13 @@ Deno.serve(async (req: Request) => {
           headers: { Authorization: authHeader },
         },
       }
+    );
+
+    const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !authUser) {
+      throw new Error("Unauthorized: Auth session missing!");
+    }
+    const userId = authUser.id;
     );
 
     const url = new URL(req.url);
