@@ -36,6 +36,8 @@ import {
   type PromptGroup,
 } from '../lib/starterPrompt';
 import { InsightActivationChip } from '../components/InsightActivationChip';
+import VoiceMemo from '../components/VoiceMemo';
+import '../components/VoiceMemo.css';
 import { useInsightActivation } from '../hooks/useInsightActivation';
 import {
   getReflectionCandidateForSession,
@@ -1416,6 +1418,13 @@ export function JournalPage() {
                 readOnly={isTokenExhausted}
                 placeholder="Escribe aquí tus pensamientos..."
                 className={`w-full h-full min-h-[300px] focus:outline-none resize-none text-[15px] text-app-text placeholder:text-app-muted leading-relaxed bg-transparent ${isTokenExhausted ? 'cursor-default select-text' : ''}`}
+              />
+              <VoiceMemo
+                context="journal"
+                supabaseClient={supabase}
+                onTranscript={(text: string) => {
+                  setContent(prev => prev ? prev + '\n\n' + text : text);
+                }}
               />
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-app-border/50">
                 <Tag size={13} className="text-app-muted/60 flex-shrink-0" />
