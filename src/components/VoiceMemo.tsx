@@ -90,6 +90,13 @@ export default function VoiceMemo({ context = 'chat', onTranscript, supabaseClie
       recorder.onstop = async () => {
         if (timerRef.current) clearInterval(timerRef.current);
         stream.getTracks().forEach((t) => t.stop());
+        const totalSize = audioChunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+        console.log('[VoiceMemo] chunks:', audioChunksRef.current.length, 'total bytes:', totalSize);
+        if (totalSize < 1000) {
+          setErrorMsg('No se grabó audio. ¿Permitiste el micrófono?');
+          setState(STATE.ERROR);
+          return;
+        }
         await transcribeAudio();
       };
 
