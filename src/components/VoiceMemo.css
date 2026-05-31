@@ -1,0 +1,241 @@
+/*
+ * VoiceMemo.css
+ *
+ * Import this once in your app (e.g. in App.jsx or the page that uses VoiceMemo):
+ *   import './VoiceMemo.css';
+ *
+ * Colors inherit from TuAnimo's existing CSS variables. Add fallbacks below
+ * if your theme uses different names.
+ */
+
+/* ── Shared button base ───────────────────────────────────────────────────── */
+.voice-memo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ── Idle mic button ─────────────────────────────────────────────────────── */
+.voice-memo-idle {
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  color: var(--color-text-muted, #8a8fa8);
+}
+
+.voice-memo-idle:hover,
+.voice-memo-idle:focus-visible {
+  background: var(--color-surface-hover, rgba(0,0,0,0.06));
+  color: var(--color-text, #1a1a2e);
+  outline: none;
+}
+
+.voice-memo-idle:active {
+  transform: scale(0.92);
+}
+
+/* ── Recording state ─────────────────────────────────────────────────────── */
+.voice-memo-recording-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-memo-stop {
+  width: 36px;
+  height: 36px;
+  background: var(--color-danger, #e53935);
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.25);
+}
+
+.voice-memo-stop:hover {
+  background: var(--color-danger-dark, #c62828);
+}
+
+.voice-memo-stop:active {
+  transform: scale(0.92);
+}
+
+.voice-memo-timer {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-danger, #e53935);
+  font-weight: 600;
+  min-width: 34px;
+}
+
+/* Pulsing red dot */
+.voice-memo-pulse {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-danger, #e53935);
+  animation: voice-memo-pulse-anim 1.1s ease-in-out infinite;
+}
+
+@keyframes voice-memo-pulse-anim {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.35; transform: scale(0.7); }
+}
+
+/* Approaching-limit bar */
+.voice-memo-limit-bar {
+  width: 60px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-surface-border, #e0e0e8);
+  overflow: hidden;
+}
+
+.voice-memo-limit-bar > div {
+  height: 100%;
+  background: var(--color-danger, #e53935);
+  border-radius: 2px;
+  transition: width 0.5s linear;
+}
+
+/* ── Processing ──────────────────────────────────────────────────────────── */
+.voice-memo-processing {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-muted, #8a8fa8);
+}
+
+.voice-memo-spinner {
+  animation: voice-memo-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes voice-memo-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Confirm panel ───────────────────────────────────────────────────────── */
+.voice-memo-confirm-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--color-surface-raised, #fff);
+  border: 1px solid var(--color-surface-border, #e0e0e8);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  width: 100%;
+  max-width: 420px;
+}
+
+.voice-memo-confirm-label {
+  font-size: 12px;
+  color: var(--color-text-muted, #8a8fa8);
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.voice-memo-textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--color-surface-border, #e0e0e8);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text, #1a1a2e);
+  background: var(--color-surface, #f8f8fc);
+  font-family: inherit;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.voice-memo-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary, #6c63ff);
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.12);
+}
+
+.voice-memo-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.voice-memo-btn-primary {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-primary, #6c63ff);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  font-family: inherit;
+}
+
+.voice-memo-btn-primary:hover {
+  background: var(--color-primary-dark, #574fd6);
+}
+
+.voice-memo-btn-primary:active {
+  transform: scale(0.97);
+}
+
+.voice-memo-btn-ghost {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-surface-border, #e0e0e8);
+  background: transparent;
+  color: var(--color-text-muted, #8a8fa8);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+
+.voice-memo-btn-ghost:hover {
+  background: var(--color-surface-hover, rgba(0,0,0,0.04));
+  color: var(--color-text, #1a1a2e);
+}
+
+/* ── Error state ─────────────────────────────────────────────────────────── */
+.voice-memo-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-danger, #e53935);
+}
+
+.voice-memo-retry {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* ── Mobile adjustments ──────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .voice-memo-confirm-wrapper {
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .voice-memo-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .voice-memo-btn-primary,
+  .voice-memo-btn-ghost {
+    width: 100%;
+    text-align: center;
+    padding: 11px;
+  }
+}
