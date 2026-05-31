@@ -42,6 +42,8 @@ import type { ExportFormat } from '../lib/exportUtils';
 import { InsightActivationChip } from '../components/InsightActivationChip';
 import { useInsightActivation } from '../hooks/useInsightActivation';
 import { recordFlightEvent, getSessionId } from '../lib/elenaFlightRecorder';
+import VoiceMemo from '../components/VoiceMemo';
+import '../components/VoiceMemo.css';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const LS_DISMISS_KEY = (k: string) => `diary_hint_dismissed_${k}`;
@@ -1903,6 +1905,14 @@ export function ChatPage() {
               style={{ boxShadow: 'none', height: '40px' }}
               onFocus={(e) => { if (!isTokenExhausted) e.currentTarget.style.boxShadow = '0 0 0 3px var(--focus)'; }}
               onBlur={(e) => e.currentTarget.style.boxShadow = 'none'}
+            />
+            <VoiceMemo
+              context="chat"
+              supabaseClient={supabase}
+              onTranscript={(text: string) => {
+                setInputMessage(text);
+                setTimeout(() => chatInputRef.current?.focus(), 0);
+              }}
             />
             <button
               onClick={() => handleSendMessage()}
