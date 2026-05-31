@@ -42,8 +42,6 @@ import type { ExportFormat } from '../lib/exportUtils';
 import { InsightActivationChip } from '../components/InsightActivationChip';
 import { useInsightActivation } from '../hooks/useInsightActivation';
 import { recordFlightEvent, getSessionId } from '../lib/elenaFlightRecorder';
-import VoiceMemo from '../components/VoiceMemo';
-import '../components/VoiceMemo.css';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const LS_DISMISS_KEY = (k: string) => `diary_hint_dismissed_${k}`;
@@ -399,8 +397,10 @@ export function ChatPage() {
 
       let text: string = '';
       if (hoursAbsent === null) {
+        // First-time user — use new calibrating greetings
         text = buildContextualGreeting(lastChatAt, name);
       } else {
+        // Returning user — try memory-aware greeting first
         let usedMemoryGreeting = false;
         try {
           const topicEnc = await getFirstSessionTopicEnc(user.id);
@@ -828,6 +828,7 @@ export function ChatPage() {
       lastMoodUpdateAtRef.current,
     );
 
+    // QA_TEMP: fullText included for temporary QA observability — remove before GA
     recordFlightEvent(user?.id, 'USER_SENT_MESSAGE', { fullText: messageToSend, length: messageToSend.length });
     const isFirstEverMessage = isFirstTimeUser === true;
     if (isFirstTimeUser) setIsFirstTimeUser(false);
@@ -990,9 +991,14 @@ export function ChatPage() {
       setCurrentMood(detectedMood);
       lastMoodUpdateAtRef.current = Date.now();
 
-      const userMsgCount = messages.filter(m => m.sender === 'user').length + 1;
+      // ── Auto-save first session topic for return greeting ─────────────────
+      // After 3+ user messages in the first session, extract a short topic
+      // summary from the conversation and save it as encrypted user memory.
+      // This runs once — the 'first_session_topic' key is checked before saving.
+      const userMsgCount = messages.filter(m => m.sender === 'user').length + 1; // +1 for current
       console.log('[chat] Topic save check:', { userMsgCount, isFirstEverMessage });
       if (userMsgCount >= 3) {
+        // Check if we already saved a topic (avoid duplicate saves)
         try {
           const existingTopic = await supabase
             .from('user_memory')
@@ -1002,19 +1008,27 @@ export function ChatPage() {
             .maybeSingle();
 
           if (!existingTopic.data) {
+            // Build a short, natural topic from the user's messages.
+            // Strategy: the 1st message is usually vague ("algo pesado"),
+            // the 2nd names the situation ("es mi jefe"), the 3rd adds weight.
+            // Pick the most specific one (prefer 2nd, then 3rd, then 1st).
             const userMessages = messages
               .filter(m => m.sender === 'user' && m.content?.trim())
               .map(m => m.content.trim());
             userMessages.push(messageToSend);
 
+            // Pick the best message for the topic (2nd > 3rd > 1st)
             const best = userMessages[1] ?? userMessages[2] ?? userMessages[0] ?? '';
+            // Clean: lowercase first char, remove trailing punctuation, trim to 80 chars
             let topicSummary = best
-              .replace(/^[¿¡]+/, '')
-              .replace(/[.!?,;…]+$/, '')
+              .replace(/^[¿¡]+/, '')     // remove leading ¿¡
+              .replace(/[.!?,;…]+$/, '') // remove trailing punctuation
               .trim();
+            // Lowercase the first letter for natural flow in greeting ("me contaste sobre X")
             if (topicSummary.length > 0) {
               topicSummary = topicSummary[0].toLowerCase() + topicSummary.slice(1);
             }
+            // Truncate cleanly at word boundary
             if (topicSummary.length > 80) {
               topicSummary = topicSummary.slice(0, 77).replace(/\s+\S*$/, '') + '…';
             }
@@ -1095,6 +1109,7 @@ export function ChatPage() {
         uxStance,
         uxIntensity,
       }]);
+      // QA_TEMP: fullText included for temporary QA observability — remove before GA
       recordFlightEvent(user?.id, 'ELENA_RESPONSE_RENDERED', { fullText: replyText, length: replyText.length });
 
       if (canPlay('response')) {
@@ -1146,6 +1161,8 @@ export function ChatPage() {
   const crisisLvl = computeSessionCrisisLevel(userMsgContents);
   const diarySuggEval = evaluateDiarySuggestion(userMsgContents);
 
+  // Stage 3B — Chat signal extraction for Insights
+  // These signals will be used by Insights later (InsightMemoryCard integration)
   const chatSignals = useMemo(() => {
     const adaptedMessages = messages.map((m) => ({
       role: m.sender === 'user' ? 'user' : 'assistant',
@@ -1158,12 +1175,17 @@ export function ChatPage() {
     return summarizeChatSignals(chatSignals);
   }, [chatSignals]);
 
+  // Stage 3D — Convert dominantChatSignal into an InsightSignal for Insights system
   const chatInsightSignal = useMemo(() => {
     return buildInsightSignal(dominantChatSignal);
   }, [dominantChatSignal]);
 
+  // TODO Stage 3E — Pass chatInsightSignal to InsightMemoryCard or an Insights bridge.
+  // No InsightsContext exists yet; integration point will be determined in Stage 3E.
   void chatInsightSignal;
 
+  // Stage 4L — Write chat signal aggregates from ChatPage so they are captured
+  // even when the user never opens InsightsPage.
   const chatAggSignalDate = useMemo(() => {
     const d = new Date();
     const yyyy = d.getFullYear();
@@ -1180,6 +1202,10 @@ export function ChatPage() {
 
   useEffect(() => {
     if (!chatAggShouldWrite) return;
+    // Session-scoped flag: tab-local, resets on page reload.
+    // Unlike localStorage this cannot be cleared by the user and is never
+    // shared across tabs.  The DB upsert uses GREATEST semantics, so a
+    // concurrent write from another tab with a lower score is harmless.
     if (alreadyWroteThisSession(chatAggSignalDate)) return;
 
     let cancelled = false;
@@ -1877,15 +1903,6 @@ export function ChatPage() {
               style={{ boxShadow: 'none', height: '40px' }}
               onFocus={(e) => { if (!isTokenExhausted) e.currentTarget.style.boxShadow = '0 0 0 3px var(--focus)'; }}
               onBlur={(e) => e.currentTarget.style.boxShadow = 'none'}
-            />
-            {/* ── Voice memo button ── */}
-            <VoiceMemo
-              context="chat"
-              supabaseClient={supabase}
-              onTranscript={(text: string) => {
-                setInputMessage(text);
-                setTimeout(() => chatInputRef.current?.focus(), 0);
-              }}
             />
             <button
               onClick={() => handleSendMessage()}
