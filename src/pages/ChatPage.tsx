@@ -1910,8 +1910,7 @@ export function ChatPage() {
               context="chat"
               supabaseClient={supabase}
               onTranscript={(text: string) => {
-                setInputMessage(text);
-                setTimeout(() => chatInputRef.current?.focus(), 0);
+                handleSendMessage(text);
               }}
             />
             <button
