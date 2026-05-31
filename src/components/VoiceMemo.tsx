@@ -259,25 +259,28 @@ export default function VoiceMemo({ context = 'chat', onTranscript, supabaseClie
   // ─── CONFIRMING ─────────────────────────────────────────────────────────────
   if (state === STATE.CONFIRMING) {
     return (
-      <div className={`voice-memo-confirm-wrapper ${className}`} aria-live="polite">
-        <p className="voice-memo-confirm-label">{editPlaceholder}</p>
-        <textarea
-          value={editedTranscript}
-          onChange={(e) => setEditedTranscript(e.target.value)}
-          rows={3}
-          className="voice-memo-textarea"
-          aria-label="Texto transcrito, puedes editarlo"
-          autoFocus
-        />
-        <div className="voice-memo-confirm-actions">
-          <button onClick={confirmTranscript} className="voice-memo-btn-primary">
-            {confirmLabel}
-          </button>
-          <button onClick={reset} className="voice-memo-btn-ghost">
-            Cancelar
-          </button>
+      <>
+        <div className="voice-memo-backdrop" onClick={reset} />
+        <div className={`voice-memo-confirm-wrapper ${className}`} aria-live="polite">
+          <p className="voice-memo-confirm-label">{editPlaceholder}</p>
+          <textarea
+            value={editedTranscript}
+            onChange={(e) => setEditedTranscript(e.target.value)}
+            rows={5}
+            className="voice-memo-textarea"
+            aria-label="Texto transcrito, puedes editarlo"
+            autoFocus
+          />
+          <div className="voice-memo-confirm-actions">
+            <button onClick={confirmTranscript} className="voice-memo-btn-primary">
+              {confirmLabel}
+            </button>
+            <button onClick={reset} className="voice-memo-btn-ghost">
+              Cancelar
+            </button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
