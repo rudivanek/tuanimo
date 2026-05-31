@@ -37,7 +37,6 @@ import {
 } from '../lib/starterPrompt';
 import { InsightActivationChip } from '../components/InsightActivationChip';
 import VoiceMemo from '../components/VoiceMemo';
-import '../components/VoiceMemo.css';
 import { useInsightActivation } from '../hooks/useInsightActivation';
 import {
   getReflectionCandidateForSession,

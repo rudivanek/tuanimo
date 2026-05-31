@@ -43,7 +43,6 @@ import { InsightActivationChip } from '../components/InsightActivationChip';
 import { useInsightActivation } from '../hooks/useInsightActivation';
 import { recordFlightEvent, getSessionId } from '../lib/elenaFlightRecorder';
 import VoiceMemo from '../components/VoiceMemo';
-import '../components/VoiceMemo.css';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const LS_DISMISS_KEY = (k: string) => `diary_hint_dismissed_${k}`;
