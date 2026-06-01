@@ -1847,9 +1847,28 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
     const isCrisis = aiResponse.meta.crisis !== "NO";
     const emotionalIntensity = estimateEmotionalIntensity(message);
 
+    // ── Heavy topic detection — suppress chips entirely ───────────────────────
+    const HEAVY_TOPIC_PATTERNS = [
+      /morir|muerte|morirme|me voy a morir|miedo a morir/i,
+      /lastim[eé]|hice daño|herí|me arrepiento|no sé cómo vivir con/i,
+      /duelo|murió|falleció|perdí a|extraño a|ya no está/i,
+      /me quiero morir|no quiero vivir|hacerme daño|quitarme la vida/i,
+      /relación.*daño|daño.*relación|me maltrata|me controla|me minimiza/i,
+      /identidad|quién soy|me perdí|ya no sé quién/i,
+      /desperdicié|perdí el tiempo|ya es tarde|no sirvo/i,
+    ];
+    const isHeavyTopic = HEAVY_TOPIC_PATTERNS.some(p => p.test(message));
+
+    // ── Turn count — suppress chips for first 3 user turns ───────────────────
+    const currentTurnCount = conversationHistory.filter(m => m.role === 'user').length + 1;
+    const isTooEarly = currentTurnCount <= 3;
+
     let chips: string[] = [];
 
-    if (!isCrisis && emotionalIntensity <= 0.75 && !cooldown_active && Array.isArray(aiResponse.chips) && aiResponse.chips.length > 0) {
+    // Gate: no chips if crisis, heavy topic, too early, high intensity, or cooldown
+    const chipsAllowed = !isCrisis && !isHeavyTopic && !isTooEarly && emotionalIntensity <= 0.55 && !cooldown_active;
+
+    if (chipsAllowed && Array.isArray(aiResponse.chips) && aiResponse.chips.length > 0) {
       const sanitized = aiResponse.chips.filter((c) =>
         typeof c === "string" && c.trim().length > 5 && c.length <= 120 &&
         !["sí", "si", "no", "yes", "más", "mas", "more"].includes(c.trim().toLowerCase())
@@ -1860,11 +1879,12 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
       if (chips.length > 0 && previousHadChips && Math.random() < 0.4) chips = [];
     }
 
-    if (chips.length === 0 && !isCrisis && emotionalIntensity <= 0.75 && isStrongInvitationQuestion(aiResponse.reply)) {
-      let recoveryProb = Math.max(0.20, Math.min(0.85, 0.7 * multiplier));
+    // Recovery layer — only when chips are allowed and reply ends with a direct question
+    if (chips.length === 0 && chipsAllowed && isStrongInvitationQuestion(aiResponse.reply)) {
+      let recoveryProb = Math.max(0.20, Math.min(0.70, 0.5 * multiplier));
       if (previousHadChips) recoveryProb *= 0.4;
       if (aiResponse.reply.length > 800) recoveryProb *= 0.5;
-      recoveryProb = Math.max(0.20, Math.min(0.85, recoveryProb));
+      recoveryProb = Math.max(0.10, Math.min(0.70, recoveryProb));
       const roll = Math.random();
       if (roll < recoveryProb) {
         const fallback = generateFallbackChips(aiResponse.reply);
