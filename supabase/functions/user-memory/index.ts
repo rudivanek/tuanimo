@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://tu-animo.app",
+  "Access-Control-Allow-Origin": "https://app.tuanimo.app",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
@@ -42,7 +42,6 @@ Deno.serve(async (req: Request) => {
       throw new Error("Unauthorized: Auth session missing!");
     }
     const userId = authUser.id;
-    );
 
     const url = new URL(req.url);
     const method = req.method;
