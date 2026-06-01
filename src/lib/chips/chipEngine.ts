@@ -517,14 +517,36 @@ interface ChipTimingOptions {
 
 const FREE_TEXT_MOMENTUM_MIN_LENGTH = 35;
 const FREE_TEXT_RUN_CUTOFF = 2;
-const EARLY_TURN_CUTOFF = 4;
+const EARLY_TURN_CUTOFF = 3;
 const STALL_LENGTH = 25;
+
+// Heavy topics — suppress chips entirely when present in the last user message
+const HEAVY_TOPIC_PATTERNS: RegExp[] = [
+  /morir|muerte|morirme|me voy a morir|miedo a morir/i,
+  /lastim[eé]|hice daño|herí|me arrepiento|no sé cómo vivir con/i,
+  /duelo|murió|falleció|perdí a|extraño a|ya no está/i,
+  /me quiero morir|no quiero vivir|hacerme daño|quitarme la vida/i,
+  /relación.*daño|daño.*relación|me maltrata|me controla|me minimiza/i,
+  /identidad|quién soy|me perdí|ya no sé quién/i,
+  /desperdicié|perdí el tiempo|ya es tarde|no sirvo/i,
+];
+
+function isHeavyTopic(lastUserContent: string): boolean {
+  return HEAVY_TOPIC_PATTERNS.some(p => p.test(lastUserContent));
+}
 
 export function resolveChipMode({ messages, isCrisis, followUpSignal }: ChipTimingOptions): ChipTimingMode {
   if (isCrisis) return 'none';
 
   const counselorCount = messages.filter(m => m.sender === 'counselor').length;
   const userMessages = messages.filter(m => m.sender === 'user');
+
+  // Suppress on heavy topics regardless of turn count
+  const lastUserMsg = userMessages[userMessages.length - 1];
+  if (lastUserMsg && isHeavyTopic(lastUserMsg.content)) return 'none';
+
+  // Suppress for first 3 user turns
+  if (userMessages.length <= 3) return 'none';
 
   let freeTextRun = 0;
   for (let i = userMessages.length - 1; i >= 0; i--) {
@@ -538,7 +560,6 @@ export function resolveChipMode({ messages, isCrisis, followUpSignal }: ChipTimi
     }
   }
 
-  const lastUserMsg = userMessages[userMessages.length - 1];
   const lastUserMsgLength = lastUserMsg?.content?.trim().length ?? 0;
   const isStalled = !lastUserMsg?.chipMeta && lastUserMsgLength < STALL_LENGTH;
 
