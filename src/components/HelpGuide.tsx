@@ -208,7 +208,7 @@ const sections: Section[] = [
       },
       {
         q: '¿Quién puede ver mis conversaciones?',
-        a: 'Solo tú. Las entradas del Diario están cifradas a nivel de aplicación. Las conversaciones con Elena se almacenan de forma segura y no son accesibles para revisión humana de rutina.',
+        a: 'Solo tú. Las entradas del Diario están cifradas a nivel de aplicación: ni en el servidor son legibles sin tu autenticación. Las conversaciones con Elena se almacenan de forma segura, aunque no con el mismo cifrado de extremo a extremo que el Diario.',
       },
       {
         q: '¿Puedo eliminar mi cuenta y mis datos?',
