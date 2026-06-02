@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { BarChart3, DollarSign, Shield, Users, AlertTriangle, SlidersHorizontal } from 'lucide-react';
+import { BarChart3, DollarSign, Shield, Users, AlertTriangle, SlidersHorizontal, Mail } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 
 interface NavCard {
@@ -11,34 +11,40 @@ interface NavCard {
 
 const adminNav: NavCard[] = [
   {
-    href: '/app/admin/token-usage',
+    href: '/admin/token-usage',
     icon: BarChart3,
     title: 'Uso de Tokens',
     description: 'Analiza el consumo de tokens por usuario, operación y período de tiempo.',
   },
   {
-    href: '/app/admin/token-costs',
+    href: '/admin/token-costs',
     icon: DollarSign,
     title: 'Costos de Tokens',
     description: 'Gasto estimado en OpenAI: totales 7d/30d, desglose por función y plan, top 20 usuarios.',
   },
   {
-    href: '/app/admin/users',
+    href: '/admin/users',
     icon: Users,
     title: 'Usuarios',
     description: 'Gestiona perfiles de usuario, límites de tokens y configuración de cuentas.',
   },
   {
-    href: '/app/admin/crisis-events',
+    href: '/admin/crisis-events',
     icon: AlertTriangle,
     title: 'Eventos de Crisis',
     description: 'Registros de señales de angustia detectadas por los modelos de IA en chat, diario e insights.',
   },
   {
-    href: '/app/admin/plan-limits',
+    href: '/admin/plan-limits',
     icon: SlidersHorizontal,
     title: 'Límites de Plan',
     description: 'Configura los presupuestos diarios y mensuales de tokens por plan (Starter, Pro, Power) sin SQL.',
+  },
+  {
+    href: '/admin/email-campaigns',
+    icon: Mail,
+    title: 'Campañas de Email',
+    description: 'Configura recordatorios e insights: frecuencia, elegibilidad y excepciones por usuario para pruebas.',
   },
 ];
 
