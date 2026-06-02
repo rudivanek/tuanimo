@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { CheckSquare, Square, Clock, RefreshCw, BookOpen } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
-import { useProfile } from '../hooks/useProfile';
 import { supabase } from '../lib/supabaseClient';
-import { createJournalEntryFromInsight } from '../lib/journalEntries';
 
 interface Task {
   id: string;
@@ -36,13 +34,11 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
 export function PracticasPage() {
   const { user, session } = useAuth();
-  const { data: profile } = useProfile();
   const [, navigate] = useLocation();
   const [tasks, setTasks] = useState<UserDailyTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revealedReflections, setRevealedReflections] = useState<Set<string>>(new Set());
-  const [journalLoading, setJournalLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && session) loadTasks();
@@ -106,25 +102,12 @@ export function PracticasPage() {
     }
   };
 
-  const handleOpenJournal = async (item: UserDailyTask) => {
-    if (!user || !profile || !item.tasks.reflection_prompt) return;
-    setJournalLoading(item.id);
+  const handleOpenJournal = (item: UserDailyTask) => {
+    if (!item.tasks.reflection_prompt) return;
     try {
-      const content = `${item.tasks.reflection_prompt}\n\n`;
-      const themeLabel = THEME_LABELS[item.tasks.theme] ?? item.tasks.theme;
-      const entryId = await createJournalEntryFromInsight({
-        userId: user.id,
-        profile,
-        title: themeLabel,
-        content,
-      });
-      sessionStorage.setItem('diaryAutoOpen', entryId);
-      navigate('/journal');
-    } catch (err) {
-      console.error('Journal bridge error:', err);
-    } finally {
-      setJournalLoading(null);
-    }
+      sessionStorage.setItem('diaryNewPrefill', item.tasks.reflection_prompt);
+    } catch {}
+    navigate('/journal');
   };
 
   const completedCount = tasks.filter(t => t.completed).length;
@@ -233,10 +216,9 @@ export function PracticasPage() {
                     </p>
                   </div>
                   <button onClick={() => handleOpenJournal(item)}
-                    disabled={journalLoading === item.id}
-                    className="mt-3 flex items-center gap-1.5 text-[12px] text-sage-strong hover:text-sage font-medium transition-colors disabled:opacity-50">
+                    className="mt-3 flex items-center gap-1.5 text-[12px] text-sage-strong hover:text-sage font-medium transition-colors">
                     <BookOpen size={13} />
-                    {journalLoading === item.id ? 'Abriendo...' : 'Escribir en el diario'}
+                    Escribir en el diario
                   </button>
                 </div>
               )}
