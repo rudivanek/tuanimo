@@ -559,10 +559,48 @@ function OverrideRow({
 
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
+
+type DryRunState = 'idle' | 'running' | 'done' | 'error';
+
+interface DryRunResult {
+  processed: number;
+  sent: number;
+  skipped: number;
+  failed: number;
+  logs: string[];
+}
+
 export function AdminEmailPage() {
   const { data: isAdmin } = useAdmin();
   const qc = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [dryRunState, setDryRunState] = useState<DryRunState>('idle');
+  const [dryRunResult, setDryRunResult] = useState<DryRunResult | null>(null);
+  const [dryRunError, setDryRunError] = useState<string | null>(null);
+
+  async function triggerDryRun() {
+    setDryRunState('running');
+    setDryRunResult(null);
+    setDryRunError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('No auth token');
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const res = await fetch(
+        `${supabaseUrl}/functions/v1/email-lifecycle?dry_run=true`,
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+      );
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? JSON.stringify(body));
+      setDryRunResult(body);
+      setDryRunState('done');
+    } catch (err) {
+      setDryRunError(err instanceof Error ? err.message : String(err));
+      setDryRunState('error');
+    }
+  }
+
 
   const { data: configs = [], isFetching: configFetching, isError: configError, refetch: refetchConfigs } =
     useQuery<CampaignConfig[]>({ queryKey: ['admin-email-configs'], queryFn: fetchConfigs, staleTime: 30_000 });
@@ -682,6 +720,76 @@ export function AdminEmailPage() {
                   onDeleted={invalidate}
                 />
               ))}
+            </div>
+          )}
+        </div>
+
+
+        {/* ── Dry run ── */}
+        <div className="bg-app-surface border border-app-border rounded-[16px] shadow-app p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[15px] font-semibold text-app-text">Simulación (Dry Run)</p>
+              <p className="text-[12px] text-app-muted mt-0.5">
+                Ejecuta el scheduler sin enviar emails reales. Muestra qué haría con cada usuario.
+              </p>
+            </div>
+            <button
+              onClick={triggerDryRun}
+              disabled={dryRunState === 'running'}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-10 text-sm font-medium bg-sage-strong text-white hover:bg-sage-strong/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {dryRunState === 'running'
+                ? <><RefreshCw size={14} className="animate-spin" /> Ejecutando…</>
+                : <><Mail size={14} /> Ejecutar simulación</>}
+            </button>
+          </div>
+
+          {dryRunState === 'error' && (
+            <div className="flex items-center gap-2 p-3 rounded-12 bg-red-50 border border-red-200 text-red-700 text-sm">
+              <AlertCircle size={14} /> {dryRunError}
+            </div>
+          )}
+
+          {dryRunResult && (
+            <div className="space-y-3">
+              {/* Summary */}
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: 'Procesados', value: dryRunResult.processed, cls: 'text-app-text' },
+                  { label: 'Enviarían', value: dryRunResult.sent, cls: 'text-sage-strong' },
+                  { label: 'Omitidos', value: dryRunResult.skipped, cls: 'text-app-muted' },
+                  { label: 'Fallidos', value: dryRunResult.failed, cls: 'text-red-500' },
+                ].map((s) => (
+                  <div key={s.label} className="p-3 rounded-12 bg-app-bg border border-app-border text-center">
+                    <p className={`text-xl font-semibold ${s.cls}`}>{s.value}</p>
+                    <p className="text-[11px] text-app-muted mt-0.5">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Logs */}
+              <div className="rounded-12 bg-app-bg border border-app-border overflow-hidden">
+                <div className="px-3 py-2 border-b border-app-border flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-app-muted uppercase tracking-wider">Logs</p>
+                  <p className="text-[11px] text-app-muted">{dryRunResult.logs.length} líneas</p>
+                </div>
+                <div className="p-3 max-h-64 overflow-y-auto font-mono text-[11px] text-app-text leading-relaxed space-y-0.5">
+                  {dryRunResult.logs.map((line, i) => (
+                    <div
+                      key={i}
+                      className={
+                        line.includes('FAILED') ? 'text-red-500' :
+                        line.includes('sent OK') ? 'text-sage-strong' :
+                        line.includes('suppressed') || line.includes('rate limited') ? 'text-amber-600' :
+                        'text-app-muted'
+                      }
+                    >
+                      {line}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
