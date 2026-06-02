@@ -9,7 +9,7 @@ export interface MessageChipMeta {
 export interface FollowUp {
   text: string;
   kind: 'action';
-  actionType: 'breathing' | 'resource' | 'save_memory' | 'journal';
+  actionType: 'breathing' | 'resource' | 'save_memory' | 'journal' | 'practicas';
   payload?: Record<string, any>;
 }
 
@@ -32,6 +32,7 @@ export interface ChatResponse {
   boundary_type?: string;
   mode_used?: 'REFLECTION' | 'SUPPORT' | 'BOUNDARY' | 'CRISIS';
   support_routine_id?: string | null;
+  suggested_practicas?: boolean;
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
