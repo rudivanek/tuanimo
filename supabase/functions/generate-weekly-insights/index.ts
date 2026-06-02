@@ -12,10 +12,11 @@ interface MoodLog {
   emoji: string;
 }
 
-interface OpenAIUsage {
+interface ModelUsage {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  cache_read_input_tokens?: number;
 }
 
 interface InsightResponse {
@@ -287,22 +288,28 @@ function buildMoodPrompt(
   const lowDataCurrent = current.totalDays < 2;
   const lowDataPrior = prior.totalDays < 2;
 
-  const systemPrompt = `Eres Elena, una presencia empática de apoyo emocional. Tu tarea es generar una reflexión semanal basada en registros de ánimo.
+  const systemPrompt = `Eres Elena, una acompañante de terapia existencial. Tu tarea es generar una reflexión semanal que ayude a la persona a ver con más claridad lo que está eligiendo, evitando o buscando — no un resumen de cómo se sintió.
+
+ENFOQUE EXISTENCIAL (obligatorio):
+- Busca el patrón debajo del patrón: si hubo tensión, ¿hacia qué se dirigía o de qué se alejaba la persona? Si hubo ligereza, ¿qué lo permitió?
+- Nombra lo que se repite — no como síntoma, sino como elección o postura ante la vida.
+- Si hay tensión persistente, pregúntate: ¿qué está esperando esta persona que no está tomando? ¿Qué evita nombrar?
+- El micro_step no es una tarea ni un consejo — es una pregunta que abre, que invita a ver algo que quizás no se ha visto todavía.
 
 REGLAS DE VOZ (no negociables):
 - Nunca diagnostiques, ni uses lenguaje clínico.
-- PROHIBIDO como apertura de frase: "Es comprensible", "Es normal", "Es natural", "A veces las emociones", "puede ser difícil"
-- PROHIBIDO usar ansiedad / estrés / tristeza / frustración como sujeto gramatical principal de una oración (ej: "El estrés se mantuvo" — prohibido). Describe la textura vivida en su lugar.
-- Describe cómo se siente la semana — peso, presencia, ligereza, tensión, espacio — no qué categoría emocional representa.
-- La reflexión debe sentirse como una observación cercana y específica, no como un resumen estadístico.
-- crisis debe ser conservador: usa "MAYBE" sólo si hay patrón claro de angustia persistente; "YES" sólo si hay riesgo inmediato evidente; de lo contrario, "NO".
+- PROHIBIDO como apertura: "Es comprensible", "Es normal", "Es natural", "A veces las emociones", "puede ser difícil"
+- PROHIBIDO usar ansiedad / estrés / tristeza / frustración como sujeto gramatical principal. Describe la textura vivida.
+- Tono: directo, cercano, sin sentimentalismo. Como un espejo honesto, no un abrazo.
+- La reflexión debe sentirse como algo que sólo esta persona podría haber recibido — no una plantilla genérica.
+- crisis: conservador. "MAYBE" sólo con patrón claro de angustia persistente; "YES" sólo con riesgo inmediato evidente; si no, "NO".
 - Responde ÚNICAMENTE con un objeto JSON válido. Sin texto extra, sin bloques de código.
 
 FORMATO DE RESPUESTA (JSON estricto):
 {
-  "insight": "2 a 4 oraciones que describen la textura de esta semana desde la experiencia vivida",
-  "comparison": "exactamente 1 oración comparando esta semana con la anterior, en tono de presencia, no de reporte",
-  "micro_step": "exactamente 1 invitación abierta y gentil — una pregunta o un gesto pequeño, no una instrucción ni una tarea",
+  "insight": "2 a 4 oraciones — observación existencial específica: qué patrón de elección, evitación o búsqueda emerge esta semana",
+  "comparison": "exactamente 1 oración comparando esta semana con la anterior — qué cambió en la postura, no en el estado de ánimo",
+  "micro_step": "exactamente 1 pregunta abierta que invite a ver algo concreto — no una instrucción, no un consejo",
   "crisis": "NO"
 }`;
 
@@ -332,23 +339,29 @@ FORMATO DE RESPUESTA (JSON estricto):
 // Builds prompt components for chat-only weeks (no mood logs available).
 // Uses a distinct system prompt that does not reference mood emojis or check-ins.
 function buildChatOnlyPrompt(chatSignals: ChatSignalSummary, trendContext: string, languageSignalContext = ""): { systemPrompt: string; userMessage: string } {
-  const systemPrompt = `Eres Elena, una presencia empática de apoyo emocional. Tu tarea es generar una reflexión semanal basada únicamente en señales emocionales detectadas en las conversaciones de esta semana. No hay registros de estado de ánimo disponibles — trabaja solo con las señales de conversación.
+  const systemPrompt = `Eres Elena, una acompañante de terapia existencial. Tu tarea es generar una reflexión semanal basada en señales emocionales detectadas en las conversaciones de esta semana. No hay registros de estado de ánimo disponibles — trabaja sólo con lo que emergió en conversación.
+
+ENFOQUE EXISTENCIAL (obligatorio):
+- No describas cómo se sintió la persona — describe qué eligió, qué evitó, qué buscó a través de sus conversaciones esta semana.
+- Si hay tensión o estrés repetido, pregúntate: ¿qué está postergando esta persona? ¿Qué no se ha atrevido a nombrar todavía?
+- Si hay gratitud o positividad, ¿hacia qué se está moviendo? ¿Qué lo hace posible?
+- El micro_step es una pregunta existencial concreta — no un consejo, no una tarea, sino una invitación a ver algo.
 
 REGLAS DE VOZ (no negociables):
 - Nunca diagnostiques, ni uses lenguaje clínico.
-- PROHIBIDO como apertura de frase: "Es comprensible", "Es normal", "Es natural", "A veces las emociones", "puede ser difícil"
-- PROHIBIDO usar ansiedad / estrés / tristeza / frustración como sujeto gramatical principal de una oración. Describe la textura vivida en su lugar.
-- Describe cómo se sintió la semana en las conversaciones — peso, presencia, ligereza, tensión, espacio — no qué categoría emocional representa.
-- La reflexión debe sentirse como una observación cercana y específica, no como un resumen de estadísticas.
+- PROHIBIDO como apertura: "Es comprensible", "Es normal", "Es natural", "A veces las emociones", "puede ser difícil"
+- PROHIBIDO usar ansiedad / estrés / tristeza / frustración como sujeto gramatical principal. Describe la textura vivida.
 - NO menciones emojis, check-ins de ánimo, ni "días registrados" — no existen esta semana.
-- crisis debe ser conservador: usa "MAYBE" sólo si hay patrón claro de angustia persistente; "YES" sólo si hay riesgo inmediato evidente; de lo contrario, "NO".
+- Tono: directo, sin sentimentalismo. Un espejo honesto.
+- La reflexión debe sentirse específica para esta persona, no genérica.
+- crisis: conservador. "MAYBE" sólo con patrón claro de angustia persistente; "YES" sólo con riesgo inmediato; si no, "NO".
 - Responde ÚNICAMENTE con un objeto JSON válido. Sin texto extra, sin bloques de código.
 
 FORMATO DE RESPUESTA (JSON estricto):
 {
-  "insight": "2 a 4 oraciones que describen la textura de esta semana desde la experiencia vivida en conversación",
+  "insight": "2 a 4 oraciones — observación existencial: qué patrón de elección, evitación o búsqueda emergió en las conversaciones",
   "comparison": "",
-  "micro_step": "exactamente 1 invitación abierta y gentil — una pregunta o un gesto pequeño, no una instrucción ni una tarea",
+  "micro_step": "exactamente 1 pregunta abierta que invite a ver algo concreto — no una instrucción, no un consejo",
   "crisis": "NO"
 }`;
 
@@ -495,7 +508,6 @@ async function generateInsightForUser(
   svc: ReturnType<typeof createClient>,
   userId: string,
   weekStartDate: string,
-  openaiKey: string,
 ): Promise<void> {
   const weekEndDate = addDays(weekStartDate, 7);
   const priorWeekStart = addDays(weekStartDate, -7);
@@ -571,32 +583,40 @@ async function generateInsightForUser(
     ({ systemPrompt, userMessage } = buildMoodPrompt(current, prior, chatSignals, trendContext, languageSignalContext));
   }
 
-  const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+  const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!anthropicKey) throw new Error("Anthropic API key not configured");
+
+  const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${openaiKey}`,
+      "x-api-key": anthropicKey,
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: "claude-sonnet-4-6",
+      max_tokens: 600,
+      system: systemPrompt,
       messages: [
-        { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ],
-      temperature: 0.65,
-      max_tokens: 450,
-      response_format: { type: "json_object" },
     }),
   });
 
-  if (!openaiResponse.ok) {
-    const errorData = await openaiResponse.json();
-    throw new Error(`OpenAI error: ${JSON.stringify(errorData)}`);
+  if (!claudeResponse.ok) {
+    const errorData = await claudeResponse.json();
+    throw new Error(`Anthropic error: ${JSON.stringify(errorData)}`);
   }
 
-  const openaiData = await openaiResponse.json();
-  const rawContent: string = openaiData.choices[0].message.content ?? "{}";
-  const usage: OpenAIUsage | null = openaiData.usage ?? null;
+  const claudeData = await claudeResponse.json();
+  const rawContent: string = claudeData.content?.[0]?.text ?? "{}";
+  const claudeUsage = claudeData.usage ?? null;
+  const usage: ModelUsage | null = claudeUsage ? {
+    prompt_tokens: claudeUsage.input_tokens ?? 0,
+    completion_tokens: claudeUsage.output_tokens ?? 0,
+    total_tokens: (claudeUsage.input_tokens ?? 0) + (claudeUsage.output_tokens ?? 0),
+    cache_read_input_tokens: claudeUsage.cache_read_input_tokens ?? 0,
+  } : null;
 
   let parsed: InsightResponse;
   try {
@@ -650,7 +670,7 @@ async function generateInsightForUser(
   await svc.from("token_usage").insert({
     user_id: userId,
     operation: "mood_insights_auto",
-    model: "gpt-4o-mini",
+    model: "claude-sonnet-4-6",
     ...safeUsage,
     metadata: { auto_generated: true, mode, ...(usage === null ? { usage_missing: true } : {}) },
   });
@@ -660,7 +680,7 @@ async function generateInsightForUser(
       user_id: userId,
       source: "mood-insights",
       severity: parsed.crisis,
-      model: "gpt-4o-mini",
+      model: "claude-sonnet-4-6",
       meta: { auto_generated: true, mode },
     });
   }
@@ -717,9 +737,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) throw new Error("OpenAI API key not configured");
-
     const now = new Date();
     const dayOfWeek = now.getUTCDay();
     const daysToThisMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -746,7 +763,7 @@ Deno.serve(async (req: Request) => {
 
     for (const { user_id } of users) {
       try {
-        await generateInsightForUser(svc, user_id, weekStartDate, openaiKey);
+        await generateInsightForUser(svc, user_id, weekStartDate);
         processed++;
         console.log(`WEEKLY_INSIGHTS: generated for user ${user_id}`);
       } catch (err) {
