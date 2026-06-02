@@ -155,7 +155,7 @@ export function TokenCostsPage() {
               <h1 className="text-2xl font-semibold text-app-text">Costos de Tokens</h1>
               {isFetching && <RefreshCw size={14} className="animate-spin text-app-muted" />}
             </div>
-            <p className="text-sm text-app-muted mt-0.5">Gasto estimado en OpenAI por período, función y usuario</p>
+            <p className="text-sm text-app-muted mt-0.5">Gasto estimado por período, función y usuario</p>
           </div>
 
           {/* Period selector */}
