@@ -35,12 +35,13 @@ export function Layout({ children }: LayoutProps) {
     { path: '/journal', icon: BookOpen, label: 'Diario' },
     { path: '/practicas', icon: CheckSquare, label: 'Prácticas' },
     { path: '/insights', icon: BarChart3, label: 'Insights' },
-    { path: '/settings', icon: Settings, label: 'Ajustes' },
   ];
 
   if (isAdmin) {
     navItems.push({ path: '/admin', icon: Shield, label: 'Admin' });
   }
+
+  const settingsActive = location === '/settings';
 
   return (
     <div className="min-h-dvh bg-app-bg overflow-x-hidden">
@@ -56,8 +57,21 @@ export function Layout({ children }: LayoutProps) {
             Tu consejera de IA<span className="ml-1 text-sage-strong/70 font-medium">11.2</span>
           </span>
         </div>
-        <div className="ml-auto pr-1">
+        <div className="ml-auto flex items-center gap-2 pr-1">
           <HeaderTokenBudget />
+          <Link href="/settings">
+            <button
+              className={[
+                'flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-150',
+                settingsActive
+                  ? 'text-sage-strong'
+                  : 'text-app-muted hover:text-app-text',
+              ].join(' ')}
+              aria-label="Ajustes"
+            >
+              <Settings size={18} strokeWidth={settingsActive ? 2.2 : 1.8} />
+            </button>
+          </Link>
         </div>
       </header>
 
