@@ -61,7 +61,7 @@ export interface ResolvedUserConfig {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const APP_URL = "https://tuanimo.app";
+export const APP_URL = "https://app.tuanimo.app";
 export const MAX_EMAILS_PER_24H = 1;
 
 // Onboarding suppression (legacy)
