@@ -821,7 +821,11 @@ function detectSessionClosing(message: string, conversationHistory: Array<{ role
   return false;
 }
 
-function buildSessionClosingBlock(): string {
+function buildSessionClosingBlock(includePracticas = false): string {
+  const practicasLine = includePracticas
+    ? `\n- You MAY add one brief, natural sentence mentioning that you left a práctica for today — something like "Te dejé una práctica para hoy, por si quieres llevar algo de esto contigo." Keep it light and optional. Do NOT describe the task or make it feel obligatory.`
+    : '';
+
   return `
 
 SESSION CLOSING SIGNAL — Active this turn only:
@@ -838,7 +842,7 @@ Rules:
 - Do NOT summarize the conversation
 - Do NOT ask a question that reopens the whole process
 - Do NOT give advice or suggest next steps
-- Do NOT introduce new analysis at the end`;
+- Do NOT introduce new analysis at the end${practicasLine}`;
 }
 
 async function logCrisisEvent(params: {
@@ -1020,7 +1024,8 @@ Deno.serve(async (req: Request) => {
     const recognitionBlock = useRecognition ? buildRecognitionBlock() : '';
     const returnTriggerBlock = useReturnTrigger ? buildReturnTriggerBlock() : '';
     const useSessionClosing = detectSessionClosing(message, conversationHistory, modeUsed);
-    const sessionClosingBlock = useSessionClosing ? buildSessionClosingBlock() : '';
+    const includePracticas = useSessionClosing && modeUsed !== 'CRISIS' && modeUsed !== 'BOUNDARY' && Math.random() < 0.6;
+    const sessionClosingBlock = useSessionClosing ? buildSessionClosingBlock(includePracticas) : '';
 
     const userTurnCount = conversationHistory.filter(m => m.role === 'user').length + 1;
     const firstSessionBlock = isFirstSession ? buildFirstSessionBlock(userTurnCount) : '';
@@ -1907,6 +1912,7 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
         boundary_type: boundaryType,
         mode_used: modeUsed,
         support_routine_id: selectedRoutine?.id ?? null,
+        suggested_practicas: includePracticas,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
