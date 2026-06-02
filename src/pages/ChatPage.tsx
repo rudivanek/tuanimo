@@ -694,20 +694,8 @@ export function ChatPage() {
   const handlePracticasConfirm = async () => {
     setPracticasLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('assign-daily-tasks', {
-        method: 'GET',
-        headers: { 'x-force': 'true' },
-      });
-      // Use query param approach via fetch directly since invoke doesn't support query params easily
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      await fetch(`${supabaseUrl}/functions/v1/assign-daily-tasks?force=true`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      await supabase.functions.invoke('assign-daily-tasks', {
+        body: { action: 'get_tasks', force: true },
       });
     } catch (err) {
       console.error('Practicas force-assign error:', err);
