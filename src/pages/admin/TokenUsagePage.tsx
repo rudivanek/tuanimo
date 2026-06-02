@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { BarChart3, ChevronLeft, RefreshCw, AlertCircle, Inbox } from 'lucide-react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
@@ -8,6 +8,8 @@ interface ReportRow {
   user_id: string;
   user_label: string;
   usage_date: string;
+  prompt_tokens: number;
+  completion_tokens: number;
   total_tokens: number;
   total_cost_usd: number;
 }
@@ -22,13 +24,15 @@ function toIsoDate(d: Date): string {
 }
 
 function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}k`;
   return n.toLocaleString('en-US');
 }
 
 function formatCost(n: number): string {
-  if (n === 0) return '$0.000000';
-  if (n < 0.0001) return `$${n.toFixed(8)}`;
-  if (n < 0.01) return `$${n.toFixed(6)}`;
+  if (n === 0)      return '$0.000000';
+  if (n < 0.0001)   return `$${n.toFixed(8)}`;
+  if (n < 0.01)     return `$${n.toFixed(6)}`;
   return `$${n.toFixed(4)}`;
 }
 
@@ -36,17 +40,17 @@ function formatDate(iso: string): string {
   return iso.slice(0, 10);
 }
 
-const today = new Date();
-const defaultFrom = toIsoDate(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000));
+const today        = new Date();
+const defaultFrom  = toIsoDate(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000));
 const defaultUntil = toIsoDate(today);
 
 export function TokenUsagePage() {
-  const [selectedUser, setSelectedUser] = useState<string>('');
-  const [dateFrom, setDateFrom] = useState(defaultFrom);
-  const [dateUntil, setDateUntil] = useState(defaultUntil);
+  const [selectedUser, setSelectedUser]   = useState<string>('');
+  const [dateFrom,     setDateFrom]       = useState(defaultFrom);
+  const [dateUntil,    setDateUntil]      = useState(defaultUntil);
   const [appliedFilters, setAppliedFilters] = useState({
-    user: '',
-    from: defaultFrom,
+    user:  '',
+    from:  defaultFrom,
     until: defaultUntil,
   });
 
@@ -74,9 +78,9 @@ export function TokenUsagePage() {
     queryKey: ['admin-token-usage', appliedFilters],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('admin_token_usage_report', {
-        p_date_from: appliedFilters.from,
+        p_date_from:  appliedFilters.from,
         p_date_until: appliedFilters.until,
-        p_user_id: appliedFilters.user || null,
+        p_user_id:    appliedFilters.user || null,
       });
       if (error) throw error;
       return data as ReportRow[];
@@ -84,8 +88,13 @@ export function TokenUsagePage() {
     staleTime: 0,
   });
 
-  const totalTokens = rows.reduce((s, r) => s + Number(r.total_tokens), 0);
-  const totalCost = rows.reduce((s, r) => s + Number(r.total_cost_usd), 0);
+  const totals = useMemo(() => ({
+    distinctUsers:    new Set(rows.map(r => r.user_id)).size,
+    promptTokens:     rows.reduce((s, r) => s + Number(r.prompt_tokens),     0),
+    completionTokens: rows.reduce((s, r) => s + Number(r.completion_tokens), 0),
+    totalTokens:      rows.reduce((s, r) => s + Number(r.total_tokens),      0),
+    cost:             rows.reduce((s, r) => s + Number(r.total_cost_usd),    0),
+  }), [rows]);
 
   return (
     <div
@@ -109,6 +118,7 @@ export function TokenUsagePage() {
             <div className="flex items-center gap-2">
               <BarChart3 size={20} className="text-sage-strong" />
               <h1 className="text-2xl font-semibold text-app-text">Uso de Tokens</h1>
+              {isFetching && <RefreshCw size={14} className="animate-spin text-app-muted" />}
             </div>
             <p className="text-sm text-app-muted mt-0.5">Consumo y costo por usuario y fecha</p>
           </div>
@@ -179,10 +189,7 @@ export function TokenUsagePage() {
             <div>
               <p className="font-medium">No se pudo cargar el reporte</p>
               <p className="text-xs text-red-500 mt-0.5">{(error as Error)?.message}</p>
-              <button
-                onClick={() => refetch()}
-                className="mt-1.5 text-xs font-medium underline"
-              >
+              <button onClick={() => refetch()} className="mt-1.5 text-xs font-medium underline">
                 Reintentar
               </button>
             </div>
@@ -191,18 +198,29 @@ export function TokenUsagePage() {
 
         {/* Summary cards */}
         {!isError && rows.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-app-surface border border-app-border rounded-[12px] p-4">
-              <p className="text-[11px] font-medium text-app-muted uppercase tracking-wider mb-1">Filas</p>
-              <p className="text-xl font-semibold text-app-text">{rows.length.toLocaleString()}</p>
+              <p className="text-[11px] font-medium text-app-muted uppercase tracking-wider mb-1">Usuarios</p>
+              <p className="text-xl font-semibold text-app-text">{totals.distinctUsers}</p>
             </div>
             <div className="bg-app-surface border border-app-border rounded-[12px] p-4">
               <p className="text-[11px] font-medium text-app-muted uppercase tracking-wider mb-1">Total Tokens</p>
-              <p className="text-xl font-semibold text-app-text">{formatTokens(totalTokens)}</p>
+              <p className="text-xl font-semibold text-app-text">{formatTokens(totals.totalTokens)}</p>
+              <p className="text-[11px] text-app-muted mt-0.5">
+                {formatTokens(totals.promptTokens)} in · {formatTokens(totals.completionTokens)} out
+              </p>
             </div>
-            <div className="bg-app-surface border border-app-border rounded-[12px] p-4 col-span-2 sm:col-span-1">
+            <div className="bg-app-surface border border-app-border rounded-[12px] p-4">
               <p className="text-[11px] font-medium text-app-muted uppercase tracking-wider mb-1">Costo Total</p>
-              <p className="text-xl font-semibold text-sage-strong">{formatCost(totalCost)}</p>
+              <p className="text-xl font-semibold text-sage-strong">{formatCost(totals.cost)}</p>
+            </div>
+            <div className="bg-app-surface border border-app-border rounded-[12px] p-4">
+              <p className="text-[11px] font-medium text-app-muted uppercase tracking-wider mb-1">Costo / Token</p>
+              <p className="text-xl font-semibold text-app-text">
+                {totals.totalTokens > 0
+                  ? `$${((totals.cost / totals.totalTokens) * 1_000_000).toFixed(2)}/M`
+                  : '—'}
+              </p>
             </div>
           </div>
         )}
@@ -231,7 +249,13 @@ export function TokenUsagePage() {
                       Fecha
                     </th>
                     <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
-                      Tokens
+                      Entrada
+                    </th>
+                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
+                      Salida
+                    </th>
+                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
+                      Total
                     </th>
                     <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
                       Costo (USD)
@@ -246,16 +270,22 @@ export function TokenUsagePage() {
                         isFetching ? 'opacity-50' : ''
                       }`}
                     >
-                      <td className="px-5 py-3 text-app-text font-medium max-w-[220px] truncate">
+                      <td className="px-5 py-3 text-app-text font-medium max-w-[200px] truncate">
                         {row.user_label}
                       </td>
                       <td className="px-5 py-3 text-app-muted tabular-nums">
                         {formatDate(row.usage_date)}
                       </td>
-                      <td className="px-5 py-3 text-right text-app-text tabular-nums">
+                      <td className="px-5 py-3 text-right text-app-muted tabular-nums">
+                        {formatTokens(Number(row.prompt_tokens))}
+                      </td>
+                      <td className="px-5 py-3 text-right text-app-muted tabular-nums">
+                        {formatTokens(Number(row.completion_tokens))}
+                      </td>
+                      <td className="px-5 py-3 text-right text-app-text tabular-nums font-medium">
                         {formatTokens(Number(row.total_tokens))}
                       </td>
-                      <td className="px-5 py-3 text-right text-sage-strong tabular-nums font-medium">
+                      <td className="px-5 py-3 text-right text-sage-strong tabular-nums font-semibold">
                         {formatCost(Number(row.total_cost_usd))}
                       </td>
                     </tr>
@@ -267,11 +297,17 @@ export function TokenUsagePage() {
                       <td className="px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider" colSpan={2}>
                         Total
                       </td>
+                      <td className="px-5 py-3 text-right font-semibold text-app-muted tabular-nums">
+                        {formatTokens(totals.promptTokens)}
+                      </td>
+                      <td className="px-5 py-3 text-right font-semibold text-app-muted tabular-nums">
+                        {formatTokens(totals.completionTokens)}
+                      </td>
                       <td className="px-5 py-3 text-right font-semibold text-app-text tabular-nums">
-                        {formatTokens(totalTokens)}
+                        {formatTokens(totals.totalTokens)}
                       </td>
                       <td className="px-5 py-3 text-right font-semibold text-sage-strong tabular-nums">
-                        {formatCost(totalCost)}
+                        {formatCost(totals.cost)}
                       </td>
                     </tr>
                   </tfoot>
@@ -280,6 +316,12 @@ export function TokenUsagePage() {
             </div>
           ) : null}
         </div>
+
+        {/* Pricing note */}
+        <p className="text-[11px] text-app-muted text-center pb-2">
+          Precios: Claude Sonnet $3.00/1M entrada · $15.00/1M salida · GPT-4o-mini $0.15/1M entrada · $0.60/1M salida
+        </p>
+
       </div>
     </div>
   );
