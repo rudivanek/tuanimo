@@ -423,35 +423,40 @@ Deno.serve(async (req: Request) => {
       ({ systemPrompt, userMessage } = buildMoodPrompt(current, prior, chatSignals));
     }
 
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) throw new Error("OpenAI API key not configured");
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicKey) throw new Error("Anthropic API key not configured");
 
-    const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${openaiKey}`,
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "claude-sonnet-4-6",
+        max_tokens: 600,
+        temperature: 0.65,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
-        temperature: 0.65,
-        max_tokens: 450,
-        response_format: { type: "json_object" },
       }),
     });
 
-    if (!openaiResponse.ok) {
-      const errorData = await openaiResponse.json();
-      throw new Error(`OPENAI_ERROR: ${JSON.stringify(errorData)}`);
+    if (!anthropicResponse.ok) {
+      const errorData = await anthropicResponse.json();
+      throw new Error(`ANTHROPIC_ERROR: ${JSON.stringify(errorData)}`);
     }
 
-    const openaiData = await openaiResponse.json();
-    const rawContent: string = openaiData.choices[0].message.content ?? "{}";
-    const usage: OpenAIUsage | null = openaiData.usage ?? null;
+    const anthropicData = await anthropicResponse.json();
+    const rawContent: string = anthropicData.content?.[0]?.text ?? "{}";
+    const claudeUsage = anthropicData.usage ?? null;
+    const usage = claudeUsage ? {
+      prompt_tokens: claudeUsage.input_tokens ?? 0,
+      completion_tokens: claudeUsage.output_tokens ?? 0,
+      total_tokens: (claudeUsage.input_tokens ?? 0) + (claudeUsage.output_tokens ?? 0),
+    } : null;
 
     let parsed: InsightResponse;
     try {
@@ -498,7 +503,7 @@ Deno.serve(async (req: Request) => {
     }
 
     EdgeRuntime.waitUntil(
-      logTokenUsageAndIncrement(user.id, "mood_insights", "gpt-4o-mini", usage)
+      logTokenUsageAndIncrement(user.id, "mood_insights", "claude-sonnet-4-6", usage)
     );
 
     if (parsed.crisis === "MAYBE" || parsed.crisis === "YES") {
@@ -507,7 +512,7 @@ Deno.serve(async (req: Request) => {
           userId: user.id,
           severity: parsed.crisis,
           source: "mood-insights",
-          model: "gpt-4o-mini",
+          model: "claude-sonnet-4-6",
           meta: { ui_shown: true, mode },
         })
       );
