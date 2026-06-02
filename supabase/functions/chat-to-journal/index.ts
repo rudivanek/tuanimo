@@ -64,9 +64,9 @@ const MAX_MESSAGES = 60;
 const MAX_TOTAL_CHARS = 20_000;
 const RATE_LIMIT_USER_PER_HOUR = 10;
 const RATE_LIMIT_CHAT_PER_HOUR = 3;
-const MODEL = "gpt-4o-mini";
-const COST_PER_INPUT_TOKEN = 0.00000015;
-const COST_PER_OUTPUT_TOKEN = 0.0000006;
+const MODEL = "claude-sonnet-4-6";
+const COST_PER_INPUT_TOKEN = 0.000003;
+const COST_PER_OUTPUT_TOKEN = 0.000015;
 const NIL_UUID = "00000000-0000-0000-0000-000000000000";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -170,52 +170,56 @@ Return ONLY a valid JSON object with this exact schema:
 }`;
 }
 
-async function callOpenAI(
+async function callClaude(
   systemPrompt: string,
   conversationText: string,
   locale: string,
-  openaiKey: string,
+  anthropicKey: string,
 ): Promise<{ raw: string; tokensIn: number; tokensOut: number }> {
   const userPrompt =
     locale === "es"
       ? `Esta es la conversación:\n\n${conversationText}\n\nGenera ahora el borrador de diario en JSON.`
       : `Here is the conversation:\n\n${conversationText}\n\nNow generate the journal draft as JSON.`;
 
-  const openaiBody = JSON.stringify({
+  const claudeBody = JSON.stringify({
     model: MODEL,
-    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+    max_tokens: 800,
     temperature: 0.35,
-    max_tokens: 700,
-    response_format: { type: "json_object" },
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
   });
 
-  const openaiHeaders = { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` };
+  const claudeHeaders = {
+    "Content-Type": "application/json",
+    "x-api-key": anthropicKey,
+    "anthropic-version": "2023-06-01",
+  };
 
-  let response = await fetch("https://api.openai.com/v1/chat/completions", {
+  let response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: openaiHeaders,
-    body: openaiBody,
+    headers: claudeHeaders,
+    body: claudeBody,
   });
 
   if (!response.ok && response.status >= 500) {
     await new Promise(r => setTimeout(r, 1200));
-    response = await fetch("https://api.openai.com/v1/chat/completions", {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: openaiHeaders,
-      body: openaiBody,
+      headers: claudeHeaders,
+      body: claudeBody,
     });
   }
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
-    console.error("callOpenAI failed after retry", { status: response.status, errData });
-    throw new Error("OPENAI_UNAVAILABLE");
+    console.error("callClaude failed after retry", { status: response.status, errData });
+    throw new Error("ANTHROPIC_UNAVAILABLE");
   }
 
   const data = await response.json();
-  const raw: string = data.choices?.[0]?.message?.content ?? "{}";
-  const tokensIn: number = data.usage?.prompt_tokens ?? 0;
-  const tokensOut: number = data.usage?.completion_tokens ?? 0;
+  const raw: string = data.content?.[0]?.text ?? "{}";
+  const tokensIn: number = data.usage?.input_tokens ?? 0;
+  const tokensOut: number = data.usage?.output_tokens ?? 0;
   return { raw, tokensIn, tokensOut };
 }
 
@@ -465,15 +469,15 @@ Deno.serve(async (req: Request) => {
 
     const inputChars = sanitized.reduce((sum, m) => sum + m.content.length, 0);
 
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) throw new Error("OpenAI API key not configured");
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicKey) throw new Error("Anthropic API key not configured");
 
     let firstCall: { raw: string; tokensIn: number; tokensOut: number };
     try {
-      firstCall = await callOpenAI(buildSystemPrompt(locale, max_words), buildConversationText(sanitized), locale, openaiKey);
+      firstCall = await callClaude(buildSystemPrompt(locale, max_words), buildConversationText(sanitized), locale, anthropicKey);
     } catch (aiErr) {
-      const msg = aiErr instanceof Error ? aiErr.message : "OPENAI_UNAVAILABLE";
-      return safeError(503, msg === "OPENAI_UNAVAILABLE" ? "OPENAI_UNAVAILABLE" : "AI service unavailable");
+      const msg = aiErr instanceof Error ? aiErr.message : "ANTHROPIC_UNAVAILABLE";
+      return safeError(503, msg === "ANTHROPIC_UNAVAILABLE" ? "ANTHROPIC_UNAVAILABLE" : "AI service unavailable");
     }
 
     let draft = parseDraft(firstCall.raw);
@@ -482,11 +486,11 @@ Deno.serve(async (req: Request) => {
 
     if (!draft.content || draft.content.length < 40) {
       try {
-        const retryCall = await callOpenAI(
+        const retryCall = await callClaude(
           buildSystemPrompt(locale, max_words) + "\n\nIMPORTANT: Return ONLY valid JSON.",
           buildConversationText(sanitized),
           locale,
-          openaiKey,
+          anthropicKey,
         );
         const retryDraft = parseDraft(retryCall.raw);
         if (retryDraft.content && retryDraft.content.length >= 40) draft = retryDraft;
