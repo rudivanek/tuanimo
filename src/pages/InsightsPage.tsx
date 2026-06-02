@@ -1133,8 +1133,8 @@ export function InsightsPage() {
 
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-app-text">Reflexiones de Elena</h1>
-            <p className="text-app-muted text-sm mt-0.5">Lo que emerge cuando te detienes a mirar</p>
+            <h1 className="text-2xl font-semibold text-app-text">Insights de Ánimo</h1>
+            <p className="text-app-muted text-sm mt-0.5">Lo que Elena va construyendo con tus reflexiones</p>
           </div>
           <div className="flex flex-col items-end flex-shrink-0">
             <button
@@ -1143,12 +1143,12 @@ export function InsightsPage() {
               className="bg-sage-strong text-white rounded-12 px-4 py-2.5 hover:bg-[#4e7260] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
             >
               <Sparkles size={16} />
-              <span className="hidden sm:inline">{isGeneratingInsight ? 'Generando...' : 'Reflexión semanal'}</span>
+              <span className="hidden sm:inline">{isGeneratingInsight ? 'Generando...' : 'Insight Semanal'}</span>
               <span className="sm:hidden">{isGeneratingInsight ? '...' : 'Insight'}</span>
             </button>
             {weekLogCount < 2 && !isGeneratingInsight && !tokenLimitError && (
               <p className="text-xs text-app-muted mt-1 text-right max-w-[160px]">
-                Con más conversaciones, la reflexión se vuelve más específica.
+                Tip: con 2–3 días registrados, el insight suele ser más útil.
               </p>
             )}
           </div>
