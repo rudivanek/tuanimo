@@ -32,46 +32,6 @@ const THEME_LABELS: Record<string, string> = {
   anxiety:       'Presencia',
 };
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-
-async function callAssignTasks(token: string, force = false): Promise<UserDailyTask[]> {
-  const url = force
-    ? `${SUPABASE_URL}/functions/v1/assign-daily-tasks?force=true`
-    : `${SUPABASE_URL}/functions/v1/assign-daily-tasks`;
-
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error || `Error ${res.status}`);
-  }
-
-  const data = await res.json() as { tasks: UserDailyTask[] };
-  return data.tasks ?? [];
-}
-
-async function markTaskComplete(token: string, userDailyTaskId: string, completed: boolean): Promise<void> {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/assign-daily-tasks`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ userDailyTaskId, completed }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error || `Error ${res.status}`);
-  }
-}
-
 export function PracticasPage() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
@@ -86,20 +46,15 @@ export function PracticasPage() {
     if (user) loadTasks();
   }, [user]);
 
-  const getToken = async (): Promise<string> => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) throw new Error('No session token');
-    return token;
-  };
-
   const loadTasks = async (force = false) => {
     setLoading(true);
     setError(null);
     try {
-      const token = await getToken();
-      const result = await callAssignTasks(token, force);
-      setTasks(result);
+      const { data, error: fnError } = await supabase.functions.invoke('assign-daily-tasks', {
+        body: { action: 'get_tasks', force },
+      });
+      if (fnError) throw fnError;
+      setTasks(data.tasks ?? []);
     } catch (err) {
       console.error('PracticasPage load error:', err);
       setError('No se pudieron cargar las prácticas. Inténtalo de nuevo.');
@@ -116,14 +71,14 @@ export function PracticasPage() {
           : t
       )
     );
-
     if (!currentCompleted) {
       setRevealedReflections(prev => new Set([...prev, userDailyTaskId]));
     }
-
     try {
-      const token = await getToken();
-      await markTaskComplete(token, userDailyTaskId, !currentCompleted);
+      const { error: fnError } = await supabase.functions.invoke('assign-daily-tasks', {
+        body: { action: 'complete_task', userDailyTaskId, completed: !currentCompleted },
+      });
+      if (fnError) throw fnError;
     } catch (err) {
       console.error('Toggle complete error:', err);
       setTasks(prev =>
@@ -162,10 +117,8 @@ export function PracticasPage() {
 
   if (loading) {
     return (
-      <div
-        className="bg-app-bg overflow-y-auto"
-        style={{ minHeight: 'calc(100dvh - var(--chrome-total))', paddingBottom: 'calc(var(--nav-total) + 1rem)' }}
-      >
+      <div className="bg-app-bg overflow-y-auto"
+        style={{ minHeight: 'calc(100dvh - var(--chrome-total))', paddingBottom: 'calc(var(--nav-total) + 1rem)' }}>
         <div className="max-w-3xl mx-auto px-5 py-6">
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-strong" />
@@ -176,10 +129,8 @@ export function PracticasPage() {
   }
 
   return (
-    <div
-      className="bg-app-bg overflow-y-auto"
-      style={{ minHeight: 'calc(100dvh - var(--chrome-total))', paddingBottom: 'calc(var(--nav-total) + 1rem)' }}
-    >
+    <div className="bg-app-bg overflow-y-auto"
+      style={{ minHeight: 'calc(100dvh - var(--chrome-total))', paddingBottom: 'calc(var(--nav-total) + 1rem)' }}>
       <div className="max-w-3xl mx-auto px-5 py-6 space-y-5">
 
         <div className="flex items-start justify-between gap-4">
@@ -198,10 +149,8 @@ export function PracticasPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-[14px] px-4 py-3 text-sm text-red-800 flex items-center justify-between gap-3">
             <span>{error}</span>
-            <button
-              onClick={() => loadTasks()}
-              className="flex items-center gap-1.5 text-red-700 hover:text-red-900 transition-colors flex-shrink-0"
-            >
+            <button onClick={() => loadTasks()}
+              className="flex items-center gap-1.5 text-red-700 hover:text-red-900 transition-colors flex-shrink-0">
               <RefreshCw size={14} />
               <span className="text-xs font-medium">Reintentar</span>
             </button>
@@ -221,12 +170,8 @@ export function PracticasPage() {
 
         {allDone && (
           <div className="bg-sage-soft border border-sage/20 rounded-[14px] px-4 py-3 text-center">
-            <p className="text-sm text-sage-strong font-medium">
-              Completaste las tres prácticas de hoy.
-            </p>
-            <p className="text-xs text-app-muted mt-0.5">
-              Vuelve mañana — Elena habrá preparado otras nuevas.
-            </p>
+            <p className="text-sm text-sage-strong font-medium">Completaste las tres prácticas de hoy.</p>
+            <p className="text-xs text-app-muted mt-0.5">Vuelve mañana — Elena habrá preparado otras nuevas.</p>
           </div>
         )}
 
@@ -236,13 +181,12 @@ export function PracticasPage() {
             (item.completed || revealedReflections.has(item.id));
 
           return (
-            <div
-              key={item.id}
+            <div key={item.id}
               className={[
                 'bg-app-surface rounded-[16px] border p-5 transition-all duration-200',
                 item.completed ? 'border-sage/30 opacity-70' : 'border-app-border shadow-app',
-              ].join(' ')}
-            >
+              ].join(' ')}>
+
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[11px] font-medium text-sage-strong bg-sage-soft px-2.5 py-0.5 rounded-full">
                   {THEME_LABELS[item.tasks.theme] ?? item.tasks.theme}
@@ -253,20 +197,15 @@ export function PracticasPage() {
                 </span>
               </div>
 
-              <button
-                onClick={() => toggleComplete(item.id, item.completed)}
-                className="w-full text-left flex items-start gap-3 group"
-              >
+              <button onClick={() => toggleComplete(item.id, item.completed)}
+                className="w-full text-left flex items-start gap-3 group">
                 <span className="flex-shrink-0 mt-0.5 text-sage-strong transition-opacity group-active:opacity-60">
                   {item.completed
                     ? <CheckSquare size={20} strokeWidth={1.8} />
-                    : <Square size={20} strokeWidth={1.8} className="text-app-muted" />
-                  }
+                    : <Square size={20} strokeWidth={1.8} className="text-app-muted" />}
                 </span>
-                <p className={[
-                  'text-[14px] leading-relaxed transition-colors',
-                  item.completed ? 'line-through text-app-muted' : 'text-app-text',
-                ].join(' ')}>
+                <p className={['text-[14px] leading-relaxed transition-colors',
+                  item.completed ? 'line-through text-app-muted' : 'text-app-text'].join(' ')}>
                   {item.tasks.action_text}
                 </p>
               </button>
@@ -278,11 +217,9 @@ export function PracticasPage() {
                       {item.tasks.reflection_prompt}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleOpenJournal(item)}
+                  <button onClick={() => handleOpenJournal(item)}
                     disabled={journalLoading === item.id}
-                    className="mt-3 flex items-center gap-1.5 text-[12px] text-sage-strong hover:text-sage font-medium transition-colors disabled:opacity-50"
-                  >
+                    className="mt-3 flex items-center gap-1.5 text-[12px] text-sage-strong hover:text-sage font-medium transition-colors disabled:opacity-50">
                     <BookOpen size={13} />
                     {journalLoading === item.id ? 'Abriendo...' : 'Escribir en el diario'}
                   </button>
