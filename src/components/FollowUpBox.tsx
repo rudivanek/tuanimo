@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, Wind, BookOpen, AlertCircle, ArrowRight, X } from 'lucide-react';
+import { Heart, Wind, BookOpen, AlertCircle, ArrowRight, X, CheckSquare } from 'lucide-react';
 import type { FollowUp } from '../types/chat';
 import { CrisisResourceModal } from './CrisisResourceModal';
 
@@ -34,6 +34,8 @@ export function FollowUpBox({ followUp, onFollowUpClick }: FollowUpBoxProps) {
           return <Heart size={18} className="text-sage-strong" />;
         case 'journal':
           return <BookOpen size={18} className="text-sage-strong" />;
+        case 'practicas':
+          return <CheckSquare size={18} className="text-sage-strong" />;
       }
     }
     return <ArrowRight size={18} className="text-app-muted" />;
