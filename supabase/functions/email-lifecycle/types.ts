@@ -10,6 +10,8 @@ export interface LifecycleUser {
   email_sequence_step: number;
   email_sequence_status: string;
   email_opt_in: boolean;
+  email_reminders_opt_in: boolean;
+  email_insights_opt_in: boolean;
   last_email_sent_at: string | null;
   last_email_type: string | null;
   last_active_at: string | null;
