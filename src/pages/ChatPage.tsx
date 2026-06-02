@@ -671,7 +671,7 @@ export function ChatPage() {
     });
 
     if (followUp.actionType === 'journal') {
-      setLocation('/app/journal');
+      setLocation('/journal');
     } else if (followUp.actionType === 'save_memory' && followUp.payload) {
       try {
         const { key, value } = followUp.payload;
@@ -771,7 +771,7 @@ export function ChatPage() {
     localStorage.setItem(LS_CREATED_KEY(threadKey), String(Date.now()));
     setAlreadyDismissed(true);
     try { sessionStorage.setItem('journalPageSource', 'chat_suggestion'); } catch {}
-    setLocation('/app/journal');
+    setLocation('/journal');
   };
 
   const handleChipSelect = async (chip: string, messageId: string) => {
@@ -1333,7 +1333,7 @@ export function ChatPage() {
       setInteractedForCurrentInsight(true);
     }
     try { sessionStorage.setItem('insightsPageSource', 'chat_cta'); } catch {}
-    setLocation('/app/insights');
+    setLocation('/insights');
   };
 
   const handleDiarySuggestionMounted = useCallback(() => {
@@ -1397,7 +1397,7 @@ export function ChatPage() {
       if (!entryId) throw new Error('No se recibió el ID de la entrada');
       sessionStorage.setItem('diaryAutoOpen', entryId);
       setShowConvertModal(false);
-      setLocation('/app/journal');
+      setLocation('/journal');
     } catch (err) {
       console.error('chat_to_journal_failed', err);
       throw err;
@@ -1664,7 +1664,7 @@ export function ChatPage() {
 
         {showActivation && (
           <InsightActivationChip
-            onView={() => { recordFlightEvent(user?.id, 'INSIGHT_ACTIVATION_CHIP_CLICKED'); dismissActivation(); setLocation('/app/insights'); }}
+            onView={() => { recordFlightEvent(user?.id, 'INSIGHT_ACTIVATION_CHIP_CLICKED'); dismissActivation(); setLocation('/insights'); }}
             onDismiss={dismissActivation}
           />
         )}
@@ -1784,7 +1784,7 @@ export function ChatPage() {
               entry={linkedEntry}
               onOpen={() => {
                 sessionStorage.setItem('diaryAutoOpen', linkedEntry.id);
-                setLocation('/app/journal');
+                setLocation('/journal');
               }}
             />
           )}
