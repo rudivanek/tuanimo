@@ -430,6 +430,17 @@ export function JournalPage() {
     }
   }, [entries]);
 
+  // Prácticas journal bridge — open new entry with reflection prompt pre-filled
+  useEffect(() => {
+    try {
+      const prefill = sessionStorage.getItem('diaryNewPrefill');
+      if (!prefill) return;
+      sessionStorage.removeItem('diaryNewPrefill');
+      handleNewEntry();
+      setTimeout(() => setContent(prefill + '\n\n'), 0);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (entries.length < 3) return;
     const result = detectTopicRepetition(entries);
