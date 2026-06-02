@@ -672,6 +672,8 @@ export function ChatPage() {
 
     if (followUp.actionType === 'journal') {
       setLocation('/journal');
+    } else if (followUp.actionType === 'practicas') {
+      setLocation('/practicas');
     } else if (followUp.actionType === 'save_memory' && followUp.payload) {
       try {
         const { key, value } = followUp.payload;
