@@ -32,6 +32,46 @@ const THEME_LABELS: Record<string, string> = {
   anxiety:       'Presencia',
 };
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+
+async function callAssignTasks(token: string, force = false): Promise<UserDailyTask[]> {
+  const url = force
+    ? `${SUPABASE_URL}/functions/v1/assign-daily-tasks?force=true`
+    : `${SUPABASE_URL}/functions/v1/assign-daily-tasks`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error || `Error ${res.status}`);
+  }
+
+  const data = await res.json() as { tasks: UserDailyTask[] };
+  return data.tasks ?? [];
+}
+
+async function markTaskComplete(token: string, userDailyTaskId: string, completed: boolean): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/assign-daily-tasks`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userDailyTaskId, completed }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error || `Error ${res.status}`);
+  }
+}
+
 export function PracticasPage() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
@@ -46,15 +86,20 @@ export function PracticasPage() {
     if (user) loadTasks();
   }, [user]);
 
-  const loadTasks = async () => {
+  const getToken = async (): Promise<string> => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error('No session token');
+    return token;
+  };
+
+  const loadTasks = async (force = false) => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('assign-daily-tasks', {
-        method: 'GET',
-      });
-      if (fnError) throw fnError;
-      setTasks(data.tasks ?? []);
+      const token = await getToken();
+      const result = await callAssignTasks(token, force);
+      setTasks(result);
     } catch (err) {
       console.error('PracticasPage load error:', err);
       setError('No se pudieron cargar las prácticas. Inténtalo de nuevo.');
@@ -77,11 +122,8 @@ export function PracticasPage() {
     }
 
     try {
-      const { error: fnError } = await supabase.functions.invoke('assign-daily-tasks', {
-        method: 'POST',
-        body: { userDailyTaskId, completed: !currentCompleted },
-      });
-      if (fnError) throw fnError;
+      const token = await getToken();
+      await markTaskComplete(token, userDailyTaskId, !currentCompleted);
     } catch (err) {
       console.error('Toggle complete error:', err);
       setTasks(prev =>
@@ -157,7 +199,7 @@ export function PracticasPage() {
           <div className="bg-red-50 border border-red-200 rounded-[14px] px-4 py-3 text-sm text-red-800 flex items-center justify-between gap-3">
             <span>{error}</span>
             <button
-              onClick={loadTasks}
+              onClick={() => loadTasks()}
               className="flex items-center gap-1.5 text-red-700 hover:text-red-900 transition-colors flex-shrink-0"
             >
               <RefreshCw size={14} />
