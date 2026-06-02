@@ -694,9 +694,16 @@ export function ChatPage() {
   const handlePracticasConfirm = async () => {
     setPracticasLoading(true);
     try {
-      await supabase.functions.invoke('assign-daily-tasks', {
-        body: { action: 'get_tasks', force: true },
-      });
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const token = currentSession?.access_token;
+      if (token) {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+        await fetch(`${supabaseUrl}/functions/v1/assign-daily-tasks`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_tasks', force: true }),
+        });
+      }
     } catch (err) {
       console.error('Practicas force-assign error:', err);
     } finally {
