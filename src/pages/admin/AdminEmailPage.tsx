@@ -3,7 +3,7 @@ import { Link } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft, Mail, Bell, Sparkles, Save, RefreshCw,
-  AlertCircle, CheckCircle, ToggleLeft, ToggleRight, Users, X,
+  AlertCircle, CheckCircle, ToggleLeft, ToggleRight, Users, X, Play, Zap,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAdmin } from '../../hooks/useAdmin';
@@ -574,9 +574,33 @@ export function AdminEmailPage() {
   const { data: isAdmin } = useAdmin();
   const qc = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [masterEnabled, setMasterEnabled] = useState(true);
+  const [masterSaving, setMasterSaving] = useState(false);
+  const [realRunState, setRealRunState] = useState<DryRunState>('idle');
+  const [realRunResult, setRealRunResult] = useState<DryRunResult | null>(null);
+  const [realRunError, setRealRunError] = useState<string | null>(null);
+  const [confirmReal, setConfirmReal] = useState(false);
   const [dryRunState, setDryRunState] = useState<DryRunState>('idle');
   const [dryRunResult, setDryRunResult] = useState<DryRunResult | null>(null);
   const [dryRunError, setDryRunError] = useState<string | null>(null);
+
+  async function triggerRealRun() {
+    setRealRunState('running');
+    setRealRunResult(null);
+    setRealRunError(null);
+    setConfirmReal(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('email-lifecycle', {
+        body: {},
+      });
+      if (error) throw new Error(error.message);
+      setRealRunResult(data);
+      setRealRunState('done');
+    } catch (err) {
+      setRealRunError(err instanceof Error ? err.message : String(err));
+      setRealRunState('error');
+    }
+  }
 
   async function triggerDryRun() {
     setDryRunState('running');
@@ -672,6 +696,30 @@ export function AdminEmailPage() {
           </div>
         )}
 
+        {/* ── Master switch ── */}
+        <div className="bg-app-surface border border-app-border rounded-[16px] shadow-app p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[15px] font-semibold text-app-text">Envío de emails</p>
+              <p className="text-[12px] text-app-muted mt-0.5">
+                Pausa o activa todo el sistema de emails sin tocar la configuración individual.
+              </p>
+            </div>
+            <button
+              onClick={() => setMasterEnabled(!masterEnabled)}
+              disabled={masterSaving}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-10 border text-sm font-medium transition-all ${
+                masterEnabled
+                  ? 'bg-sage-strong/10 border-sage-strong/30 text-sage-strong'
+                  : 'bg-app-bg border-app-border text-app-muted'
+              } disabled:opacity-40`}
+            >
+              {masterEnabled ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+              {masterEnabled ? 'Activo' : 'Pausado'}
+            </button>
+          </div>
+        </div>
+
         {/* ── Global config ── */}
         <div className="space-y-3">
           <p className="text-[12px] font-semibold text-app-muted uppercase tracking-wider px-1">
@@ -743,6 +791,84 @@ export function AdminEmailPage() {
                 ? <><RefreshCw size={14} className="animate-spin" /> Ejecutando…</>
                 : <><Mail size={14} /> Ejecutar simulación</>}
             </button>
+          </div>
+
+
+          {/* Real send */}
+          <div className="pt-3 border-t border-app-border space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[13px] font-semibold text-app-text">Envío real</p>
+                <p className="text-[11px] text-app-muted mt-0.5">Envía emails reales a todos los usuarios elegibles.</p>
+              </div>
+              {!confirmReal ? (
+                <button
+                  onClick={() => setConfirmReal(true)}
+                  disabled={realRunState === 'running' || !masterEnabled}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-10 text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  <Zap size={14} /> Enviar emails
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <p className="text-[12px] text-amber-600 font-medium">¿Confirmar envío real?</p>
+                  <button
+                    onClick={() => setConfirmReal(false)}
+                    className="px-3 py-1.5 rounded-10 border border-app-border text-xs text-app-muted hover:text-app-text transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={triggerRealRun}
+                    disabled={realRunState === 'running'}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-10 text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 transition-all"
+                  >
+                    {realRunState === 'running'
+                      ? <><RefreshCw size={12} className="animate-spin" /> Enviando…</>
+                      : <><Play size={12} /> Confirmar</>}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {realRunState === 'error' && (
+              <div className="flex items-center gap-2 p-3 rounded-12 bg-red-50 border border-red-200 text-red-700 text-sm">
+                <AlertCircle size={14} /> {realRunError}
+              </div>
+            )}
+
+            {realRunResult && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: 'Procesados', value: realRunResult.processed, cls: 'text-app-text' },
+                    { label: 'Enviados',   value: realRunResult.sent,      cls: 'text-sage-strong' },
+                    { label: 'Omitidos',   value: realRunResult.skipped,   cls: 'text-app-muted' },
+                    { label: 'Fallidos',   value: realRunResult.failed,    cls: 'text-red-500' },
+                  ].map((s) => (
+                    <div key={s.label} className="p-3 rounded-12 bg-app-bg border border-app-border text-center">
+                      <p className={`text-xl font-semibold ${s.cls}`}>{s.value}</p>
+                      <p className="text-[11px] text-app-muted mt-0.5">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-12 bg-app-bg border border-app-border overflow-hidden">
+                  <div className="px-3 py-2 border-b border-app-border">
+                    <p className="text-[11px] font-semibold text-app-muted uppercase tracking-wider">Logs</p>
+                  </div>
+                  <div className="p-3 max-h-48 overflow-y-auto font-mono text-[11px] text-app-text leading-relaxed space-y-0.5">
+                    {realRunResult.logs.map((line, i) => (
+                      <div key={i} className={
+                        line.includes('FAILED') ? 'text-red-500' :
+                        line.includes('sent OK') ? 'text-sage-strong' :
+                        line.includes('suppressed') || line.includes('rate limited') ? 'text-amber-600' :
+                        'text-app-muted'
+                      }>{line}</div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {dryRunState === 'error' && (
