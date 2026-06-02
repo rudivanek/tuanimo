@@ -71,34 +71,47 @@ Deno.serve(async (req: Request) => {
 
     // ── GET: return today's tasks (assign if not yet assigned) ──────────────
     if (req.method === "GET") {
+      const url = new URL(req.url);
+      const force = url.searchParams.get("force") === "true";
       const todayDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
 
-      // Check if tasks already assigned today
-      const { data: existing, error: existingError } = await supabase
-        .from("user_daily_tasks")
-        .select(`
-          id,
-          task_id,
-          assigned_date,
-          completed,
-          completed_at,
-          tasks (
+      // If force=true, delete today's existing assignments so we reassign fresh
+      if (force) {
+        await supabase
+          .from("user_daily_tasks")
+          .delete()
+          .eq("user_id", userId)
+          .eq("assigned_date", todayDate);
+      }
+
+      // Check if tasks already assigned today (skip if force-deleted above)
+      if (!force) {
+        const { data: existing, error: existingError } = await supabase
+          .from("user_daily_tasks")
+          .select(`
             id,
-            theme,
-            action_text,
-            reflection_prompt,
-            duration_minutes
-          )
-        `)
-        .eq("user_id", userId)
-        .eq("assigned_date", todayDate);
+            task_id,
+            assigned_date,
+            completed,
+            completed_at,
+            tasks (
+              id,
+              theme,
+              action_text,
+              reflection_prompt,
+              duration_minutes
+            )
+          `)
+          .eq("user_id", userId)
+          .eq("assigned_date", todayDate);
 
-      if (existingError) throw existingError;
+        if (existingError) throw existingError;
 
-      if (existing && existing.length > 0) {
-        return new Response(JSON.stringify({ tasks: existing }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        if (existing && existing.length > 0) {
+          return new Response(JSON.stringify({ tasks: existing }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       // ── No tasks assigned yet today — select and assign ─────────────────
