@@ -158,10 +158,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) {
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicKey) {
       return new Response(
-        JSON.stringify({ error: "OPENAI_UNAVAILABLE" }),
+        JSON.stringify({ error: "ANTHROPIC_UNAVAILABLE" }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -176,48 +176,53 @@ Deno.serve(async (req: Request) => {
       : "";
     const userMessage = `Extracto de la entrada:\n"${safeExcerpt}"${signalBlock}`;
 
-    const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${openaiKey}`,
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "claude-sonnet-4-6",
+        max_tokens: 250,
+        temperature: 0.8,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
-        temperature: 0.8,
-        max_tokens: 150,
-        response_format: { type: "json_object" },
       }),
     });
 
-    const openaiData = await openaiResponse.json();
+    const anthropicData = await anthropicResponse.json();
 
-    if (!openaiResponse.ok) {
+    if (!anthropicResponse.ok) {
       EdgeRuntime.waitUntil(
         getServiceClient()
           .from("token_usage")
           .insert({
             user_id: userId,
             operation: "ai_reflection_prompt",
-            model: "gpt-4o-mini",
+            model: "claude-sonnet-4-6",
             prompt_tokens: 0,
             completion_tokens: 0,
             total_tokens: 0,
-            metadata: { usage_missing: true, openai_error: true },
+            metadata: { usage_missing: true, anthropic_error: true },
           })
           .then(() => {})
       );
       return new Response(
-        JSON.stringify({ error: "OPENAI_UNAVAILABLE" }),
+        JSON.stringify({ error: "ANTHROPIC_UNAVAILABLE" }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const usage: OpenAIUsage | null = openaiData.usage ?? null;
+    const claudeUsage = anthropicData.usage ?? null;
+    const usage = claudeUsage ? {
+      prompt_tokens: claudeUsage.input_tokens ?? 0,
+      completion_tokens: claudeUsage.output_tokens ?? 0,
+      total_tokens: (claudeUsage.input_tokens ?? 0) + (claudeUsage.output_tokens ?? 0),
+    } : null;
 
     EdgeRuntime.waitUntil(
       getServiceClient()
@@ -225,7 +230,7 @@ Deno.serve(async (req: Request) => {
         .insert({
           user_id: userId,
           operation: "ai_reflection_prompt",
-          model: "gpt-4o-mini",
+          model: "claude-sonnet-4-6",
           prompt_tokens: usage?.prompt_tokens ?? 0,
           completion_tokens: usage?.completion_tokens ?? 0,
           total_tokens: usage?.total_tokens ?? 0,
@@ -234,7 +239,7 @@ Deno.serve(async (req: Request) => {
         .then(() => {})
     );
 
-    const raw = openaiData.choices?.[0]?.message?.content ?? "";
+    const raw = anthropicData.content?.[0]?.text ?? "";
 
     let parsed: { promptText: string; insertStarter: string };
     try {
