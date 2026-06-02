@@ -1,21 +1,15 @@
 // DEPLOY REQUIREMENT: verify_jwt MUST be false
 // This function performs its own auth via auth.getUser().
-// Deploying with verify_jwt:true causes a 401 at the Supabase gateway
-// before the function even runs. Always deploy with verify_jwt: false.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
 // Maps existing chat signal types → task themes
-// A user strong in "anxiety" gets anxiety + avoidance tasks.
-// "stress" maps to avoidance + meaning. "positive" gets meaning + relationships.
-// "gratitude" gets relationships + meaning.
-// Falls back to a balanced mix when no strong signal exists.
 const SIGNAL_TO_THEMES: Record<string, string[]> = {
   anxiety:   ["anxiety", "avoidance"],
   stress:    ["avoidance", "meaning"],
@@ -25,10 +19,8 @@ const SIGNAL_TO_THEMES: Record<string, string[]> = {
 
 const ALL_THEMES = ["meaning", "avoidance", "grief", "identity", "relationships", "anxiety"];
 
-// Returns up to 3 theme names weighted by the user's recent signals.
 function selectThemes(signals: Record<string, number>): string[] {
   const scored: Record<string, number> = {};
-
   for (const [signal, score] of Object.entries(signals)) {
     const themes = SIGNAL_TO_THEMES[signal];
     if (!themes) continue;
@@ -36,15 +28,10 @@ function selectThemes(signals: Record<string, number>): string[] {
       scored[theme] = (scored[theme] ?? 0) + score;
     }
   }
-
   const ranked = Object.entries(scored)
     .sort((a, b) => b[1] - a[1])
     .map(([theme]) => theme);
-
   if (ranked.length >= 3) return ranked.slice(0, 3);
-
-  // Fill remaining slots with themes not yet selected, in a fixed order
-  // that ensures variety: grief and identity get surfaced over time.
   const fallback = ALL_THEMES.filter(t => !ranked.includes(t));
   return [...ranked, ...fallback].slice(0, 3);
 }
@@ -52,6 +39,12 @@ function selectThemes(signals: Record<string, number>): string[] {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
@@ -68,14 +61,14 @@ Deno.serve(async (req: Request) => {
     if (authError || !user) throw new Error("Unauthorized");
 
     const userId = user.id;
+    const body = await req.json() as { action: string; force?: boolean; userDailyTaskId?: string; completed?: boolean };
+    const { action } = body;
 
-    // ── GET: return today's tasks (assign if not yet assigned) ──────────────
-    if (req.method === "GET") {
-      const url = new URL(req.url);
-      const force = url.searchParams.get("force") === "true";
-      const todayDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    // ── action: get_tasks — return today's tasks, assign if needed ────────────
+    if (action === "get_tasks") {
+      const force = body.force === true;
+      const todayDate = new Date().toISOString().split("T")[0];
 
-      // If force=true, delete today's existing assignments so we reassign fresh
       if (force) {
         await supabase
           .from("user_daily_tasks")
@@ -84,29 +77,15 @@ Deno.serve(async (req: Request) => {
           .eq("assigned_date", todayDate);
       }
 
-      // Check if tasks already assigned today (skip if force-deleted above)
       if (!force) {
         const { data: existing, error: existingError } = await supabase
           .from("user_daily_tasks")
-          .select(`
-            id,
-            task_id,
-            assigned_date,
-            completed,
-            completed_at,
-            tasks (
-              id,
-              theme,
-              action_text,
-              reflection_prompt,
-              duration_minutes
-            )
-          `)
+          .select(`id, task_id, assigned_date, completed, completed_at,
+            tasks ( id, theme, action_text, reflection_prompt, duration_minutes )`)
           .eq("user_id", userId)
           .eq("assigned_date", todayDate);
 
         if (existingError) throw existingError;
-
         if (existing && existing.length > 0) {
           return new Response(JSON.stringify({ tasks: existing }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -114,9 +93,7 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // ── No tasks assigned yet today — select and assign ─────────────────
-
-      // 1. Read recent signals (last 14 days) to find dominant themes
+      // Select and assign fresh tasks
       const fourteenDaysAgo = new Date();
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
@@ -126,16 +103,13 @@ Deno.serve(async (req: Request) => {
         .eq("user_id", userId)
         .gte("signal_date", fourteenDaysAgo.toISOString().split("T")[0]);
 
-      // Aggregate signal scores
       const signalTotals: Record<string, number> = {};
       for (const row of signalRows ?? []) {
         signalTotals[row.signal_type] = (signalTotals[row.signal_type] ?? 0) + (Number(row.score) || 0);
       }
 
-      // 2. Select 3 themes based on signals
       const selectedThemes = selectThemes(signalTotals);
 
-      // 3. Find tasks assigned in the last 14 days (avoid repeats)
       const { data: recentAssignments } = await supabase
         .from("user_daily_tasks")
         .select("task_id")
@@ -144,7 +118,6 @@ Deno.serve(async (req: Request) => {
 
       const recentTaskIds = new Set((recentAssignments ?? []).map((r: { task_id: string }) => r.task_id));
 
-      // 4. Fetch candidate tasks for selected themes, excluding recent ones
       const { data: candidates, error: candidatesError } = await supabase
         .from("tasks")
         .select("id, theme, action_text, reflection_prompt, duration_minutes")
@@ -153,21 +126,17 @@ Deno.serve(async (req: Request) => {
 
       if (candidatesError) throw candidatesError;
 
-      // Filter out recently assigned tasks
       const fresh = (candidates ?? []).filter((t: { id: string }) => !recentTaskIds.has(t.id));
 
-      // 5. Pick one task per theme (prioritise variety across themes)
       const picked: typeof fresh = [];
       for (const theme of selectedThemes) {
         const pool = fresh.filter((t: { theme: string }) => t.theme === theme);
         if (pool.length === 0) continue;
-        // Pick randomly within the theme pool
         const chosen = pool[Math.floor(Math.random() * pool.length)];
         picked.push(chosen);
         if (picked.length === 3) break;
       }
 
-      // If we still need more (edge case: all themes exhausted), fill from any fresh task
       if (picked.length < 3) {
         const pickedIds = new Set(picked.map((t: { id: string }) => t.id));
         const remaining = fresh.filter((t: { id: string }) => !pickedIds.has(t.id));
@@ -178,7 +147,6 @@ Deno.serve(async (req: Request) => {
       }
 
       if (picked.length === 0) {
-        // Absolute fallback: no fresh tasks available — reset and pick any
         const { data: anyTasks } = await supabase
           .from("tasks")
           .select("id, theme, action_text, reflection_prompt, duration_minutes")
@@ -187,7 +155,6 @@ Deno.serve(async (req: Request) => {
         picked.push(...(anyTasks ?? []));
       }
 
-      // 6. Insert assignments into user_daily_tasks
       const inserts = picked.map((t: { id: string }) => ({
         user_id: userId,
         task_id: t.id,
@@ -198,20 +165,8 @@ Deno.serve(async (req: Request) => {
       const { data: inserted, error: insertError } = await supabase
         .from("user_daily_tasks")
         .insert(inserts)
-        .select(`
-          id,
-          task_id,
-          assigned_date,
-          completed,
-          completed_at,
-          tasks (
-            id,
-            theme,
-            action_text,
-            reflection_prompt,
-            duration_minutes
-          )
-        `);
+        .select(`id, task_id, assigned_date, completed, completed_at,
+          tasks ( id, theme, action_text, reflection_prompt, duration_minutes )`);
 
       if (insertError) throw insertError;
 
@@ -220,14 +175,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── POST: mark a task complete / incomplete ─────────────────────────────
-    if (req.method === "POST") {
-      const body = await req.json();
-      const { userDailyTaskId, completed } = body as {
-        userDailyTaskId: string;
-        completed: boolean;
-      };
-
+    // ── action: complete_task — mark a task complete/incomplete ───────────────
+    if (action === "complete_task") {
+      const { userDailyTaskId, completed } = body;
       if (!userDailyTaskId || typeof completed !== "boolean") {
         throw new Error("Missing required fields: userDailyTaskId and completed");
       }
@@ -250,7 +200,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    throw new Error("Method not allowed");
+    throw new Error("Unknown action");
 
   } catch (error) {
     console.error("assign-daily-tasks error:", error);
