@@ -1148,7 +1148,7 @@ export function InsightsPage() {
             </button>
             {weekLogCount < 2 && !isGeneratingInsight && !tokenLimitError && (
               <p className="text-xs text-app-muted mt-1 text-right max-w-[160px]">
-                Tip: con 2–3 días registrados, el insight suele ser más útil.
+                Con más conversaciones, la reflexión se vuelve más específica.
               </p>
             )}
           </div>
