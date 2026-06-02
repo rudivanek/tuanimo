@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { BarChart3, DollarSign, Shield, Users, AlertTriangle, SlidersHorizontal, Mail } from 'lucide-react';
+import { BarChart3, CreditCard, DollarSign, Shield, Users, AlertTriangle, SlidersHorizontal, Mail } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 
 interface NavCard {
@@ -11,6 +11,12 @@ interface NavCard {
 
 const adminNav: NavCard[] = [
   {
+    href: '/admin/cost-per-cycle',
+    icon: CreditCard,
+    title: 'Costo por Ciclo',
+    description: 'Gasto real por usuario desde el inicio de su ciclo activo: tokens, llamadas y costo en USD.',
+  },
+  {
     href: '/admin/token-usage',
     icon: BarChart3,
     title: 'Uso de Tokens',
@@ -20,7 +26,7 @@ const adminNav: NavCard[] = [
     href: '/admin/token-costs',
     icon: DollarSign,
     title: 'Costos de Tokens',
-    description: 'Gasto estimado en OpenAI: totales 7d/30d, desglose por función y plan, top 20 usuarios.',
+    description: 'Gasto estimado: totales 7d/30d, desglose por función y plan, top 20 usuarios.',
   },
   {
     href: '/admin/users',
