@@ -10,6 +10,7 @@ import { Layout } from './components/Layout';
 const JournalPage = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
 const InsightsPage = lazy(() => import('./pages/InsightsPage').then(m => ({ default: m.InsightsPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const PracticasPage = lazy(() => import('./pages/PracticasPage').then(m => ({ default: m.PracticasPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
 const TokenUsagePage = lazy(() => import('./pages/admin/TokenUsagePage').then(m => ({ default: m.TokenUsagePage })));
 const TokenCostsPage = lazy(() => import('./pages/admin/TokenCostsPage').then(m => ({ default: m.TokenCostsPage })));
@@ -66,6 +67,7 @@ const ChatRoute = () => <ProtectedRoute component={ChatPage} />;
 const JournalRoute = () => <ProtectedRoute component={JournalPage} />;
 const InsightsRoute = () => <ProtectedRoute component={InsightsPage} />;
 const SettingsRoute = () => <ProtectedRoute component={SettingsPage} />;
+const PracticasRoute = () => <ProtectedRoute component={PracticasPage} />;
 const AdminPageRoute = () => <AdminRoute component={AdminPage} />;
 const TokenUsageRoute = () => <AdminRoute component={TokenUsagePage} />;
 const TokenCostsRoute = () => <AdminRoute component={TokenCostsPage} />;
@@ -91,6 +93,7 @@ function App() {
       <Route path="/login" component={LoginPage} />
       <Route path="/chat" component={ChatRoute} />
       <Route path="/journal" component={JournalRoute} />
+      <Route path="/practicas" component={PracticasRoute} />
       <Route path="/insights" component={InsightsRoute} />
       <Route path="/settings" component={SettingsRoute} />
       <Route path="/admin" component={AdminPageRoute} />
