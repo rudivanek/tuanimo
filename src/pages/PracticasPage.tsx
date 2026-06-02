@@ -32,8 +32,10 @@ const THEME_LABELS: Record<string, string> = {
   anxiety:       'Presencia',
 };
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+
 export function PracticasPage() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { data: profile } = useProfile();
   const [, navigate] = useLocation();
   const [tasks, setTasks] = useState<UserDailyTask[]>([]);
@@ -43,17 +45,32 @@ export function PracticasPage() {
   const [journalLoading, setJournalLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) loadTasks();
-  }, [user]);
+    if (user && session) loadTasks();
+  }, [user, session]);
+
+  const callFunction = async (body: object): Promise<Response> => {
+    const token = session?.access_token;
+    if (!token) throw new Error('No session');
+    return fetch(`${SUPABASE_URL}/functions/v1/assign-daily-tasks`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  };
 
   const loadTasks = async (force = false) => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('assign-daily-tasks', {
-        body: { action: 'get_tasks', force },
-      });
-      if (fnError) throw fnError;
+      const res = await callFunction({ action: 'get_tasks', force });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error || `Error ${res.status}`);
+      }
+      const data = await res.json() as { tasks: UserDailyTask[] };
       setTasks(data.tasks ?? []);
     } catch (err) {
       console.error('PracticasPage load error:', err);
@@ -75,10 +92,8 @@ export function PracticasPage() {
       setRevealedReflections(prev => new Set([...prev, userDailyTaskId]));
     }
     try {
-      const { error: fnError } = await supabase.functions.invoke('assign-daily-tasks', {
-        body: { action: 'complete_task', userDailyTaskId, completed: !currentCompleted },
-      });
-      if (fnError) throw fnError;
+      const res = await callFunction({ action: 'complete_task', userDailyTaskId, completed: !currentCompleted });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
     } catch (err) {
       console.error('Toggle complete error:', err);
       setTasks(prev =>
