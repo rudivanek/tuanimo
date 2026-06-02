@@ -195,44 +195,50 @@ Devuelve SIEMPRE un objeto JSON con exactamente esta estructura:
 
 Los valores válidos para "crisis" son: "NO", "MAYBE", "YES".`;
 
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) {
-      throw new Error("OpenAI API key not configured");
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicKey) {
+      throw new Error("Anthropic API key not configured");
     }
 
-    const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${openaiKey}`,
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "claude-sonnet-4-6",
+        max_tokens: 500,
+        temperature: 0.9,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           { role: "user", content: "Genera 3 sugerencias de escritura para hoy, en español." },
         ],
-        temperature: 0.9,
-        max_tokens: 400,
-        response_format: { type: "json_object" },
       }),
     });
 
-    if (!openaiResponse.ok) {
-      const errorData = await openaiResponse.json();
-      throw new Error(`OPENAI_ERROR: ${JSON.stringify(errorData)}`);
+    if (!anthropicResponse.ok) {
+      const errorData = await anthropicResponse.json();
+      throw new Error(`ANTHROPIC_ERROR: ${JSON.stringify(errorData)}`);
     }
 
-    const openaiData = await openaiResponse.json();
-    const parsed: PromptsResponse = JSON.parse(openaiData.choices[0].message.content);
+    const anthropicData = await anthropicResponse.json();
+    const rawText: string = anthropicData.content?.[0]?.text ?? "{}";
+    const parsed: PromptsResponse = JSON.parse(rawText);
     const prompts = parsed.prompts || [];
     const crisis = (parsed.crisis && ["NO", "MAYBE", "YES"].includes(parsed.crisis))
       ? parsed.crisis
       : "NO";
-    const usage: OpenAIUsage | null = openaiData.usage ?? null;
+    const claudeUsage = anthropicData.usage ?? null;
+    const usage = claudeUsage ? {
+      prompt_tokens: claudeUsage.input_tokens ?? 0,
+      completion_tokens: claudeUsage.output_tokens ?? 0,
+      total_tokens: (claudeUsage.input_tokens ?? 0) + (claudeUsage.output_tokens ?? 0),
+    } : null;
 
     EdgeRuntime.waitUntil(
-      logTokenUsageAndIncrement(user.id, "journal_prompts", "gpt-4o-mini", usage)
+      logTokenUsageAndIncrement(user.id, "journal_prompts", "claude-sonnet-4-6", usage)
     );
 
     if (crisis === "MAYBE" || crisis === "YES") {
@@ -241,7 +247,7 @@ Los valores válidos para "crisis" son: "NO", "MAYBE", "YES".`;
           userId: user.id,
           severity: crisis,
           source: "journal-prompts",
-          model: "gpt-4o-mini",
+          model: "claude-sonnet-4-6",
           meta: { ui_shown: true },
         })
       );
