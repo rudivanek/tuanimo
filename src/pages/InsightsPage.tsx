@@ -1133,7 +1133,7 @@ export function InsightsPage() {
 
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-app-text">Insights de Ánimo</h1>
+            <h1 className="text-2xl font-semibold text-app-text">Reflexiones de Elena</h1>
             <p className="text-app-muted text-sm mt-0.5">Lo que Elena va construyendo con tus reflexiones</p>
           </div>
           <div className="flex flex-col items-end flex-shrink-0">
