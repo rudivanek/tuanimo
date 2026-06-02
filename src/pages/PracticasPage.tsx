@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { CheckSquare, Square, Clock, RefreshCw } from 'lucide-react';
+import { CheckSquare, Square, Clock, RefreshCw, BookOpen } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
+import { useProfile } from '../hooks/useProfile';
 import { supabase } from '../lib/supabaseClient';
+import { createJournalEntryFromInsight } from '../lib/journalEntries';
 
 interface Task {
   id: string;
@@ -31,10 +34,13 @@ const THEME_LABELS: Record<string, string> = {
 
 export function PracticasPage() {
   const { user } = useAuth();
+  const { data: profile } = useProfile();
+  const [, navigate] = useLocation();
   const [tasks, setTasks] = useState<UserDailyTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revealedReflections, setRevealedReflections] = useState<Set<string>>(new Set());
+  const [journalLoading, setJournalLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) loadTasks();
@@ -58,7 +64,6 @@ export function PracticasPage() {
   };
 
   const toggleComplete = async (userDailyTaskId: string, currentCompleted: boolean) => {
-    // Optimistic update
     setTasks(prev =>
       prev.map(t =>
         t.id === userDailyTaskId
@@ -67,7 +72,6 @@ export function PracticasPage() {
       )
     );
 
-    // Reveal reflection prompt when completing
     if (!currentCompleted) {
       setRevealedReflections(prev => new Set([...prev, userDailyTaskId]));
     }
@@ -80,7 +84,6 @@ export function PracticasPage() {
       if (fnError) throw fnError;
     } catch (err) {
       console.error('Toggle complete error:', err);
-      // Revert on error
       setTasks(prev =>
         prev.map(t =>
           t.id === userDailyTaskId
@@ -88,6 +91,27 @@ export function PracticasPage() {
             : t
         )
       );
+    }
+  };
+
+  const handleOpenJournal = async (item: UserDailyTask) => {
+    if (!user || !profile || !item.tasks.reflection_prompt) return;
+    setJournalLoading(item.id);
+    try {
+      const content = `${item.tasks.reflection_prompt}\n\n`;
+      const themeLabel = THEME_LABELS[item.tasks.theme] ?? item.tasks.theme;
+      const entryId = await createJournalEntryFromInsight({
+        userId: user.id,
+        profile,
+        title: themeLabel,
+        content,
+      });
+      sessionStorage.setItem('diaryAutoOpen', entryId);
+      navigate('/journal');
+    } catch (err) {
+      console.error('Journal bridge error:', err);
+    } finally {
+      setJournalLoading(null);
     }
   };
 
@@ -116,13 +140,10 @@ export function PracticasPage() {
     >
       <div className="max-w-3xl mx-auto px-5 py-6 space-y-5">
 
-        {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-app-text">Prácticas</h1>
-            <p className="text-app-muted text-sm mt-0.5">
-              Tres cosas pequeñas para hoy
-            </p>
+            <p className="text-app-muted text-sm mt-0.5">Tres cosas pequeñas para hoy</p>
           </div>
           {tasks.length > 0 && (
             <div className="flex-shrink-0 text-right">
@@ -132,7 +153,6 @@ export function PracticasPage() {
           )}
         </div>
 
-        {/* Error state */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-[14px] px-4 py-3 text-sm text-red-800 flex items-center justify-between gap-3">
             <span>{error}</span>
@@ -146,7 +166,6 @@ export function PracticasPage() {
           </div>
         )}
 
-        {/* Empty state — no tasks yet */}
         {!error && tasks.length === 0 && (
           <div className="flex flex-col items-center justify-center py-14 px-6 text-center gap-4">
             <p className="text-[14px] text-app-text font-medium leading-relaxed">
@@ -158,7 +177,6 @@ export function PracticasPage() {
           </div>
         )}
 
-        {/* All done celebration */}
         {allDone && (
           <div className="bg-sage-soft border border-sage/20 rounded-[14px] px-4 py-3 text-center">
             <p className="text-sm text-sage-strong font-medium">
@@ -170,7 +188,6 @@ export function PracticasPage() {
           </div>
         )}
 
-        {/* Task cards */}
         {tasks.map((item) => {
           const showReflection =
             item.tasks.reflection_prompt &&
@@ -181,12 +198,9 @@ export function PracticasPage() {
               key={item.id}
               className={[
                 'bg-app-surface rounded-[16px] border p-5 transition-all duration-200',
-                item.completed
-                  ? 'border-sage/30 opacity-70'
-                  : 'border-app-border shadow-app',
+                item.completed ? 'border-sage/30 opacity-70' : 'border-app-border shadow-app',
               ].join(' ')}
             >
-              {/* Theme tag + duration */}
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[11px] font-medium text-sage-strong bg-sage-soft px-2.5 py-0.5 rounded-full">
                   {THEME_LABELS[item.tasks.theme] ?? item.tasks.theme}
@@ -197,7 +211,6 @@ export function PracticasPage() {
                 </span>
               </div>
 
-              {/* Action text + checkbox */}
               <button
                 onClick={() => toggleComplete(item.id, item.completed)}
                 className="w-full text-left flex items-start gap-3 group"
@@ -216,19 +229,27 @@ export function PracticasPage() {
                 </p>
               </button>
 
-              {/* Reflection prompt — appears after completion */}
               {showReflection && (
-                <div className="mt-4 pl-8 border-l-2 border-sage/30">
-                  <p className="text-[12px] text-sage-strong italic leading-relaxed">
-                    {item.tasks.reflection_prompt}
-                  </p>
+                <div className="mt-4 pl-8">
+                  <div className="border-l-2 border-sage/30 pl-3">
+                    <p className="text-[12px] text-sage-strong italic leading-relaxed">
+                      {item.tasks.reflection_prompt}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleOpenJournal(item)}
+                    disabled={journalLoading === item.id}
+                    className="mt-3 flex items-center gap-1.5 text-[12px] text-sage-strong hover:text-sage font-medium transition-colors disabled:opacity-50"
+                  >
+                    <BookOpen size={13} />
+                    {journalLoading === item.id ? 'Abriendo...' : 'Escribir en el diario'}
+                  </button>
                 </div>
               )}
             </div>
           );
         })}
 
-        {/* Footer note */}
         {tasks.length > 0 && (
           <p className="text-center text-[11px] text-app-muted/60 px-4 leading-relaxed">
             Las prácticas se renuevan cada día a medianoche.
