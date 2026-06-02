@@ -737,6 +737,38 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Parse request body — may contain user_id + week_start_date for single-user mode
+    let body: Record<string, string> = {};
+    try {
+      const text = await req.text();
+      if (text && text.trim().length > 2) body = JSON.parse(text);
+    } catch { /* empty body is fine */ }
+
+    const singleUserId     = typeof body.user_id         === "string" ? body.user_id         : null;
+    const singleWeekStart  = typeof body.week_start_date === "string" ? body.week_start_date : null;
+
+    // ── SINGLE-USER MODE (rolling daily cron) ──────────────────────────────
+    // Called by cron_rolling_insight_trigger with a specific user + window.
+    if (singleUserId && singleWeekStart) {
+      console.log(`WEEKLY_INSIGHTS: single-user mode user=${singleUserId} week_start=${singleWeekStart}`);
+      try {
+        await generateInsightForUser(svc, singleUserId, singleWeekStart);
+        console.log(`WEEKLY_INSIGHTS: generated for user ${singleUserId}`);
+        return new Response(
+          JSON.stringify({ ok: true, mode: "single", user_id: singleUserId, week_start_date: singleWeekStart }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`WEEKLY_INSIGHTS: failed for user ${singleUserId}: ${message}`);
+        return new Response(
+          JSON.stringify({ ok: false, mode: "single", user_id: singleUserId, error: message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    // ── BATCH MODE (Monday weekly cron) ────────────────────────────────────
     const now = new Date();
     const dayOfWeek = now.getUTCDay();
     const daysToThisMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -745,7 +777,7 @@ Deno.serve(async (req: Request) => {
     lastMonday.setUTCDate(thisMonday.getUTCDate() - 7);
 
     const weekStartDate = lastMonday.toISOString().slice(0, 10);
-    const weekEndDate = thisMonday.toISOString().slice(0, 10);
+    const weekEndDate   = thisMonday.toISOString().slice(0, 10);
 
     const { data: eligibleUsers, error: eligibleError } = await svc.rpc(
       "get_users_needing_weekly_insight",
@@ -755,7 +787,7 @@ Deno.serve(async (req: Request) => {
     if (eligibleError) throw new Error(`Failed to get eligible users: ${eligibleError.message}`);
 
     const users: Array<{ user_id: string }> = eligibleUsers ?? [];
-    console.log(`WEEKLY_INSIGHTS: week=${weekStartDate} eligible=${users.length}`);
+    console.log(`WEEKLY_INSIGHTS: batch mode week=${weekStartDate} eligible=${users.length}`);
 
     let processed = 0;
     let failed = 0;
@@ -777,7 +809,7 @@ Deno.serve(async (req: Request) => {
     console.log(`WEEKLY_INSIGHTS: done week=${weekStartDate} processed=${processed} failed=${failed}`);
 
     return new Response(
-      JSON.stringify({ ok: true, week_start_date: weekStartDate, processed, failed, errors }),
+      JSON.stringify({ ok: true, mode: "batch", week_start_date: weekStartDate, processed, failed, errors }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
