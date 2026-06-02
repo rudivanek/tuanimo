@@ -13,6 +13,7 @@ import { Send, MessageCircle, Trash2, GripVertical, ArrowLeft, Plus, Lock, Penci
 import { getPreferredGreetingName } from '../lib/welcomeMessages';
 import { getLastUserChatTimestamp, buildContextualGreeting, getInsightSnippetForReturn, buildReturnGreetingWithInsight, getChatSignalForReturn, buildReturnGreetingWithSignal, getFirstSessionTopicEnc, buildReturnGreetingWithMemory } from '../lib/contextualGreeting';
 import { FollowUpBox } from '../components/FollowUpBox';
+import { PracticasConfirmModal } from '../components/PracticasConfirmModal';
 import { DiaryDraftSuggestion } from '../components/DiaryDraftSuggestion';
 import { ChatLinkedJournalBanner } from '../components/ChatLinkedJournalBanner';
 import { SuggestionChips } from '../components/SuggestionChips';
@@ -102,6 +103,8 @@ export function ChatPage() {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [showPracticasConfirm, setShowPracticasConfirm] = useState(false);
+  const [practicasLoading, setPracticasLoading] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -673,7 +676,8 @@ export function ChatPage() {
     if (followUp.actionType === 'journal') {
       setLocation('/journal');
     } else if (followUp.actionType === 'practicas') {
-      setLocation('/practicas');
+      setShowPracticasConfirm(true);
+      return; // don't mark followUp as used yet — modal handles navigation
     } else if (followUp.actionType === 'save_memory' && followUp.payload) {
       try {
         const { key, value } = followUp.payload;
@@ -685,6 +689,37 @@ export function ChatPage() {
         console.error('Error saving memory:', error);
       }
     }
+  };
+
+  const handlePracticasConfirm = async () => {
+    setPracticasLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('assign-daily-tasks', {
+        method: 'GET',
+        headers: { 'x-force': 'true' },
+      });
+      // Use query param approach via fetch directly since invoke doesn't support query params easily
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      await fetch(`${supabaseUrl}/functions/v1/assign-daily-tasks?force=true`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (err) {
+      console.error('Practicas force-assign error:', err);
+    } finally {
+      setPracticasLoading(false);
+      setShowPracticasConfirm(false);
+      setLocation('/practicas');
+    }
+  };
+
+  const handlePracticasCancel = () => {
+    setShowPracticasConfirm(false);
   };
 
   const handleDismissDiarySuggestion = () => {
