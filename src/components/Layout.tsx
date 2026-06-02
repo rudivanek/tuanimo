@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { MessageCircle, BookOpen, BarChart3, Settings, Shield } from 'lucide-react';
+import { MessageCircle, BookOpen, BarChart3, Settings, Shield, CheckSquare } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 import { useLatestInsightAt } from '../hooks/useLatestInsightAt';
 import { hasNewInsightsSinceLastView } from '../lib/insightVisibility';
@@ -33,6 +33,7 @@ export function Layout({ children }: LayoutProps) {
   const navItems = [
     { path: '/chat', icon: MessageCircle, label: 'Chat' },
     { path: '/journal', icon: BookOpen, label: 'Diario' },
+    { path: '/practicas', icon: CheckSquare, label: 'Prácticas' },
     { path: '/insights', icon: BarChart3, label: 'Insights' },
     { path: '/settings', icon: Settings, label: 'Ajustes' },
   ];
@@ -52,7 +53,7 @@ export function Layout({ children }: LayoutProps) {
           <span className="text-[18px] font-semibold tracking-tight text-app-text">Tu-Animo</span>
           <span className="text-[18px] font-semibold tracking-tight text-sage-strong">.app</span>
           <span className="text-xs text-app-muted ml-2 hidden sm:inline">
-            Tu consejera de IA<span className="ml-1 text-sage-strong/70 font-medium">11.2</span>
+            Tu consejera de IA<span className="ml-1 text-sage-strong/70 font-medium">11.1</span>
           </span>
         </div>
         <div className="ml-auto pr-1">
