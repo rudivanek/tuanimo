@@ -1143,7 +1143,7 @@ export function InsightsPage() {
               className="bg-sage-strong text-white rounded-12 px-4 py-2.5 hover:bg-[#4e7260] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
             >
               <Sparkles size={16} />
-              <span className="hidden sm:inline">{isGeneratingInsight ? 'Generando...' : 'Insight Semanal'}</span>
+              <span className="hidden sm:inline">{isGeneratingInsight ? 'Generando...' : 'Reflexión semanal'}</span>
               <span className="sm:hidden">{isGeneratingInsight ? '...' : 'Insight'}</span>
             </button>
             {weekLogCount < 2 && !isGeneratingInsight && !tokenLimitError && (
