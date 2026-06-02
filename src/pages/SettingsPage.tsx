@@ -4,6 +4,7 @@ import { LogOut, Volume2, VolumeX, Bell, RefreshCw } from 'lucide-react';
 import { TokenUsageSection } from '../components/TokenUsageSection';
 import { useSoundSettings } from '../hooks/useSoundSettings';
 import { supabase } from '../lib/supabaseClient';
+import { HelpGuideButton } from '../components/HelpGuide';
 
 function Toggle({
   checked,
@@ -136,7 +137,10 @@ export function SettingsPage() {
   return (
     <div className="bg-app-bg p-5 space-y-5" style={{ minHeight: 'calc(100dvh - var(--chrome-total))', paddingBottom: 'calc(var(--nav-total) + 1.5rem)' }}>
       <div className="max-w-2xl mx-auto space-y-5">
-        <h1 className="text-2xl font-semibold text-app-text">Configuración</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-app-text">Configuración</h1>
+          <HelpGuideButton />
+        </div>
 
         <TokenUsageSection />
 
