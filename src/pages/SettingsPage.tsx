@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Volume2, VolumeX } from 'lucide-react';
+import { LogOut, Volume2, VolumeX, Bell, RefreshCw } from 'lucide-react';
 import { TokenUsageSection } from '../components/TokenUsageSection';
 import { useSoundSettings } from '../hooks/useSoundSettings';
+import { supabase } from '../lib/supabaseClient';
 
 function Toggle({
   checked,
@@ -47,12 +49,14 @@ function SettingRow({
   checked,
   onChange,
   disabled,
+  saving,
 }: {
   label: string;
   description?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
+  saving?: boolean;
 }) {
   return (
     <div className={`flex items-center justify-between gap-4 py-3 ${disabled ? 'opacity-50' : ''}`}>
@@ -60,14 +64,71 @@ function SettingRow({
         <p className="text-sm font-medium text-app-text">{label}</p>
         {description && <p className="text-[12px] text-app-muted mt-0.5 leading-snug">{description}</p>}
       </div>
-      <Toggle checked={checked} onChange={onChange} disabled={disabled} />
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {saving && <RefreshCw size={11} className="animate-spin text-app-muted" />}
+        <Toggle checked={checked} onChange={onChange} disabled={disabled || saving} />
+      </div>
     </div>
   );
 }
 
+// ─── Email notification preferences ──────────────────────────────────────────
+
+interface EmailPrefs {
+  email_opt_in: boolean;
+  email_reminders_opt_in: boolean;
+  email_insights_opt_in: boolean;
+}
+
+function useEmailPrefs() {
+  const { user } = useAuth();
+  const [prefs, setPrefs] = useState<EmailPrefs>({
+    email_opt_in: true,
+    email_reminders_opt_in: true,
+    email_insights_opt_in: true,
+  });
+  const [loading, setLoading] = useState(true);
+  const [savingField, setSavingField] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('profiles')
+      .select('email_opt_in, email_reminders_opt_in, email_insights_opt_in')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setPrefs({
+            email_opt_in: data.email_opt_in ?? true,
+            email_reminders_opt_in: data.email_reminders_opt_in ?? true,
+            email_insights_opt_in: data.email_insights_opt_in ?? true,
+          });
+        }
+        setLoading(false);
+      });
+  }, [user]);
+
+  async function update(field: keyof EmailPrefs, value: boolean) {
+    if (!user) return;
+    setSavingField(field);
+    setPrefs((prev) => ({ ...prev, [field]: value }));
+    await supabase
+      .from('profiles')
+      .update({ [field]: value })
+      .eq('id', user.id);
+    setSavingField(null);
+  }
+
+  return { prefs, loading, savingField, update };
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
 export function SettingsPage() {
   const { signOut, user } = useAuth();
-  const { settings, update, isSaving } = useSoundSettings();
+  const { settings, update: updateSound, isSaving: isSavingSound } = useSoundSettings();
+  const { prefs, loading: loadingPrefs, savingField, update: updateEmailPref } = useEmailPrefs();
 
   return (
     <div className="bg-app-bg p-5 space-y-5" style={{ minHeight: 'calc(100dvh - var(--chrome-total))', paddingBottom: 'calc(var(--nav-total) + 1.5rem)' }}>
@@ -76,6 +137,7 @@ export function SettingsPage() {
 
         <TokenUsageSection />
 
+        {/* ── Sound settings ── */}
         <div className="bg-app-surface rounded-[16px] shadow-app border border-app-border p-5">
           <div className="flex items-center gap-2 mb-1">
             {settings.soundEnabled
@@ -83,45 +145,88 @@ export function SettingsPage() {
               : <VolumeX size={16} className="text-app-muted flex-shrink-0" />
             }
             <h2 className="text-[15px] font-semibold text-app-text">Sonidos</h2>
-            {isSaving && (
+            {isSavingSound && (
               <span className="ml-auto text-[11px] text-app-muted">Guardando…</span>
             )}
           </div>
           <p className="text-[12.5px] text-app-muted mb-4 leading-snug">
             Suaves tonos que acompañan las respuestas de Elena. Puedes desactivarlos en cualquier momento.
           </p>
-
           <div className="divide-y divide-app-border">
             <SettingRow
               label="Sonidos de Elena"
               description="Activa o desactiva todos los sonidos de la app"
               checked={settings.soundEnabled}
-              onChange={(v) => update({ soundEnabled: v })}
+              onChange={(v) => updateSound({ soundEnabled: v })}
             />
             <SettingRow
               label="Sonido al responder"
               description="Un suave tono cuando Elena termina de responder"
               checked={settings.soundResponseEnabled}
-              onChange={(v) => update({ soundResponseEnabled: v })}
+              onChange={(v) => updateSound({ soundResponseEnabled: v })}
               disabled={!settings.soundEnabled}
             />
             <SettingRow
               label="Sonido al sugerir Diario"
               description="Doble tono cuando aparece la sugerencia de crear una entrada"
               checked={settings.soundJournalSuggestionEnabled}
-              onChange={(v) => update({ soundJournalSuggestionEnabled: v })}
+              onChange={(v) => updateSound({ soundJournalSuggestionEnabled: v })}
               disabled={!settings.soundEnabled}
             />
             <SettingRow
               label="Sonido al guardar Diario"
               description="Acorde suave al guardar una entrada del diario"
               checked={settings.soundJournalSavedEnabled}
-              onChange={(v) => update({ soundJournalSavedEnabled: v })}
+              onChange={(v) => updateSound({ soundJournalSavedEnabled: v })}
               disabled={!settings.soundEnabled}
             />
           </div>
         </div>
 
+        {/* ── Email notification preferences ── */}
+        <div className="bg-app-surface rounded-[16px] shadow-app border border-app-border p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Bell size={16} className="text-sage-strong flex-shrink-0" />
+            <h2 className="text-[15px] font-semibold text-app-text">Notificaciones de Elena</h2>
+          </div>
+          <p className="text-[12.5px] text-app-muted mb-4 leading-snug">
+            Elena puede escribirte por correo. Tú decides qué quieres recibir.
+          </p>
+
+          {loadingPrefs ? (
+            <div className="flex items-center gap-2 py-4 text-sm text-app-muted">
+              <RefreshCw size={13} className="animate-spin" /> Cargando preferencias…
+            </div>
+          ) : (
+            <div className="divide-y divide-app-border">
+              <SettingRow
+                label="Todos los correos de Elena"
+                description="Activa o desactiva todos los mensajes por correo"
+                checked={prefs.email_opt_in}
+                onChange={(v) => updateEmailPref('email_opt_in', v)}
+                saving={savingField === 'email_opt_in'}
+              />
+              <SettingRow
+                label="Recordatorios"
+                description="Elena te escribe cuando llevas varios días sin pasar por aquí"
+                checked={prefs.email_reminders_opt_in}
+                onChange={(v) => updateEmailPref('email_reminders_opt_in', v)}
+                disabled={!prefs.email_opt_in}
+                saving={savingField === 'email_reminders_opt_in'}
+              />
+              <SettingRow
+                label="Cartas de reflexión"
+                description="Una carta semanal de Elena con lo que ha observado en tus conversaciones"
+                checked={prefs.email_insights_opt_in}
+                onChange={(v) => updateEmailPref('email_insights_opt_in', v)}
+                disabled={!prefs.email_opt_in}
+                saving={savingField === 'email_insights_opt_in'}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ── Account ── */}
         <div className="bg-app-surface rounded-[16px] shadow-app border border-app-border p-5">
           <h2 className="text-[15px] font-semibold text-app-text mb-4">Cuenta</h2>
           {user?.email && (
@@ -138,6 +243,7 @@ export function SettingsPage() {
             Cerrar sesión
           </button>
         </div>
+
       </div>
     </div>
   );
