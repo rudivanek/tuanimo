@@ -16,6 +16,7 @@ const TokenCostsPage = lazy(() => import('./pages/admin/TokenCostsPage').then(m 
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })));
 const CrisisEventsPage = lazy(() => import('./pages/admin/CrisisEventsPage').then(m => ({ default: m.CrisisEventsPage })));
 const PlanLimitsPage = lazy(() => import('./pages/admin/PlanLimitsPage').then(m => ({ default: m.PlanLimitsPage })));
+const AdminEmailPage = lazy(() => import('./pages/admin/AdminEmailPage').then(m => ({ default: m.AdminEmailPage })));
 
 function LoadingScreen() {
   return (
@@ -71,6 +72,7 @@ const TokenCostsRoute = () => <AdminRoute component={TokenCostsPage} />;
 const AdminUsersRoute = () => <AdminRoute component={AdminUsersPage} />;
 const CrisisEventsRoute = () => <AdminRoute component={CrisisEventsPage} />;
 const PlanLimitsRoute = () => <AdminRoute component={PlanLimitsPage} />;
+const AdminEmailRoute = () => <AdminRoute component={AdminEmailPage} />;
 
 function HomeRoute() {
   const { user, loading } = useAuth();
@@ -97,6 +99,7 @@ function App() {
       <Route path="/admin/users" component={AdminUsersRoute} />
       <Route path="/admin/crisis-events" component={CrisisEventsRoute} />
       <Route path="/admin/plan-limits" component={PlanLimitsRoute} />
+      <Route path="/admin/email-campaigns" component={AdminEmailRoute} />
       <Route>
         {user ? <Redirect to="/chat" /> : <Redirect to="/" />}
       </Route>
