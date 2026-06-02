@@ -1,5 +1,7 @@
 import { APP_URL } from "./types.ts";
 
+// ─── Base HTML wrapper ─────────────────────────────────────────────────────────
+
 function baseTemplate(content: string, ctaText: string, ctaUrl: string): string {
   return `<!DOCTYPE html>
 <html lang="es">
@@ -36,6 +38,8 @@ function baseTemplate(content: string, ctaText: string, ctaUrl: string): string 
 </body>
 </html>`;
 }
+
+// ─── Onboarding templates (legacy) ────────────────────────────────────────────
 
 export function templateDay1(firstName: string | null): string {
   const name = firstName ? `, ${firstName}` : "";
@@ -98,16 +102,94 @@ export function templateDay5(firstName: string | null): string {
   );
 }
 
+// ─── Reminder templates (inactivity-triggered) ────────────────────────────────
+
+export function templateReminderD3(firstName: string | null): string {
+  const name = firstName ? `, ${firstName}` : "";
+  return baseTemplate(
+    `<p>Hola${name}.</p>
+<p>Han pasado unos días. No pasa nada.</p>
+<p>No tienes que tener algo importante que decir. A veces lo más útil es simplemente aparecer — escribir lo que sea, aunque parezca pequeño.</p>
+<p>Cuando quieras, aquí estoy.</p>`,
+    "Volver a Elena",
+    `${APP_URL}/chat`
+  );
+}
+
+export function templateReminderD7(firstName: string | null): string {
+  const name = firstName ? `, ${firstName}` : "";
+  return baseTemplate(
+    `<p>Hola${name}.</p>
+<p>Una semana.</p>
+<p>A veces el silencio significa que todo va bien. Otras veces significa que algo pesa demasiado como para ponerlo en palabras.</p>
+<p>Si es lo segundo — ese es exactamente el momento en que hablar ayuda más.</p>`,
+    "Abrir Elena",
+    `${APP_URL}/chat`
+  );
+}
+
+export function templateReminderD14(firstName: string | null): string {
+  const name = firstName ? `, ${firstName}` : "";
+  return baseTemplate(
+    `<p>Hola${name}.</p>
+<p>Llevas dos semanas sin pasar por aquí.</p>
+<p>No te escribo para hacerte sentir mal. Te escribo porque sé que cuando una persona se aleja de los espacios que le hacen bien, normalmente hay una razón.</p>
+<p>No tienes que explicar nada. Solo abre la conversación cuando estés listo.</p>`,
+    "Retomar",
+    `${APP_URL}/chat`
+  );
+}
+
+export function templateReminderD30(firstName: string | null): string {
+  const name = firstName ? `, ${firstName}` : "";
+  return baseTemplate(
+    `<p>Hola${name}.</p>
+<p>Ha pasado un mes.</p>
+<p>Eso es mucho tiempo. Y sé que la vida a veces empuja todo lo demás al último lugar — incluyendo las cosas que nos hacen bien.</p>
+<p>No sé qué ha pasado en estas semanas. Pero si hay algo que quieras procesar, ordenar, o simplemente decir en voz alta — aquí sigo.</p>
+<p>Sin presión. Sin juicio. Cuando quieras.</p>`,
+    "Volver cuando quieras",
+    `${APP_URL}/chat`
+  );
+}
+
+// ─── Insights template (wraps Claude-generated body) ──────────────────────────
+
+export function templateInsights(firstName: string | null, generatedBody: string): string {
+  const name = firstName ? `, ${firstName}` : "";
+  // generatedBody arrives as plain text paragraphs; wrap each in <p>
+  const paragraphs = generatedBody
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p>${p.replace(/\n/g, "<br />")}</p>`)
+    .join("\n");
+
+  return baseTemplate(
+    `<p>Hola${name}.</p>\n${paragraphs}`,
+    "Abrir mis insights",
+    `${APP_URL}/insights`
+  );
+}
+
+// ─── Lookup map ───────────────────────────────────────────────────────────────
+
 export function getTemplate(
   type: string,
   firstName: string | null
 ): { html: string; subject: string } | null {
-  const map: Record<string, { html: string; subject: string }> = {
+  const map: Record<string, { subject: string; html: string }> = {
+    // Onboarding
     day1_empieza_simple:       { subject: "Empieza simple",                              html: templateDay1(firstName) },
     day2_dos_minutos:          { subject: "2 minutos son suficientes",                   html: templateDay2(firstName) },
     day3_mas_cerca:            { subject: "Estás más cerca de lo que crees",             html: templateDay3(firstName) },
     day4_empieza_interesante:  { subject: "Aquí es donde empieza a ponerse interesante", html: templateDay4(firstName) },
     day5_mayoria_se_detiene:   { subject: "La mayoría se detiene demasiado pronto",      html: templateDay5(firstName) },
+    // Reminders
+    reminder_d3:   { subject: "¿Todo bien?",         html: templateReminderD3(firstName) },
+    reminder_d7:   { subject: "Una semana",           html: templateReminderD7(firstName) },
+    reminder_d14:  { subject: "Dos semanas",          html: templateReminderD14(firstName) },
+    reminder_d30:  { subject: "Ha pasado un mes",     html: templateReminderD30(firstName) },
   };
   return map[type] ?? null;
 }
