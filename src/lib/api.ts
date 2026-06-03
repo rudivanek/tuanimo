@@ -136,8 +136,9 @@ export async function sendChatMessage(
   devFlags?: DevFlags,
   chipMeta?: { id: string; label: string; intentKey: string; signal?: string; insertText?: string } | null,
   isFirstSession?: boolean,
+  openingCommitment?: { text: string; outcome: 'done' | 'not_done' } | null,
 ): Promise<ChatResponse> {
-  const reqBody = JSON.stringify({ threadId, message, userMemories, conversationHistory, previousHadChips, uxStance, uxIntensity, boundaryAttempts, devFlags, chipMeta, isFirstSession });
+  const reqBody = JSON.stringify({ threadId, message, userMemories, conversationHistory, previousHadChips, uxStance, uxIntensity, boundaryAttempts, devFlags, chipMeta, isFirstSession, openingCommitment });
   const headers = await getAuthHeaders();
   let response = await fetch(`${FUNCTIONS_URL}/chat-ai`, { method: 'POST', headers, body: reqBody });
 
