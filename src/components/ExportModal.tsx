@@ -76,7 +76,7 @@ export function ExportModal({ onClose, getExport, title = 'Exportar' }: ExportMo
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -87,8 +87,8 @@ export function ExportModal({ onClose, getExport, title = 'Exportar' }: ExportMo
       />
 
       <div
-        className="relative z-10 w-full sm:w-auto sm:min-w-[380px] sm:max-w-[440px] bg-app-surface rounded-t-[24px] sm:rounded-[20px] shadow-2xl overflow-hidden"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        className="relative z-10 w-full sm:w-auto sm:min-w-[380px] sm:max-w-[440px] bg-app-surface rounded-t-[24px] sm:rounded-[20px] shadow-2xl overflow-hidden flex flex-col"
+        style={{ maxHeight: 'calc(100dvh - 72px)' }}
       >
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-app-border">
           <div className="flex items-center gap-2.5">
@@ -126,7 +126,7 @@ export function ExportModal({ onClose, getExport, title = 'Exportar' }: ExportMo
           <p className="text-xs text-app-muted mt-2 text-center">{formatLabel}</p>
         </div>
 
-        <div className="px-5 pb-5 flex flex-col gap-2.5">
+        <div className="px-5 pb-5 flex flex-col gap-2.5 overflow-y-auto flex-1">
           <button
             onClick={handleDownload}
             disabled={downloading}
