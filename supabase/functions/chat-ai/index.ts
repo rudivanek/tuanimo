@@ -31,6 +31,7 @@ interface ChatRequest {
   devFlags?: DevFlags;
   chipMeta?: { id: string; label: string; intentKey: string; signal?: string } | null;
   isFirstSession?: boolean;
+  openingCommitment?: { text: string; outcome: "done" | "not_done" } | null;
 }
 
 const BANNED_LABEL_WORDS: string[] = [
@@ -1181,6 +1182,21 @@ TONE RULES:
     const recentRoutineIds = detectRecentRoutines(conversationHistory);
     const selectedRoutine: SupportRoutine | null = needsRoutine ? selectSupportRoutine(message, recentRoutineIds) : null;
 
+    // ── COMMITMENT CONTEXT BLOCK ──────────────────────────────────────────────
+    const commitmentBlock = openingCommitment
+      ? openingCommitment.outcome === 'done'
+        ? `
+
+COMMITMENT CONTEXT — This turn only:
+Before this session, the user had an open commitment: "${openingCommitment.text}"
+They just indicated they completed it. Open with genuine acknowledgment of that — brief, warm, specific to what they did. Then invite reflection: what did they notice? How did it feel to follow through? Do not skip this — it is the emotional entry point for this session.`
+        : `
+
+COMMITMENT CONTEXT — This turn only:
+Before this session, the user had an open commitment: "${openingCommitment.text}"
+They just indicated they did not complete it, or not fully. Do NOT treat this as failure. Open with curiosity, not disappointment: something got in the way — what was it? What does that tell them? The non-completion is often more revealing than the completion. Make this the entry point.`
+      : '';
+
     // ── NEW EXISTENTIAL SYSTEM PROMPT ─────────────────────────────────────────
     const systemPrompt = `You are Elena, an emotionally intelligent AI companion inside a mental wellness app called TuAnimo.
 
@@ -1643,7 +1659,7 @@ State meanings:
 
 crisis values: "NO", "MAYBE", "YES" — use MAYBE or YES only for genuine safety concerns.
 
-DO NOT include any text outside the JSON object.${recognitionBlock}${returnTriggerBlock}${sessionClosingBlock}${chipSignalBlock}${firstSessionBlock}${boundaryEscalationInstruction}${buildStanceInstruction(uxStance, uxIntensity, memoryAnchors, userRequestedList)}`;
+DO NOT include any text outside the JSON object.${recognitionBlock}${returnTriggerBlock}${sessionClosingBlock}${chipSignalBlock}${firstSessionBlock}${boundaryEscalationInstruction}${buildStanceInstruction(uxStance, uxIntensity, memoryAnchors, userRequestedList)}${commitmentBlock}`;
 
 
     // ── Anthropic Claude API call with prompt caching ─────────────────────────
