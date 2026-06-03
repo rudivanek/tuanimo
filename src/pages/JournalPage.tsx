@@ -957,16 +957,75 @@ export function JournalPage() {
   // ────────────────────────────────────────────────────────────────────────────
 
   // Lightweight client-side crisis signal detection — no API call
-  // Returns true if the plaintext content contains crisis-level language
+  // Returns true if the plaintext text (content + title) contains crisis-level language
+  // Covers Spanish and English — the two languages TuAnimo users write in
   const detectCrisisInContent = (text: string): boolean => {
     const lower = text.toLowerCase();
     const crisisSignals = [
-      'suicid', 'quitarme la vida', 'no quiero vivir', 'no quiero seguir viviendo',
-      'quiero morir', 'mejor muerto', 'mejor muerta', 'me quiero matar',
-      'hacerme daño', 'cortarme', 'lastimarme', 'autolesion', 'autolesión',
-      'no vale la pena vivir', 'no tiene sentido seguir', 'desaparecer para siempre',
-      'ya no aguanto', 'no puedo más con esto', 'no puedo más con mi vida',
-      'nadie me extrañaría', 'sin mí estarían mejor', 'sin mi estarían mejor',
+      // ── Spanish ──────────────────────────────────────────────────────────
+      'suicid',                         // suicidio, suicida, suicidal, suicidarse
+      'pensamiento suicida',
+      'pensamientos suicidas',
+      'quitarme la vida',
+      'acabar con mi vida',
+      'terminar con mi vida',
+      'no quiero vivir',
+      'no quiero seguir viviendo',
+      'no quiero seguir aquí',
+      'quiero morir',
+      'deseo morir',
+      'mejor estaría muerto',
+      'mejor estaría muerta',
+      'mejor muerto',
+      'mejor muerta',
+      'me quiero matar',
+      'quiero matarme',
+      'hacerme daño',
+      'hacerme daño',
+      'lastimarme',
+      'cortarme',
+      'autolesion',                     // autolesión, autolesionarme
+      'no vale la pena vivir',
+      'no tiene sentido seguir',
+      'no tiene sentido vivir',
+      'desaparecer para siempre',
+      'no puedo más con mi vida',
+      'nadie me extrañaría',
+      'sin mí estarían mejor',
+      'sin mi estarían mejor',
+      'todos estarían mejor sin mí',
+      'todos estarian mejor sin mi',
+      // ── English ──────────────────────────────────────────────────────────
+      'suicidal',
+      'suicide',
+      'kill myself',
+      'killing myself',
+      'end my life',
+      'ending my life',
+      'take my life',
+      'taking my life',
+      'want to die',
+      'wanting to die',
+      'wish i was dead',
+      'wish i were dead',
+      'better off dead',
+      'better off without me',
+      'no reason to live',
+      'not worth living',
+      'can\'t go on',
+      'cannot go on',
+      'can\'t take it anymore',
+      'cannot take it anymore',
+      'don\'t want to live',
+      'do not want to live',
+      'hurt myself',
+      'hurting myself',
+      'self-harm',
+      'self harm',
+      'cut myself',
+      'cutting myself',
+      'nobody would miss me',
+      'everyone would be better',
     ];
     return crisisSignals.some(signal => lower.includes(signal));
   };
@@ -1040,7 +1099,7 @@ export function JournalPage() {
           const saveSourceUpdate = selectedEntry.origin === 'chat' ? 'converted_from_chat' : selectedPrompt ? 'prompted' : 'manual';
           recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { fullText: content, entryLength: content.length, isDraft: false, isUpdate: true, source: saveSourceUpdate });
           triggerJustSaved();
-          if (detectCrisisInContent(content)) setShowSaveCrisisBanner(true);
+          if (detectCrisisInContent(content + " " + resolvedTitle)) setShowSaveCrisisBanner(true);
         }
       } else {
         const shiftedEntries = entries.map((e, i) => ({ ...e, sort_order: i + 1 }));
@@ -1118,7 +1177,7 @@ export function JournalPage() {
           const saveSourceNew = selectedPrompt ? 'prompted' : 'manual';
           recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { fullText: content, entryLength: content.length, isDraft: false, isUpdate: false, source: saveSourceNew });
           triggerJustSaved();
-          if (detectCrisisInContent(content)) setShowSaveCrisisBanner(true);
+          if (detectCrisisInContent(content + " " + resolvedTitle)) setShowSaveCrisisBanner(true);
         }
       }
     } catch (error) {
