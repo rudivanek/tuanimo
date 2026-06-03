@@ -96,6 +96,7 @@ export function JournalPage() {
   const [tags, setTags] = useState('');
   const [isLoadingPrompts, setIsLoadingPrompts] = useState(false);
   const [promptsCrisis, setPromptsCrisis] = useState<'NO' | 'MAYBE' | 'YES'>('NO');
+  const [showSaveCrisisBanner, setShowSaveCrisisBanner] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const justSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -595,6 +596,7 @@ export function JournalPage() {
     setShowSidebar(false);
     setPrompts([]);
     setTokenLimitError(null); // clear any previous prompt error
+    setShowSaveCrisisBanner(false);
   };
 
   const handleSelectEntry = (entry: JournalEntry) => {
@@ -610,6 +612,7 @@ export function JournalPage() {
     setTags(entry.tags.join(', '));
     setShowSidebar(false);
     setIsDraftEntry(entry.is_draft);
+    setShowSaveCrisisBanner(false);
   };
 
   const selectEntryById = async (id: string): Promise<boolean> => {
@@ -953,6 +956,21 @@ export function JournalPage() {
   }, []);
   // ────────────────────────────────────────────────────────────────────────────
 
+  // Lightweight client-side crisis signal detection — no API call
+  // Returns true if the plaintext content contains crisis-level language
+  const detectCrisisInContent = (text: string): boolean => {
+    const lower = text.toLowerCase();
+    const crisisSignals = [
+      'suicid', 'quitarme la vida', 'no quiero vivir', 'no quiero seguir viviendo',
+      'quiero morir', 'mejor muerto', 'mejor muerta', 'me quiero matar',
+      'hacerme daño', 'cortarme', 'lastimarme', 'autolesion', 'autolesión',
+      'no vale la pena vivir', 'no tiene sentido seguir', 'desaparecer para siempre',
+      'ya no aguanto', 'no puedo más con esto', 'no puedo más con mi vida',
+      'nadie me extrañaría', 'sin mí estarían mejor', 'sin mi estarían mejor',
+    ];
+    return crisisSignals.some(signal => lower.includes(signal));
+  };
+
   const handleSave = async () => {
     if (!user || !content.trim() || !profile) return;
     if (isTokenExhausted) {
@@ -1022,6 +1040,7 @@ export function JournalPage() {
           const saveSourceUpdate = selectedEntry.origin === 'chat' ? 'converted_from_chat' : selectedPrompt ? 'prompted' : 'manual';
           recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { fullText: content, entryLength: content.length, isDraft: false, isUpdate: true, source: saveSourceUpdate });
           triggerJustSaved();
+          if (detectCrisisInContent(content)) setShowSaveCrisisBanner(true);
         }
       } else {
         const shiftedEntries = entries.map((e, i) => ({ ...e, sort_order: i + 1 }));
@@ -1099,6 +1118,7 @@ export function JournalPage() {
           const saveSourceNew = selectedPrompt ? 'prompted' : 'manual';
           recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { fullText: content, entryLength: content.length, isDraft: false, isUpdate: false, source: saveSourceNew });
           triggerJustSaved();
+          if (detectCrisisInContent(content)) setShowSaveCrisisBanner(true);
         }
       }
     } catch (error) {
@@ -1562,10 +1582,24 @@ export function JournalPage() {
               </div>
             )}
 
-            {/* Crisis alert */}
+            {/* Crisis alert — from prompts */}
             {promptsCrisis !== 'NO' && (
               <div className="px-4 py-3 border-b border-red-200 flex-shrink-0">
                 <CrisisAlert />
+              </div>
+            )}
+
+            {/* Crisis banner — shown after saving an entry with crisis signals */}
+            {showSaveCrisisBanner && promptsCrisis === 'NO' && (
+              <div className="px-4 py-3 border-b border-red-100 flex-shrink-0 relative">
+                <CrisisAlert />
+                <button
+                  onClick={() => setShowSaveCrisisBanner(false)}
+                  className="absolute top-4 right-4 p-1 text-red-300 hover:text-red-500 transition-colors text-xs"
+                  aria-label="Cerrar"
+                >
+                  ✕
+                </button>
               </div>
             )}
 
