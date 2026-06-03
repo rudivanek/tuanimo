@@ -17,6 +17,7 @@ const TokenUsagePage     = lazy(() => import('./pages/admin/TokenUsagePage').the
 const TokenCostsPage     = lazy(() => import('./pages/admin/TokenCostsPage').then(m => ({ default: m.TokenCostsPage })));
 const AdminUsersPage     = lazy(() => import('./pages/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })));
 const CrisisEventsPage   = lazy(() => import('./pages/admin/CrisisEventsPage').then(m => ({ default: m.CrisisEventsPage })));
+const CrisisResourcesPage = lazy(() => import('./pages/admin/CrisisResourcesPage').then(m => ({ default: m.CrisisResourcesPage })));
 const PlanLimitsPage     = lazy(() => import('./pages/admin/PlanLimitsPage').then(m => ({ default: m.PlanLimitsPage })));
 const AdminEmailPage     = lazy(() => import('./pages/admin/AdminEmailPage').then(m => ({ default: m.AdminEmailPage })));
 const CostPerCyclePage   = lazy(() => import('./pages/admin/CostPerCyclePage').then(m => ({ default: m.CostPerCyclePage })));
@@ -75,6 +76,7 @@ const TokenUsageRoute    = () => <AdminRoute component={TokenUsagePage} />;
 const TokenCostsRoute    = () => <AdminRoute component={TokenCostsPage} />;
 const AdminUsersRoute    = () => <AdminRoute component={AdminUsersPage} />;
 const CrisisEventsRoute  = () => <AdminRoute component={CrisisEventsPage} />;
+const CrisisResourcesRoute = () => <AdminRoute component={CrisisResourcesPage} />;
 const PlanLimitsRoute    = () => <AdminRoute component={PlanLimitsPage} />;
 const AdminEmailRoute    = () => <AdminRoute component={AdminEmailPage} />;
 const CostPerCycleRoute  = () => <AdminRoute component={CostPerCyclePage} />;
@@ -105,7 +107,8 @@ function App() {
         <Route path="/admin/token-usage"     component={TokenUsageRoute} />
         <Route path="/admin/token-costs"     component={TokenCostsRoute} />
         <Route path="/admin/users"           component={AdminUsersRoute} />
-        <Route path="/admin/crisis-events"   component={CrisisEventsRoute} />
+        <Route path="/admin/crisis-events"     component={CrisisEventsRoute} />
+        <Route path="/admin/crisis-resources"  component={CrisisResourcesRoute} />
         <Route path="/admin/plan-limits"     component={PlanLimitsRoute} />
         <Route path="/admin/email-campaigns" component={AdminEmailRoute} />
         <Route>
