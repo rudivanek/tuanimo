@@ -593,7 +593,8 @@ export function JournalPage() {
     setSelectedPrompt('');
     setTags('');
     setShowSidebar(false);
-    loadPrompts();
+    setPrompts([]);
+    setTokenLimitError(null); // clear any previous prompt error
   };
 
   const handleSelectEntry = (entry: JournalEntry) => {
