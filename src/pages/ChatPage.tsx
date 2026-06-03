@@ -1413,16 +1413,6 @@ export function ChatPage() {
     });
   }
 
-  const _diarySuggestDebugReason = showDiaryHint
-    ? `SHOW (${diarySuggEval.reason})`
-    : blockedByCooldown
-    ? 'HIDDEN (cooldown_active)'
-    : crisisLvl >= 2
-    ? 'HIDDEN (crisis_level=2)'
-    : userMsgCount < 3
-    ? 'HIDDEN (insufficient_messages)'
-    : `HIDDEN (${diarySuggEval.reason})`;
-
   const handleConvertToJournal = async () => {
     if (!user || !profile || !currentThreadId) return;
     const msgList = messages
@@ -1804,12 +1794,6 @@ export function ChatPage() {
                       />
                     ) : null;
                   })()}
-
-                  {message.id === latestCounselorId && import.meta.env.DEV && userMsgCount >= 1 && (
-                    <div className="mt-1 px-2 py-0.5 rounded text-[10px] font-mono opacity-60 bg-app-surface-2 text-app-muted inline-block">
-                      {_diarySuggestDebugReason}
-                    </div>
-                  )}
                 </div>
               </div>
             ))
