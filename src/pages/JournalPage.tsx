@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation, useSearch } from 'wouter';
@@ -108,6 +108,12 @@ export function JournalPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDraftEntry, setIsDraftEntry] = useState(false);
   const [tab, setTab] = useState<'entries' | 'drafts'>('entries');
+
+  // Auto-save draft state
+  const autoSaveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSavedDraftIdRef = useRef<string | null>(null);  // tracks the DB id of the in-progress draft row
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [showChatSuggestion, setShowChatSuggestion] = useState(false);
   const [_chatSuggestionKeyword, setChatSuggestionKeyword] = useState('');
   const [progress, setProgress] = useState<JournalProgress>({
@@ -563,6 +569,10 @@ export function JournalPage() {
       setReadOnlyWarning(true);
       return;
     }
+    // Reset auto-save tracking for the new entry
+    autoSavedDraftIdRef.current = null;
+    setAutoSaveStatus('idle');
+    if (autoSaveDraftTimerRef.current) clearTimeout(autoSaveDraftTimerRef.current);
     setIsNewEntry(true);
     setSelectedEntry(null);
     setTitle('');
@@ -574,6 +584,10 @@ export function JournalPage() {
   };
 
   const handleSelectEntry = (entry: JournalEntry) => {
+    // Cancel any pending auto-save for the previous new entry
+    autoSavedDraftIdRef.current = null;
+    setAutoSaveStatus('idle');
+    if (autoSaveDraftTimerRef.current) clearTimeout(autoSaveDraftTimerRef.current);
     setIsNewEntry(false);
     setSelectedEntry(entry);
     setTitle(entry.title);
@@ -820,6 +834,111 @@ export function JournalPage() {
     return msg.includes('JOURNAL_STORAGE_LIMIT');
   };
 
+  // ─── Auto-save draft ────────────────────────────────────────────────────────
+  // Runs ~3 s after the user stops typing. Skips when:
+  //   • content is empty
+  //   • the open entry is an already-saved (non-draft) existing entry
+  //   • token limit is exhausted
+  // For new entries it inserts a draft row once, then updates it on subsequent
+  // calls via autoSavedDraftIdRef.  For existing draft entries it updates in place.
+  const autoSaveDraft = useCallback(async () => {
+    if (!user || !profile) return;
+    if (!content.trim()) return;
+    if (isTokenExhausted) return;
+    // Don't auto-save over a fully-saved existing entry — the user must
+    // explicitly click Guardar to promote edits of existing saved entries.
+    if (selectedEntry && !selectedEntry.is_draft) return;
+
+    setIsAutoSaving(true);
+    setAutoSaveStatus('saving');
+    try {
+      const encryptedContent = await encryptForUser(content, profile);
+      const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
+      const draftTitle = title.trim() || 'Sin título';
+
+      // Case 1: editing an existing draft entry — update it
+      if (selectedEntry && selectedEntry.is_draft) {
+        await supabase
+          .from('journal_entries')
+          .update({
+            title: draftTitle,
+            content_enc: encryptedContent,
+            enc_version: 2,
+            tags: tagsArray,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', selectedEntry.id);
+        setAutoSaveStatus('saved');
+        return;
+      }
+
+      // Case 2: new entry — insert once, then update via autoSavedDraftIdRef
+      if (autoSavedDraftIdRef.current) {
+        await supabase
+          .from('journal_entries')
+          .update({
+            title: draftTitle,
+            content_enc: encryptedContent,
+            enc_version: 2,
+            tags: tagsArray,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', autoSavedDraftIdRef.current);
+      } else {
+        const { data: newDraft, error } = await supabase
+          .from('journal_entries')
+          .insert({
+            user_id: user.id,
+            title: draftTitle,
+            content_enc: encryptedContent,
+            enc_version: 2,
+            tags: tagsArray,
+            sort_order: 0,
+            is_draft: true,
+          })
+          .select()
+          .single();
+        if (!error && newDraft) {
+          autoSavedDraftIdRef.current = newDraft.id;
+          // Reload sidebar so the draft appears there immediately
+          await loadEntries();
+        }
+      }
+      setAutoSaveStatus('saved');
+    } catch (err) {
+      console.error('[auto-save] Draft save failed:', err);
+      setAutoSaveStatus('idle');
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [user, profile, content, title, tags, selectedEntry, isTokenExhausted]);
+
+  // Debounce: fire autoSaveDraft 3 s after the last content/title change
+  useEffect(() => {
+    // Don't schedule if nothing to save
+    if (!content.trim()) return;
+    // Don't auto-save over a fully-saved existing entry
+    if (selectedEntry && !selectedEntry.is_draft) return;
+
+    setAutoSaveStatus('idle');
+    if (autoSaveDraftTimerRef.current) clearTimeout(autoSaveDraftTimerRef.current);
+    autoSaveDraftTimerRef.current = setTimeout(() => {
+      autoSaveDraft();
+    }, 3000);
+
+    return () => {
+      if (autoSaveDraftTimerRef.current) clearTimeout(autoSaveDraftTimerRef.current);
+    };
+  }, [content, title]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveDraftTimerRef.current) clearTimeout(autoSaveDraftTimerRef.current);
+    };
+  }, []);
+  // ────────────────────────────────────────────────────────────────────────────
+
   const handleSave = async () => {
     if (!user || !content.trim() || !profile) return;
     if (isTokenExhausted) {
@@ -882,32 +1001,61 @@ export function JournalPage() {
           )
         );
 
-        const { data: newEntry, error } = await supabase
-          .from('journal_entries')
-          .insert({
-            user_id: user.id,
-            title: title || 'Sin título',
-            content_enc: encryptedContent,
-            enc_version: 2,
-            prompt: selectedPrompt || null,
-            tags: tagsArray,
-            sort_order: 0,
-          })
-          .select()
-          .single();
+        // If auto-save already created a draft row, promote it instead of inserting a duplicate
+        const existingDraftId = autoSavedDraftIdRef.current;
+        let savedEntryData: { id: string; created_at: string } | null = null;
+        let saveError: unknown = null;
 
-        if (error) {
-          if (isStorageLimitError(error)) {
+        if (existingDraftId) {
+          const { data, error } = await supabase
+            .from('journal_entries')
+            .update({
+              title: title || 'Sin título',
+              content_enc: encryptedContent,
+              enc_version: 2,
+              prompt: selectedPrompt || null,
+              tags: tagsArray,
+              sort_order: 0,
+              is_draft: false,
+              saved_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingDraftId)
+            .select()
+            .single();
+          savedEntryData = data;
+          saveError = error;
+        } else {
+          const { data, error } = await supabase
+            .from('journal_entries')
+            .insert({
+              user_id: user.id,
+              title: title || 'Sin título',
+              content_enc: encryptedContent,
+              enc_version: 2,
+              prompt: selectedPrompt || null,
+              tags: tagsArray,
+              sort_order: 0,
+            })
+            .select()
+            .single();
+          savedEntryData = data;
+          saveError = error;
+        }
+
+        if (saveError) {
+          if (isStorageLimitError(saveError)) {
             setStorageLimitError('Límite de almacenamiento del diario alcanzado. Elimina entradas antiguas para liberar espacio.');
           }
-        } else if (newEntry) {
+        } else if (savedEntryData) {
+          autoSavedDraftIdRef.current = null; // clear the draft tracking ref
           const created: JournalEntry = {
-            id: newEntry.id,
+            id: savedEntryData.id,
             title: title || 'Sin título',
             content,
             prompt: selectedPrompt || undefined,
             tags: tagsArray,
-            created_at: newEntry.created_at,
+            created_at: savedEntryData.created_at,
             sort_order: 0,
             content_bytes: 0,
             is_draft: false,
@@ -1206,14 +1354,27 @@ export function JournalPage() {
                 </button>
               )}
               {!isTokenExhausted ? (
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving || !content.trim() || justSaved}
-                  className={`flex-shrink-0 rounded-10 px-3 py-1.5 transition-colors flex items-center gap-1.5 text-[13px] font-medium ${justSaved ? 'bg-emerald-600 text-white' : 'bg-sage-strong text-white hover:bg-[#4e7260] disabled:opacity-40 disabled:cursor-not-allowed'}`}
-                >
-                  {justSaved ? <Check size={13} /> : <BookOpen size={13} />}
-                  <span>{isSaving ? '...' : justSaved ? '¡Guardado!' : 'Guardar'}</span>
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Auto-save status indicator */}
+                  {(isAutoSaving || autoSaveStatus === 'saved') && !justSaved && (
+                    <span className="text-[11px] text-app-muted flex items-center gap-1">
+                      {isAutoSaving ? (
+                        <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                      ) : (
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                      )}
+                      {isAutoSaving ? 'Guardando borrador…' : 'Borrador guardado'}
+                    </span>
+                  )}
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving || !content.trim() || justSaved}
+                    className={`rounded-10 px-3 py-1.5 transition-colors flex items-center gap-1.5 text-[13px] font-medium ${justSaved ? 'bg-emerald-600 text-white' : 'bg-sage-strong text-white hover:bg-[#4e7260] disabled:opacity-40 disabled:cursor-not-allowed'}`}
+                  >
+                    {justSaved ? <Check size={13} /> : <BookOpen size={13} />}
+                    <span>{isSaving ? '...' : justSaved ? '¡Guardado!' : 'Guardar'}</span>
+                  </button>
+                </div>
               ) : (
                 <div className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-10 border border-app-border text-app-muted text-[13px] bg-app-surface-2 cursor-not-allowed select-none">
                   <Lock size={12} />
