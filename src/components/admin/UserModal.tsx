@@ -106,12 +106,13 @@ export function UserModal({ mode, user, onClose, onSaved }: UserModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full sm:max-w-md bg-app-surface rounded-t-[24px] sm:rounded-[20px] shadow-2xl border border-app-border overflow-hidden flex flex-col max-h-[90dvh]">
+      <div className="relative w-full sm:max-w-md bg-app-surface rounded-t-[24px] sm:rounded-[20px] shadow-2xl border border-app-border overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100dvh - 72px)' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-10 bg-sage-strong/10 flex items-center justify-center">
