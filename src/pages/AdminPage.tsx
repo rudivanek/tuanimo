@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { BarChart3, CreditCard, DollarSign, Shield, Users, AlertTriangle, SlidersHorizontal, Mail } from 'lucide-react';
+import { BarChart3, CreditCard, DollarSign, Shield, Users, AlertTriangle, AlertCircle, SlidersHorizontal, Mail } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 
 interface NavCard {
@@ -39,6 +39,12 @@ const adminNav: NavCard[] = [
     icon: AlertTriangle,
     title: 'Eventos de Crisis',
     description: 'Registros de señales de angustia detectadas por los modelos de IA en chat, diario e insights.',
+  },
+  {
+    href: '/admin/crisis-resources',
+    icon: AlertCircle,
+    title: 'Recursos de Crisis',
+    description: 'Líneas de ayuda y recursos de apoyo por país — se muestran en el modal de crisis del chat.',
   },
   {
     href: '/admin/plan-limits',
