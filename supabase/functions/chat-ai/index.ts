@@ -444,6 +444,8 @@ interface TokenUsage {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
 }
 
 interface ChipStats {
@@ -894,6 +896,8 @@ async function logTokenUsageAndIncrement(userId: string, operation: string, mode
     prompt_tokens: usage?.prompt_tokens ?? 0,
     completion_tokens: usage?.completion_tokens ?? 0,
     total_tokens: usage?.total_tokens ?? 0,
+    cache_read_tokens: usage?.cache_read_tokens ?? 0,
+    cache_write_tokens: usage?.cache_write_tokens ?? 0,
   };
   const { error: insertError } = await svc.from("token_usage").insert({
     user_id: userId, operation, model, ...safeUsage,
@@ -1697,8 +1701,18 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
     function extractUsage(data: Record<string, unknown>): TokenUsage | null {
       const usage = data.usage as { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number } | undefined;
       if (!usage) return null;
-      const inputTokens = (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0);
-      return { prompt_tokens: inputTokens, completion_tokens: usage.output_tokens ?? 0, total_tokens: inputTokens + (usage.output_tokens ?? 0) };
+      const cacheRead  = usage.cache_read_input_tokens  ?? 0;
+      const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+      const freshInput = usage.input_tokens ?? 0;
+      const inputTokens = freshInput + cacheWrite + cacheRead;
+      const outputTokens = usage.output_tokens ?? 0;
+      return {
+        prompt_tokens:      inputTokens,
+        completion_tokens:  outputTokens,
+        total_tokens:       inputTokens + outputTokens,
+        cache_read_tokens:  cacheRead,
+        cache_write_tokens: cacheWrite,
+      };
     }
 
     function extractContent(data: Record<string, unknown>): string {
