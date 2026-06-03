@@ -23,11 +23,12 @@ export function ReflectionViewerModal({ title, content, onClose, onUseReflection
 
   return (
     <div
-      className="fixed inset-0 bg-app-text/30 backdrop-blur-sm flex items-center justify-center z-50 p-5"
+      className="fixed inset-0 bg-app-text/30 backdrop-blur-sm flex items-center justify-center z-[60] p-5"
       onClick={onClose}
     >
       <div
-        className="bg-app-surface rounded-[18px] shadow-app max-w-sm w-full flex flex-col max-h-[70vh]"
+        className="bg-app-surface rounded-[18px] shadow-app max-w-sm w-full flex flex-col"
+        style={{ maxHeight: 'calc(100dvh - 72px - 40px)' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 pt-5 pb-2 flex-shrink-0">
