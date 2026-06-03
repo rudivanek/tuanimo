@@ -7,7 +7,7 @@ import { audioManager } from '../lib/audio';
 import { supabase } from '../lib/supabaseClient';
 import { useProfile } from '../hooks/useProfile';
 import { useTokenStatus } from '../hooks/useTokenStatus';
-import { getJournalPrompts, TokenLimitError, generateAIReflectionPrompt } from '../lib/api';
+import { getJournalPrompts, TokenLimitError, generateAIReflectionPrompt, generateTitle } from '../lib/api';
 import { extractLanguageSignals } from '../lib/languageSignals';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { detectTopicRepetition } from '../lib/diaryDraft';
@@ -962,6 +962,22 @@ export function JournalPage() {
     setIsSaving(true);
     setStorageLimitError(null);
     try {
+      // ── Auto-title when field is empty ────────────────────────────────────
+      // Generate a title from the first 300 chars of content before saving.
+      // Best-effort: if it fails the existing 'Sin título' fallback is used.
+      let resolvedTitle = title.trim();
+      if (!resolvedTitle && content.trim()) {
+        const generated = await generateTitle({
+          context: 'journal',
+          firstUserMessage: content.trim().slice(0, 300),
+        });
+        if (generated) {
+          resolvedTitle = generated;
+          setTitle(generated); // update the visible input too
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       const encryptedContent = await encryptForUser(content, profile);
       const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
 
@@ -970,7 +986,7 @@ export function JournalPage() {
         const { error } = await supabase
           .from('journal_entries')
           .update({
-            title: title || 'Sin título',
+            title: resolvedTitle || 'Sin título',
             content_enc: encryptedContent,
             enc_version: 2,
             prompt: selectedPrompt || null,
@@ -988,7 +1004,7 @@ export function JournalPage() {
         } else {
           const updated: JournalEntry = {
             ...selectedEntry,
-            title: title || 'Sin título',
+            title: resolvedTitle || 'Sin título',
             content,
             prompt: selectedPrompt || undefined,
             tags: tagsArray,
@@ -1023,7 +1039,7 @@ export function JournalPage() {
           const { data, error } = await supabase
             .from('journal_entries')
             .update({
-              title: title || 'Sin título',
+              title: resolvedTitle || 'Sin título',
               content_enc: encryptedContent,
               enc_version: 2,
               prompt: selectedPrompt || null,
@@ -1043,7 +1059,7 @@ export function JournalPage() {
             .from('journal_entries')
             .insert({
               user_id: user.id,
-              title: title || 'Sin título',
+              title: resolvedTitle || 'Sin título',
               content_enc: encryptedContent,
               enc_version: 2,
               prompt: selectedPrompt || null,
@@ -1064,7 +1080,7 @@ export function JournalPage() {
           autoSavedDraftIdRef.current = null; // clear the draft tracking ref
           const created: JournalEntry = {
             id: savedEntryData.id,
-            title: title || 'Sin título',
+            title: resolvedTitle || 'Sin título',
             content,
             prompt: selectedPrompt || undefined,
             tags: tagsArray,
