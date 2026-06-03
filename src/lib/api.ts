@@ -274,3 +274,25 @@ export async function generateAIMiniInsight(
   });
   return handleApiResponse(response);
 }
+
+// ── Auto-title generation ────────────────────────────────────────────────────
+
+export async function generateTitle(params: {
+  context: 'chat' | 'journal';
+  firstUserMessage: string;
+  firstReply?: string;
+}): Promise<string | null> {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${FUNCTIONS_URL}/generate-title`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return typeof data.title === 'string' && data.title.length > 1 ? data.title : null;
+  } catch {
+    return null; // never throw — title generation is best-effort
+  }
+}
