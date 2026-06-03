@@ -278,13 +278,13 @@ function SectionBlock({ section }: { section: Section }) {
 function HelpModal({ onClose }: { onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
       style={{ background: 'rgba(31,42,36,0.45)', backdropFilter: 'blur(2px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         className="bg-app-bg w-full sm:max-w-lg rounded-t-[20px] sm:rounded-[20px] shadow-xl flex flex-col"
-        style={{ maxHeight: '90dvh' }}
+        style={{ maxHeight: 'calc(100dvh - 72px)' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-app-border flex-shrink-0">
