@@ -6,6 +6,7 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
 import { Layout } from './components/Layout';
+import { InstallPrompt } from './components/InstallPrompt';
 
 const JournalPage    = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
 const InsightsPage   = lazy(() => import('./pages/InsightsPage').then(m => ({ default: m.InsightsPage })));
@@ -90,26 +91,31 @@ function App() {
   if (loading) return <LoadingScreen />;
 
   return (
-    <Switch>
-      <Route path="/"                      component={HomeRoute} />
-      <Route path="/login"                 component={LoginPage} />
-      <Route path="/chat"                  component={ChatRoute} />
-      <Route path="/journal"               component={JournalRoute} />
-      <Route path="/practicas"             component={PracticasRoute} />
-      <Route path="/insights"              component={InsightsRoute} />
-      <Route path="/settings"              component={SettingsRoute} />
-      <Route path="/admin"                 component={AdminPageRoute} />
-      <Route path="/admin/cost-per-cycle"  component={CostPerCycleRoute} />
-      <Route path="/admin/token-usage"     component={TokenUsageRoute} />
-      <Route path="/admin/token-costs"     component={TokenCostsRoute} />
-      <Route path="/admin/users"           component={AdminUsersRoute} />
-      <Route path="/admin/crisis-events"   component={CrisisEventsRoute} />
-      <Route path="/admin/plan-limits"     component={PlanLimitsRoute} />
-      <Route path="/admin/email-campaigns" component={AdminEmailRoute} />
-      <Route>
-        {user ? <Redirect to="/chat" /> : <Redirect to="/" />}
-      </Route>
-    </Switch>
+    <>
+      <Switch>
+        <Route path="/"                      component={HomeRoute} />
+        <Route path="/login"                 component={LoginPage} />
+        <Route path="/chat"                  component={ChatRoute} />
+        <Route path="/journal"               component={JournalRoute} />
+        <Route path="/practicas"             component={PracticasRoute} />
+        <Route path="/insights"              component={InsightsRoute} />
+        <Route path="/settings"              component={SettingsRoute} />
+        <Route path="/admin"                 component={AdminPageRoute} />
+        <Route path="/admin/cost-per-cycle"  component={CostPerCycleRoute} />
+        <Route path="/admin/token-usage"     component={TokenUsageRoute} />
+        <Route path="/admin/token-costs"     component={TokenCostsRoute} />
+        <Route path="/admin/users"           component={AdminUsersRoute} />
+        <Route path="/admin/crisis-events"   component={CrisisEventsRoute} />
+        <Route path="/admin/plan-limits"     component={PlanLimitsRoute} />
+        <Route path="/admin/email-campaigns" component={AdminEmailRoute} />
+        <Route>
+          {user ? <Redirect to="/chat" /> : <Redirect to="/" />}
+        </Route>
+      </Switch>
+
+      {/* PWA install prompt — only shows on mobile, only when logged in, only if not already installed */}
+      <InstallPrompt />
+    </>
   );
 }
 
