@@ -6,7 +6,7 @@ import { useSoundSettings } from '../hooks/useSoundSettings';
 import { audioManager } from '../lib/audio';
 import { supabase } from '../lib/supabaseClient';
 import { useProfile } from '../hooks/useProfile';
-import { sendChatMessage, getUserMemories, saveUserMemory, TokenLimitError, type DevFlags } from '../lib/api';
+import { sendChatMessage, getUserMemories, saveUserMemory, TokenLimitError, generateTitle, type DevFlags } from '../lib/api';
 import { DevPanel } from '../components/DevPanel';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { Send, MessageCircle, Trash2, GripVertical, ArrowLeft, Plus, Lock, Pencil, Check, X, Download, BookOpen } from 'lucide-react';
@@ -1160,6 +1160,35 @@ export function ChatPage() {
         .update({ updated_at: new Date().toISOString() })
         .eq('id', threadId);
 
+      // ── Auto-title after first exchange ──────────────────────────────────
+      // Fire once when this is the first user message (userMsgCount === 1).
+      // Runs fire-and-forget so it never delays the UI.
+      const userMsgCountNow = messages.filter(m => m.sender === 'user').length + 1;
+      const currentTitle = threads.find(t => t.id === threadId)?.title ?? '';
+      if (userMsgCountNow === 1 && currentTitle === 'Nueva conversación') {
+        (async () => {
+          try {
+            const generatedTitle = await generateTitle({
+              context: 'chat',
+              firstUserMessage: messageToSend,
+              firstReply: replyText,
+            });
+            if (generatedTitle) {
+              setThreads(prev =>
+                prev.map(t => t.id === threadId ? { ...t, title: generatedTitle } : t)
+              );
+              await supabase
+                .from('chat_threads')
+                .update({ title: generatedTitle })
+                .eq('id', threadId);
+            }
+          } catch {
+            // best-effort — silently ignore
+          }
+        })();
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       qc.invalidateQueries({ queryKey: ['token-budget', user?.id] });
 
     } catch (error) {
@@ -1412,16 +1441,6 @@ export function ChatPage() {
       crisisLvl,
     });
   }
-
-  const _diarySuggestDebugReason = showDiaryHint
-    ? `SHOW (${diarySuggEval.reason})`
-    : blockedByCooldown
-    ? 'HIDDEN (cooldown_active)'
-    : crisisLvl >= 2
-    ? 'HIDDEN (crisis_level=2)'
-    : userMsgCount < 3
-    ? 'HIDDEN (insufficient_messages)'
-    : `HIDDEN (${diarySuggEval.reason})`;
 
   const handleConvertToJournal = async () => {
     if (!user || !profile || !currentThreadId) return;
@@ -1804,12 +1823,6 @@ export function ChatPage() {
                       />
                     ) : null;
                   })()}
-
-                  {message.id === latestCounselorId && import.meta.env.DEV && userMsgCount >= 1 && (
-                    <div className="mt-1 px-2 py-0.5 rounded text-[10px] font-mono opacity-60 bg-app-surface-2 text-app-muted inline-block">
-                      {_diarySuggestDebugReason}
-                    </div>
-                  )}
                 </div>
               </div>
             ))
