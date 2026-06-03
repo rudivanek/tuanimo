@@ -39,7 +39,7 @@ interface ChatSignalSummary {
   gratitude: number;
   total: number;
   dominant: string | null;
-  activeDays: number; // distinct signal_date days with score > 0
+  activeDays: number;
 }
 
 interface WeekSliceEdge {
@@ -57,16 +57,33 @@ interface SignalTrendEdge {
   delta: number;
 }
 
-// Generation mode determines which prompt path and signal_meta sources[] are used.
 type GenerationMode = "mood_only" | "chat_only" | "combined";
 
 const ALL_EMOJIS = ["😔", "😟", "😐", "🙂", "😊"];
 
-// Minimum chat-signal evidence to generate a chat-only weekly insight.
-// Must match the threshold in get_users_needing_weekly_insight RPC and the
-// client-side hasEnoughInsightEvidence check so all three are consistent.
 const CHAT_ONLY_MIN_TOTAL = 3;
 const CHAT_ONLY_MIN_DAYS = 2;
+
+// Títulos genéricos o auto-generados que NO deben interpretarse como señal psicológica.
+// Incluye: defaults del sistema, títulos que genera chat-to-journal, y variantes comunes.
+const GENERIC_TITLE_PATTERNS = [
+  /^nueva entrada$/i,
+  /^nueva entrada \d+$/i,
+  /^sin título$/i,
+  /^untitled$/i,
+  /^lo que llevo hoy$/i,
+  /^entrada del diario$/i,
+  /^diario$/i,
+  /^nota$/i,
+  /^hoy$/i,
+  /^\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}$/,  // fechas solas
+];
+
+function isGenericTitle(title: string): boolean {
+  const t = title.trim();
+  if (t.length <= 3) return true;
+  return GENERIC_TITLE_PATTERNS.some((pattern) => pattern.test(t));
+}
 
 function addDays(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -120,8 +137,6 @@ function parseInsightResponse(raw: string): InsightResponse {
   return { insight, comparison, micro_step, crisis };
 }
 
-// Slices a flat list of ChatSignalRow into N weekly buckets ending at referenceEndDate (exclusive).
-// slices[0] = most recent week, slices[n-1] = oldest.
 function buildWeekSlicesEdge(rows: ChatSignalRow[], referenceEndDate: string, numWeeks = 4): WeekSliceEdge[] {
   const slices: WeekSliceEdge[] = [];
   for (let i = 0; i < numWeeks; i++) {
@@ -144,7 +159,6 @@ const SIGNAL_TYPES_EDGE = ["positive", "stress", "anxiety", "gratitude"] as cons
 const MIN_DELTA_EDGE = 1.5;
 const STRONG_DELTA_EDGE = 3;
 
-// Mirrors client-side detectMultiWeekTrends. Returns trends[] and weeksWithData count.
 function detectTrendsEdge(slices: WeekSliceEdge[]): { trends: SignalTrendEdge[]; weeksWithData: number } {
   const weeksWithData = slices.filter((s) => s.dayCount > 0).length;
   if (slices.length < 2 || weeksWithData < 2) return { trends: [], weeksWithData };
@@ -170,9 +184,6 @@ function detectTrendsEdge(slices: WeekSliceEdge[]): { trends: SignalTrendEdge[];
   return { trends, weeksWithData };
 }
 
-// Converts trend data into a concise Spanish context sentence for prompt injection.
-// Only includes trends that cross the "strong enough" bar.
-// Returns empty string when evidence is too weak to mention.
 function buildMultiWeekTrendContext(trends: SignalTrendEdge[], weeksWithData: number): string {
   if (weeksWithData < 2) return "";
 
@@ -209,9 +220,6 @@ function buildMultiWeekTrendContext(trends: SignalTrendEdge[], weeksWithData: nu
   return `Contexto de tendencia (últimas semanas): ${lines.join(" ")} Menciona esta tendencia sólo si encaja de forma natural con la reflexión — no lo fuerces.`;
 }
 
-// Aggregates chat_signal_daily_agg rows for a specific user and week.
-// Uses the service client — must filter by user_id explicitly since RLS is bypassed.
-// Returns per-signal totals, dominant signal, and count of distinct active days.
 async function fetchChatSignalSummary(
   svc: ReturnType<typeof createClient>,
   userId: string,
@@ -247,8 +255,6 @@ async function fetchChatSignalSummary(
   return { ...totals, total, dominant, activeDays: activeDateSet.size };
 }
 
-// Fetches all chat_signal_daily_agg rows for a user across a multi-week window.
-// Used to build trend slices — wider than the single-week summary fetch.
 async function fetchMultiWeekChatSignals(
   svc: ReturnType<typeof createClient>,
   userId: string,
@@ -264,8 +270,6 @@ async function fetchMultiWeekChatSignals(
   return (data ?? []) as ChatSignalRow[];
 }
 
-// Builds the supplementary context line for mood+chat combined prompt.
-// Returns empty string when there is no chat signal data.
 function buildChatSignalContext(cs: ChatSignalSummary): string {
   if (cs.total === 0) return "";
   const parts: string[] = [];
@@ -277,7 +281,6 @@ function buildChatSignalContext(cs: ChatSignalSummary): string {
   return `Señales emocionales en conversaciones esta semana: ${parts.join(", ")}${dominantNote}. Úsalas para enriquecer la reflexión si son coherentes con el estado de ánimo.`;
 }
 
-// Builds prompt components for mood-only or combined (mood + chat) weeks.
 function buildMoodPrompt(
   current: { distribution: string; totals: string; totalDays: number },
   prior: { distribution: string; totals: string; totalDays: number },
@@ -304,6 +307,11 @@ REGLAS DE VOZ (no negociables):
 - La reflexión debe sentirse como algo que sólo esta persona podría haber recibido — no una plantilla genérica.
 - crisis: conservador. "MAYBE" sólo con patrón claro de angustia persistente; "YES" sólo con riesgo inmediato evidente; si no, "NO".
 - Responde ÚNICAMENTE con un objeto JSON válido. Sin texto extra, sin bloques de código.
+
+RESTRICCIÓN CRÍTICA — METADATOS:
+- PROHIBIDO interpretar títulos de entradas, frecuencia de uso, campos vacíos, o cualquier metadato como señal psicológica.
+- Los títulos del diario son etiquetas organizacionales del usuario — no revelan intención emocional. No los comentes, no los interpretes.
+- Trabaja ÚNICAMENTE con el contenido emocional explícito: señales de conversación, registros de ánimo, y tendencias de datos.
 
 FORMATO DE RESPUESTA (JSON estricto):
 {
@@ -336,8 +344,6 @@ FORMATO DE RESPUESTA (JSON estricto):
   return { systemPrompt, userMessage };
 }
 
-// Builds prompt components for chat-only weeks (no mood logs available).
-// Uses a distinct system prompt that does not reference mood emojis or check-ins.
 function buildChatOnlyPrompt(chatSignals: ChatSignalSummary, trendContext: string, languageSignalContext = ""): { systemPrompt: string; userMessage: string } {
   const systemPrompt = `Eres Elena, una acompañante de terapia existencial. Tu tarea es generar una reflexión semanal basada en señales emocionales detectadas en las conversaciones de esta semana. No hay registros de estado de ánimo disponibles — trabaja sólo con lo que emergió en conversación.
 
@@ -356,6 +362,11 @@ REGLAS DE VOZ (no negociables):
 - La reflexión debe sentirse específica para esta persona, no genérica.
 - crisis: conservador. "MAYBE" sólo con patrón claro de angustia persistente; "YES" sólo con riesgo inmediato; si no, "NO".
 - Responde ÚNICAMENTE con un objeto JSON válido. Sin texto extra, sin bloques de código.
+
+RESTRICCIÓN CRÍTICA — METADATOS:
+- PROHIBIDO interpretar títulos de entradas, frecuencia de uso, campos vacíos, o cualquier metadato como señal psicológica.
+- Los títulos del diario son etiquetas organizacionales — no revelan intención emocional. No los comentes, no los interpretes.
+- Trabaja ÚNICAMENTE con el contenido emocional explícito de las conversaciones.
 
 FORMATO DE RESPUESTA (JSON estricto):
 {
@@ -398,7 +409,7 @@ function matchSignalsEdge(tags: string[] | null, title: string | null): Array<"p
   if (tags) {
     for (const tag of tags) tokens.push(tag.toLowerCase().trim());
   }
-  if (title) {
+  if (title && !isGenericTitle(title)) {
     tokens.push(
       ...title.toLowerCase().replace(/[^a-záéíóúüñ\s]/g, " ").split(/\s+/).filter(Boolean),
     );
@@ -471,7 +482,7 @@ async function fetchRecentJournalTitles(
     .limit(8);
   return ((data ?? []) as Array<{ title: string | null }>)
     .map(e => e.title ?? "")
-    .filter(t => t.length > 3);
+    .filter(t => t.length > 3 && !isGenericTitle(t));  // ← filtro de títulos genéricos
 }
 
 function buildLanguageSignalContext(titles: string[]): string {
@@ -511,11 +522,8 @@ async function generateInsightForUser(
 ): Promise<void> {
   const weekEndDate = addDays(weekStartDate, 7);
   const priorWeekStart = addDays(weekStartDate, -7);
-
   const trendWindowStart = addDays(weekStartDate, -21);
 
-  // Fetch mood logs (both windows), current-week chat signals, multi-week
-  // chat signal rows, mood trend rows, and journal signal rows — all in parallel.
   const [currentResult, priorResult, chatSignals, multiWeekRows, moodTrendRows, journalTrendRows, recentTitles] = await Promise.all([
     svc.from("mood_logs")
       .select("local_date, emoji")
@@ -540,25 +548,16 @@ async function generateInsightForUser(
   const priorWeekLogs: MoodLog[] = priorResult.data ?? [];
 
   const hasMoodData = currentWeekLogs.length > 0;
-  // Chat-only eligibility mirrors get_users_needing_weekly_insight threshold
   const hasChatData = chatSignals.total >= CHAT_ONLY_MIN_TOTAL && chatSignals.activeDays >= CHAT_ONLY_MIN_DAYS;
 
-  // Skip if neither source has enough data — e.g. race condition between RPC
-  // selection and actual data arrival.
   if (!hasMoodData && !hasChatData) return;
 
-  // Determine which generation mode applies for this week.
   const mode: GenerationMode = hasMoodData && hasChatData
     ? "combined"
     : hasMoodData
     ? "mood_only"
     : "chat_only";
 
-  // Merge all signal sources for multi-week trend computation.
-  // Chat rows carry weighted scores; journal rows score=1 per keyword match;
-  // mood rows score=0.5–1.0 based on emoji valence.
-  // Scores accumulate additively — the strong delta threshold (3) prevents
-  // weak single-source noise from producing false trend assertions.
   const allTrendRows = [...multiWeekRows, ...moodTrendRows, ...journalTrendRows];
   const activeTrendSources = [
     ...(multiWeekRows.length > 0 ? ["chat"] : []),
@@ -635,8 +634,6 @@ async function generateInsightForUser(
 
   const composedInsight = buildComposedInsight(parsed.insight, parsed.comparison, parsed.micro_step);
 
-  // signal_meta is the source-of-truth for how this insight was generated.
-  // Downstream UI and future analytics can read sources[] to know the mode.
   const signalMeta: Record<string, unknown> = {
     sources: mode === "chat_only" ? ["chat"] : mode === "combined" ? ["mood", "chat"] : ["mood"],
     mood_days: currentWeekLogs.length,
@@ -686,8 +683,6 @@ async function generateInsightForUser(
   }
 
   // ── Send insight teaser email ──────────────────────────────────────────────
-  // Fire-and-forget: email failure never blocks insight generation.
-  // Respects email_opt_in and email_weekly_insight_opt_in user preferences.
   (async () => {
     try {
       const { data: profile } = await svc
@@ -702,7 +697,6 @@ async function generateInsightForUser(
       const email = authUser?.user?.email;
       if (!email) return;
 
-      // Extract first sentence of insight as teaser (up to 180 chars)
       const firstSentence = parsed.insight.split(/(?<=[.?!])\s+/)[0] ?? parsed.insight;
       const teaser = firstSentence.length > 180
         ? firstSentence.slice(0, 177) + "…"
@@ -770,7 +764,6 @@ async function generateInsightForUser(
 
       console.log(`WEEKLY_INSIGHTS: insight email sent to user ${userId}`);
     } catch (err) {
-      // Never let email failure affect insight generation
       console.error(`WEEKLY_INSIGHTS: email failed for user ${userId}:`, err);
     }
   })();
@@ -827,7 +820,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Parse request body — may contain user_id + week_start_date for single-user mode
     let body: Record<string, string> = {};
     try {
       const text = await req.text();
@@ -837,8 +829,6 @@ Deno.serve(async (req: Request) => {
     const singleUserId     = typeof body.user_id         === "string" ? body.user_id         : null;
     const singleWeekStart  = typeof body.week_start_date === "string" ? body.week_start_date : null;
 
-    // ── SINGLE-USER MODE (rolling daily cron) ──────────────────────────────
-    // Called by cron_rolling_insight_trigger with a specific user + window.
     if (singleUserId && singleWeekStart) {
       console.log(`WEEKLY_INSIGHTS: single-user mode user=${singleUserId} week_start=${singleWeekStart}`);
       try {
@@ -858,7 +848,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── BATCH MODE (Monday weekly cron) ────────────────────────────────────
     const now = new Date();
     const dayOfWeek = now.getUTCDay();
     const daysToThisMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
