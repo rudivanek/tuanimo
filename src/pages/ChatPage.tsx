@@ -47,6 +47,8 @@ import VoiceMemo from '../components/VoiceMemo';
 import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import { NavigationGuardModal } from '../components/NavigationGuardModal';
 import { CrisisResourceModal } from '../components/CrisisResourceModal';
+import { CommitmentCard } from '../components/CommitmentCard';
+import { getActiveCommitment, type Commitment } from '../lib/commitments';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const LS_DISMISS_KEY = (k: string) => `diary_hint_dismissed_${k}`;
@@ -109,6 +111,8 @@ export function ChatPage() {
   const [showPracticasConfirm, setShowPracticasConfirm] = useState(false);
   const [practicasLoading, setPracticasLoading] = useState(false);
   const [showCrisisModal, setShowCrisisModal] = useState(false);
+  const [activeCommitment, setActiveCommitment] = useState<Commitment | null>(null);
+  const [pendingCommitment, setPendingCommitment] = useState<{ text: string; outcome: 'done' | 'not_done' } | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -299,6 +303,11 @@ export function ChatPage() {
   useEffect(() => {
     if (user) loadThreads();
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    getActiveCommitment(user.id).then(setActiveCommitment);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -987,6 +996,9 @@ export function ChatPage() {
         forceMemoryMatch: !!localStorage.getItem('elena_dev_force_memory_match'),
       } : undefined;
 
+      const commitmentForThisMessage = pendingCommitment;
+      if (pendingCommitment) setPendingCommitment(null);
+
       const aiResponse = await sendChatMessage(
         threadId,
         messageToSend,
@@ -999,6 +1011,7 @@ export function ChatPage() {
         devFlags,
         chipMetaForMessage,
         isFirstEverMessage,
+        commitmentForThisMessage,
       );
 
       if (aiResponse.boundary_triggered) {
@@ -1745,6 +1758,29 @@ export function ChatPage() {
           />
         )}
 
+        {activeCommitment && (
+          <CommitmentCard
+            commitment={activeCommitment}
+            onReflect={(outcome, text) => {
+              // Build the opening message and set it as pending commitment context
+              const opener = outcome === 'done'
+                ? `Lo hice: ${text}`
+                : `No pude hacerlo: ${text}`;
+              setPendingCommitment({ text, outcome });
+              setInputMessage(opener);
+              setTimeout(() => {
+                const el = chatInputRef.current;
+                if (!el) return;
+                el.focus();
+                el.setSelectionRange(el.value.length, el.value.length);
+                el.style.height = '40px';
+                const sh = el.scrollHeight;
+                el.style.height = Math.min(sh, 120) + 'px';
+              }, 0);
+            }}
+            onDismissed={() => setActiveCommitment(null)}
+          />
+        )}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-app-bg overscroll-y-contain">
           {isLoading ? (
             <div className="text-center text-app-muted py-8 text-sm">Cargando mensajes...</div>
