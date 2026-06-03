@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, Plus, Pencil, Trash2, Globe, Phone, Check, X, AlertCircle } from 'lucide-react';
 import { Link } from 'wouter';
 import { supabase } from '../../lib/supabaseClient';
@@ -53,9 +53,8 @@ export function CrisisResourcesPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
 
-  const loadResources = async () => {
+  const loadResources = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -66,24 +65,17 @@ export function CrisisResourcesPage() {
         .order('sort_order', { ascending: true });
       if (error) throw error;
       setResources(data ?? []);
-      setLoaded(true);
     } catch (err) {
       setError('No se pudieron cargar los recursos.');
-      console.error(err);
+      console.error('[CrisisResourcesPage] load error:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Load on first render
-  if (!loaded && !loading) loadResources();
-  if (!loaded && loading && resources.length === 0) {
-    // trigger load
+  useEffect(() => {
     loadResources();
-  }
-
-  // Use useEffect pattern via a flag
-  useState(() => { loadResources(); });
+  }, [loadResources]);
 
   const openNew = () => {
     setEditingId(null);
@@ -155,7 +147,7 @@ export function CrisisResourcesPage() {
       closeForm();
     } catch (err) {
       setSaveError('Error al guardar. Inténtalo de nuevo.');
-      console.error(err);
+      console.error('[CrisisResourcesPage] save error:', err);
     } finally {
       setSaving(false);
     }
@@ -172,7 +164,7 @@ export function CrisisResourcesPage() {
       if (error) throw error;
       setResources(prev => prev.filter(r => r.id !== id));
     } catch (err) {
-      console.error(err);
+      console.error('[CrisisResourcesPage] delete error:', err);
     } finally {
       setDeletingId(null);
     }
@@ -180,13 +172,14 @@ export function CrisisResourcesPage() {
 
   const toggleActive = async (r: CrisisResource) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('crisis_resources')
         .update({ is_active: !r.is_active, updated_at: new Date().toISOString() })
         .eq('id', r.id);
+      if (error) throw error;
       setResources(prev => prev.map(x => x.id === r.id ? { ...x, is_active: !x.is_active } : x));
     } catch (err) {
-      console.error(err);
+      console.error('[CrisisResourcesPage] toggle error:', err);
     }
   };
 
@@ -215,7 +208,7 @@ export function CrisisResourcesPage() {
               Recursos de crisis
             </h1>
             <p className="text-xs text-app-muted mt-0.5">
-              Líneas de ayuda y recursos por país — se muestran en el modal de crisis del chat.
+              Líneas de ayuda por país — se muestran en el modal de crisis del chat.
             </p>
           </div>
           <button
@@ -229,23 +222,24 @@ export function CrisisResourcesPage() {
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-12 px-4 py-3 text-sm text-red-700 mb-4">
-            {error}
+          <div className="bg-red-50 border border-red-200 rounded-12 px-4 py-3 text-sm text-red-700 mb-4 flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={loadResources} className="text-xs underline ml-4">Reintentar</button>
           </div>
         )}
 
         {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-16 text-app-muted text-sm">
-            Cargando...
+            Cargando recursos...
           </div>
         )}
 
         {/* Empty */}
-        {!loading && resources.length === 0 && (
+        {!loading && !error && resources.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-app-muted text-sm gap-2">
             <AlertCircle size={24} className="opacity-30" />
-            <p>No hay recursos configurados.</p>
+            <p>No hay recursos configurados aún.</p>
             <button onClick={openNew} className="text-sage-strong text-sm font-medium hover:underline">
               Agregar el primero
             </button>
@@ -328,10 +322,9 @@ export function CrisisResourcesPage() {
           );
         })}
 
-        {/* Hint */}
         {!loading && resources.length > 0 && (
           <p className="text-xs text-app-muted text-center mt-2">
-            Los recursos inactivos no se muestran en el modal. El país se detecta automáticamente por el idioma del navegador del usuario.
+            Los recursos inactivos no se muestran en el modal. El país se detecta por el idioma del navegador del usuario.
           </p>
         )}
       </div>
@@ -355,7 +348,7 @@ export function CrisisResourcesPage() {
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="block text-[11px] font-medium text-app-muted uppercase tracking-wide mb-1">
-                  Código de país *
+                  Código país *
                 </label>
                 <input
                   type="text"
