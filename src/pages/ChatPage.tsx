@@ -46,6 +46,7 @@ import { recordFlightEvent, getSessionId } from '../lib/elenaFlightRecorder';
 import VoiceMemo from '../components/VoiceMemo';
 import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import { NavigationGuardModal } from '../components/NavigationGuardModal';
+import { CrisisResourceModal } from '../components/CrisisResourceModal';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const LS_DISMISS_KEY = (k: string) => `diary_hint_dismissed_${k}`;
@@ -107,6 +108,7 @@ export function ChatPage() {
   const [isSending, setIsSending] = useState(false);
   const [showPracticasConfirm, setShowPracticasConfirm] = useState(false);
   const [practicasLoading, setPracticasLoading] = useState(false);
+  const [showCrisisModal, setShowCrisisModal] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -668,22 +670,28 @@ export function ChatPage() {
   const handleFollowUpClick = async (followUp: FollowUp) => {
     if (!user || !currentThreadId || isSending || !profile) return;
 
-    setMessages(prev => {
-      const updated = [...prev];
-      for (let i = updated.length - 1; i >= 0; i--) {
-        if (updated[i].sender === 'counselor' && updated[i].followUp) {
-          updated[i] = { ...updated[i], followUpUsed: true };
-          break;
+    // Don't mark as used for resource — modal opens from ChatPage instead
+    if (followUp.actionType !== 'resource') {
+      setMessages(prev => {
+        const updated = [...prev];
+        for (let i = updated.length - 1; i >= 0; i--) {
+          if (updated[i].sender === 'counselor' && updated[i].followUp) {
+            updated[i] = { ...updated[i], followUpUsed: true };
+            break;
+          }
         }
-      }
-      return updated;
-    });
+        return updated;
+      });
+    }
 
     if (followUp.actionType === 'journal') {
       setLocation('/journal');
     } else if (followUp.actionType === 'practicas') {
       setShowPracticasConfirm(true);
       return; // don't mark followUp as used yet — modal handles navigation
+    } else if (followUp.actionType === 'resource') {
+      setShowCrisisModal(true);
+      return;
     } else if (followUp.actionType === 'save_memory' && followUp.payload) {
       try {
         const { key, value } = followUp.payload;
@@ -1480,6 +1488,9 @@ export function ChatPage() {
           onConfirm={confirmNavigation}
           onCancel={cancelNavigation}
         />
+      )}
+      {showCrisisModal && (
+        <CrisisResourceModal onClose={() => setShowCrisisModal(false)} />
       )}
       {/* ── Sidebar ── */}
       <aside
