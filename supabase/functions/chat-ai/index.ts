@@ -961,6 +961,9 @@ Deno.serve(async (req: Request) => {
     const chipMeta = (body.chipMeta && typeof body.chipMeta === 'object' && typeof body.chipMeta.label === 'string') ? body.chipMeta : null;
     const isFirstSession = body.isFirstSession === true;
     const devFlags: DevFlags = (body.devFlags && typeof body.devFlags === 'object') ? body.devFlags : {};
+    const openingCommitment = (body.openingCommitment && typeof body.openingCommitment === 'object')
+      ? body.openingCommitment as { text: string; outcome: 'done' | 'not_done' }
+      : null;
 
     const rawHistory = Array.isArray(body.conversationHistory) ? body.conversationHistory : [];
     const conversationHistory = rawHistory
