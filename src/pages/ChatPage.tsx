@@ -44,6 +44,8 @@ import { InsightActivationChip } from '../components/InsightActivationChip';
 import { useInsightActivation } from '../hooks/useInsightActivation';
 import { recordFlightEvent, getSessionId } from '../lib/elenaFlightRecorder';
 import VoiceMemo from '../components/VoiceMemo';
+import { useNavigationGuard } from '../hooks/useNavigationGuard';
+import { NavigationGuardModal } from '../components/NavigationGuardModal';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const LS_DISMISS_KEY = (k: string) => `diary_hint_dismissed_${k}`;
@@ -141,6 +143,10 @@ export function ChatPage() {
   const [isFirstTimeUser, setIsFirstTimeUser] = useState<boolean | null>(null);
   const [firstSessionTopicJustSaved, setFirstSessionTopicJustSaved] = useState(false);
   const inlineToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Navigation guard: warn when the user has typed a message but hasn't sent it
+  const isDirty = inputMessage.trim().length > 0;
+  const { pendingPath, confirmNavigation, cancelNavigation } = useNavigationGuard(isDirty);
 
   interface LinkedEntry { id: string; title: string | null; is_draft: boolean; saved_at: string | null; }
   const [linkedEntry, setLinkedEntry] = useState<LinkedEntry | null>(null);
@@ -1448,6 +1454,14 @@ export function ChatPage() {
       className="flex overflow-hidden bg-app-bg"
       style={{ height: 'calc(100dvh - var(--chrome-total))' }}
     >
+      {/* Navigation guard modal */}
+      {pendingPath && (
+        <NavigationGuardModal
+          context="chat"
+          onConfirm={confirmNavigation}
+          onCancel={cancelNavigation}
+        />
+      )}
       {/* ── Sidebar ── */}
       <aside
         className={`
