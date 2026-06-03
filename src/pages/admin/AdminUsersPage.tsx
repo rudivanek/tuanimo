@@ -4,9 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft, Users, Search, UserPlus, RefreshCw,
   AlertCircle, Inbox, Pencil, Trash2, CheckCircle, Ban, Wrench, X, CheckCheck,
-  RotateCcw, AlertTriangle,
+  RotateCcw, AlertTriangle, CircleDollarSign,
 } from 'lucide-react';
-import { AdminUser, ReconcileResult, ResetUserResult, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, upsertUserProfile } from '../../lib/adminUsers';
+import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, upsertUserProfile } from '../../lib/adminUsers';
 import { setFlightRecorderForUser } from '../../lib/elenaFlightRecorder';
 import { UserModal } from '../../components/admin/UserModal';
 
@@ -71,6 +71,10 @@ export function AdminUsersPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetResult, setResetResult] = useState<(ResetUserResult & { targetLabel: string }) | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [tokenResetConfirmUser, setTokenResetConfirmUser] = useState<AdminUser | null>(null);
+  const [tokenResetLoading, setTokenResetLoading] = useState(false);
+  const [tokenResetResult, setTokenResetResult] = useState<(ResetTokenResult & { targetLabel: string }) | null>(null);
+  const [tokenResetError, setTokenResetError] = useState<string | null>(null);
 
   const { data: users = [], isFetching, isError, error, refetch } = useQuery<AdminUser[]>({
     queryKey: ['admin-users', includeDeleted],
@@ -145,6 +149,25 @@ export function AdminUsersPage() {
       setResetConfirmUser(null);
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleTokenReset = async () => {
+    if (!tokenResetConfirmUser) return;
+    const user = tokenResetConfirmUser;
+    setTokenResetLoading(true);
+    setTokenResetResult(null);
+    setTokenResetError(null);
+    try {
+      const result = await resetTokenUsage(user.id);
+      setTokenResetResult({ ...result, targetLabel: user.email });
+      setTokenResetConfirmUser(null);
+      invalidate();
+    } catch (err) {
+      setTokenResetError((err as Error).message ?? 'Error al resetear tokens');
+      setTokenResetConfirmUser(null);
+    } finally {
+      setTokenResetLoading(false);
     }
   };
 
@@ -488,6 +511,14 @@ export function AdminUsersPage() {
                               >
                                 <RotateCcw size={14} />
                               </button>
+
+                              <button
+                                onClick={() => { setTokenResetConfirmUser(user); setTokenResetResult(null); setTokenResetError(null); }}
+                                title="Resetear tokens del usuario"
+                                className="w-8 h-8 flex items-center justify-center rounded-9 text-app-muted hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                              >
+                                <CircleDollarSign size={14} />
+                              </button>
                             </>
                           )}
                         </div>
@@ -516,6 +547,80 @@ export function AdminUsersPage() {
           onClose={() => setModal({ open: false })}
           onSaved={() => { setModal({ open: false }); invalidate(); }}
         />
+      )}
+
+      {tokenResetResult && (
+        <div className="mx-5 mb-0 flex items-start gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-[12px] text-sm text-blue-800">
+          <CheckCheck size={16} className="flex-shrink-0 mt-0.5 text-blue-600" />
+          <div>
+            <p className="font-medium">Tokens reseteados</p>
+            <p className="text-xs text-blue-600 mt-0.5">
+              <span className="font-medium">{tokenResetResult.targetLabel}</span>
+              {' '}— {tokenResetResult.deleted_token_rows} registros de tokens eliminados. Ciclo reiniciado hoy.
+            </p>
+          </div>
+          <button onClick={() => setTokenResetResult(null)} className="ml-auto text-blue-400 hover:text-blue-700"><X size={14} /></button>
+        </div>
+      )}
+
+      {tokenResetError && (
+        <div className="mx-5 mb-0 flex items-start gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-[12px] text-sm text-red-700">
+          <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+          <p>{tokenResetError}</p>
+          <button onClick={() => setTokenResetError(null)} className="ml-auto text-red-400 hover:text-red-700"><X size={14} /></button>
+        </div>
+      )}
+
+      {tokenResetConfirmUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-app-surface border border-app-border rounded-[20px] shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 pt-6 pb-5">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <CircleDollarSign size={18} className="text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-[15px] font-semibold text-app-text">
+                    ¿Resetear tokens?
+                  </h2>
+                  <p className="text-[13px] text-app-muted mt-1 leading-relaxed">
+                    Elimina todo el historial de tokens y reinicia el ciclo a hoy para:
+                  </p>
+                  <p className="text-[13px] font-semibold text-app-text mt-2 truncate">
+                    {tokenResetConfirmUser.email}
+                  </p>
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-[10px]">
+                    <p className="text-[12px] text-blue-800 leading-relaxed">
+                      Los chats, diario y demás contenido no se verán afectados.
+                      Solo usar en pruebas — elimina el historial de costos de este usuario.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 pb-5 flex gap-2.5 justify-end">
+              <button
+                onClick={() => setTokenResetConfirmUser(null)}
+                disabled={tokenResetLoading}
+                className="px-4 py-2 rounded-10 text-sm font-medium text-app-muted bg-app-bg border border-app-border hover:border-app-muted transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleTokenReset}
+                disabled={tokenResetLoading}
+                className="px-4 py-2 rounded-10 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {tokenResetLoading ? (
+                  <RefreshCw size={13} className="animate-spin" />
+                ) : (
+                  <CircleDollarSign size={13} />
+                )}
+                {tokenResetLoading ? 'Reseteando...' : 'Sí, resetear tokens'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {resetConfirmUser && (
