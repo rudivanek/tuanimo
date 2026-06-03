@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, User, Zap, AlertCircle, Loader2, Mail, Lock, Eye, EyeOff, ChevronDown, Trash2, RotateCcw } from 'lucide-react';
-import { AdminUser, upsertUserProfile, createUser, updateUserPassword, resetUserData, resetTokenUsage } from '../../lib/adminUsers';
+import { X, User, Zap, AlertCircle, Loader2, Mail, Lock, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { AdminUser, upsertUserProfile, createUser, updateUserPassword } from '../../lib/adminUsers';
 
 interface UserModalProps {
   mode: 'create' | 'edit';
@@ -45,9 +45,6 @@ export function UserModal({ mode, user, onClose, onSaved }: UserModalProps) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [confirmReset, setConfirmReset] = useState<'content' | 'tokens' | null>(null);
-  const [resetting, setResetting] = useState(false);
-  const [resetSuccess, setResetSuccess] = useState('');
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -73,38 +70,6 @@ export function UserModal({ mode, user, onClose, onSaved }: UserModalProps) {
     lastNameValid;
 
   const selectedPlan = PLANS.find(p => p.key === form.plan_key) ?? PLANS[0];
-
-  const handleResetContent = async () => {
-    if (!user) return;
-    setResetting(true);
-    setError('');
-    setResetSuccess('');
-    try {
-      const result = await resetUserData(user.id);
-      setResetSuccess(`Contenido eliminado — ${result.deleted_chat_threads} chats, ${result.deleted_journal_entries} entradas, ${result.deleted_token_rows} tokens.`);
-      setConfirmReset(null);
-    } catch (err) {
-      setError((err as Error).message ?? 'Error al resetear contenido');
-    } finally {
-      setResetting(false);
-    }
-  };
-
-  const handleResetTokens = async () => {
-    if (!user) return;
-    setResetting(true);
-    setError('');
-    setResetSuccess('');
-    try {
-      const result = await resetTokenUsage(user.id);
-      setResetSuccess(`Tokens reseteados — ${result.deleted_token_rows} registros eliminados, ciclo reiniciado hoy.`);
-      setConfirmReset(null);
-    } catch (err) {
-      setError((err as Error).message ?? 'Error al resetear tokens');
-    } finally {
-      setResetting(false);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!isValid) return;
@@ -312,82 +277,6 @@ export function UserModal({ mode, user, onClose, onSaved }: UserModalProps) {
             </div>
           )}
 
-          {mode === 'edit' && (
-            <div className="space-y-2 pt-1">
-              <p className="text-[11px] font-semibold text-app-muted uppercase tracking-wider">Acciones de beta / pruebas</p>
-
-              {confirmReset === null && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => { setConfirmReset('tokens'); setResetSuccess(''); setError(''); }}
-                    className="flex items-center justify-center gap-1.5 h-9 px-3 rounded-10 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium hover:bg-amber-100 transition-colors"
-                  >
-                    <RotateCcw size={12} />
-                    Resetear tokens
-                  </button>
-                  <button
-                    onClick={() => { setConfirmReset('content'); setResetSuccess(''); setError(''); }}
-                    className="flex items-center justify-center gap-1.5 h-9 px-3 rounded-10 bg-red-50 border border-red-200 text-red-700 text-xs font-medium hover:bg-red-100 transition-colors"
-                  >
-                    <Trash2 size={12} />
-                    Resetear contenido
-                  </button>
-                </div>
-              )}
-
-              {confirmReset === 'tokens' && (
-                <div className="p-3 rounded-10 bg-amber-50 border border-amber-200 space-y-2">
-                  <p className="text-xs font-medium text-amber-800">¿Resetear tokens de este usuario?</p>
-                  <p className="text-[11px] text-amber-700 leading-relaxed">Elimina todo el historial de tokens y reinicia el ciclo a hoy. Solo usar en pruebas.</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setConfirmReset(null)}
-                      className="flex-1 h-8 rounded-[8px] bg-white border border-amber-200 text-xs font-medium text-amber-700 hover:bg-amber-100 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleResetTokens}
-                      disabled={resetting}
-                      className="flex-1 h-8 rounded-[8px] bg-amber-600 text-white text-xs font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
-                    >
-                      {resetting && <Loader2 size={11} className="animate-spin" />}
-                      Confirmar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {confirmReset === 'content' && (
-                <div className="p-3 rounded-10 bg-red-50 border border-red-200 space-y-2">
-                  <p className="text-xs font-medium text-red-800">¿Resetear TODO el contenido?</p>
-                  <p className="text-[11px] text-red-700 leading-relaxed">Elimina chats, diario, estados de ánimo, insights y tokens. Irreversible.</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setConfirmReset(null)}
-                      className="flex-1 h-8 rounded-[8px] bg-white border border-red-200 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleResetContent}
-                      disabled={resetting}
-                      className="flex-1 h-8 rounded-[8px] bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
-                    >
-                      {resetting && <Loader2 size={11} className="animate-spin" />}
-                      Confirmar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {resetSuccess && (
-                <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-10 px-3 py-2 leading-relaxed">
-                  ✓ {resetSuccess}
-                </p>
-              )}
-            </div>
-          )}
 
           {error && (
             <div className="flex items-start gap-2.5 px-3.5 py-3 bg-red-50 border border-red-200 rounded-10 text-sm text-red-700">
