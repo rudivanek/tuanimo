@@ -111,7 +111,7 @@ export function UserModal({ mode, user, onClose, onSaved }: UserModalProps) {
     >
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full sm:max-w-md bg-app-surface rounded-t-[24px] sm:rounded-[20px] shadow-2xl border border-app-border overflow-hidden">
+      <div className="relative w-full sm:max-w-md bg-app-surface rounded-t-[24px] sm:rounded-[20px] shadow-2xl border border-app-border overflow-hidden flex flex-col max-h-[90dvh]">
         <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-10 bg-sage-strong/10 flex items-center justify-center">
@@ -129,7 +129,7 @@ export function UserModal({ mode, user, onClose, onSaved }: UserModalProps) {
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
           {mode === 'create' && (
             <div>
               <label className="block text-[11px] font-semibold text-app-muted uppercase tracking-wider mb-1.5">
