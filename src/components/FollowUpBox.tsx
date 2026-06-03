@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Heart, Wind, BookOpen, AlertCircle, ArrowRight, X, CheckSquare } from 'lucide-react';
 import type { FollowUp } from '../types/chat';
-import { CrisisResourceModal } from './CrisisResourceModal';
 
 interface FollowUpBoxProps {
   followUp: FollowUp;
@@ -10,16 +9,11 @@ interface FollowUpBoxProps {
 
 export function FollowUpBox({ followUp, onFollowUpClick }: FollowUpBoxProps) {
   const [showBreathingModal, setShowBreathingModal] = useState(false);
-  const [showResourceModal, setShowResourceModal] = useState(false);
 
   const handleFollowUpClick = () => {
     onFollowUpClick(followUp);
-    if (followUp.kind === 'action') {
-      if (followUp.actionType === 'breathing') {
-        setShowBreathingModal(true);
-      } else if (followUp.actionType === 'resource') {
-        setShowResourceModal(true);
-      }
+    if (followUp.kind === 'action' && followUp.actionType === 'breathing') {
+      setShowBreathingModal(true);
     }
   };
 
@@ -107,10 +101,6 @@ export function FollowUpBox({ followUp, onFollowUpClick }: FollowUpBoxProps) {
             </button>
           </div>
         </div>
-      )}
-
-      {showResourceModal && (
-        <CrisisResourceModal onClose={() => setShowResourceModal(false)} />
       )}
     </>
   );
