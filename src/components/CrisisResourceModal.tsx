@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, Phone, Globe, X } from 'lucide-react';
+import { AlertCircle, Phone, Globe, X, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface CrisisResource {
@@ -8,6 +8,11 @@ interface CrisisResource {
   description: string | null;
   phone: string | null;
   website: string | null;
+}
+
+interface CountryOption {
+  code: string;
+  name: string;
 }
 
 interface CrisisResourceModalProps {
@@ -28,61 +33,89 @@ function detectCountryCode(): string {
 
 export function CrisisResourceModal({ onClose }: CrisisResourceModalProps) {
   const [resources, setResources] = useState<CrisisResource[]>([]);
-  const [countryName, setCountryName] = useState('México');
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [selectedCode, setSelectedCode] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
+  // On mount: fetch all available countries, then auto-select detected one
   useEffect(() => {
-    const detectedCode = detectCountryCode();
-
-    async function load() {
+    async function init() {
       setLoading(true);
       try {
-        // Try detected country first
-        const { data: countryData } = await supabase
+        const { data } = await supabase
           .from('crisis_resources')
-          .select('id, resource_name, description, phone, website, country_name')
-          .eq('country_code', detectedCode)
+          .select('country_code, country_name')
           .eq('is_active', true)
-          .order('sort_order', { ascending: true });
+          .order('country_name', { ascending: true });
 
-        if (countryData && countryData.length > 0) {
-          setCountryName(countryData[0].country_name);
-          setResources(countryData);
+        if (!data || data.length === 0) {
+          setLoading(false);
           return;
         }
 
-        // Fallback to Mexico
-        const { data: fallbackData } = await supabase
+        // Deduplicate countries
+        const seen = new Set<string>();
+        const unique: CountryOption[] = [];
+        for (const row of data) {
+          if (!seen.has(row.country_code)) {
+            seen.add(row.country_code);
+            unique.push({ code: row.country_code, name: row.country_name });
+          }
+        }
+        setCountries(unique);
+
+        // Pick detected country, fallback to MX, fallback to first available
+        const detected = detectCountryCode();
+        const match = unique.find(c => c.code === detected);
+        const fallbackMX = unique.find(c => c.code === 'MX');
+        const initial = match ?? fallbackMX ?? unique[0];
+        setSelectedCode(initial.code);
+      } catch (err) {
+        console.error('[CrisisResourceModal] Failed to load countries:', err);
+        setLoading(false);
+      }
+    }
+    init();
+  }, []);
+
+  // Load resources whenever selected country changes
+  useEffect(() => {
+    if (!selectedCode) return;
+
+    async function loadResources() {
+      setLoading(true);
+      try {
+        const { data } = await supabase
           .from('crisis_resources')
-          .select('id, resource_name, description, phone, website, country_name')
-          .eq('country_code', 'MX')
+          .select('id, resource_name, description, phone, website')
+          .eq('country_code', selectedCode)
           .eq('is_active', true)
           .order('sort_order', { ascending: true });
 
-        if (fallbackData && fallbackData.length > 0) {
-          setCountryName(fallbackData[0].country_name);
-          setResources(fallbackData);
-        }
+        setResources(data ?? []);
       } catch (err) {
         console.error('[CrisisResourceModal] Failed to load resources:', err);
       } finally {
         setLoading(false);
       }
     }
+    loadResources();
+  }, [selectedCode]);
 
-    load();
-  }, []);
+  const selectedCountryName = countries.find(c => c.code === selectedCode)?.name ?? '';
 
   return (
     <div className="fixed inset-0 bg-app-text/40 backdrop-blur-sm flex items-center justify-center z-50 p-5">
       <div className="bg-app-surface rounded-[18px] shadow-app max-w-sm w-full p-6">
+
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 bg-red-50 rounded-full flex items-center justify-center">
               <AlertCircle className="text-danger" size={18} />
             </div>
             <h3 className="text-[16px] font-semibold text-app-text">
-              Ayuda en {countryName}
+              Recursos de ayuda
             </h3>
           </div>
           <button
@@ -93,10 +126,32 @@ export function CrisisResourceModal({ onClose }: CrisisResourceModalProps) {
           </button>
         </div>
 
-        <p className="text-sm text-app-muted mb-4">
+        <p className="text-sm text-app-muted mb-3">
           Si estás pasando por una crisis o necesitas apoyo profesional inmediato:
         </p>
 
+        {/* Country selector */}
+        {countries.length > 1 && (
+          <div className="relative mb-4">
+            <select
+              value={selectedCode}
+              onChange={e => setSelectedCode(e.target.value)}
+              className="w-full appearance-none bg-app-surface-2 border border-app-border rounded-12 px-3 py-2 pr-8 text-sm text-app-text focus:outline-none focus:ring-2 focus:ring-sage-strong/30 cursor-pointer"
+            >
+              {countries.map(c => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={15}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-app-muted pointer-events-none"
+            />
+          </div>
+        )}
+
+        {/* Resources list */}
         {loading && (
           <div className="bg-sage-soft rounded-14 p-4 text-sm text-app-muted text-center">
             Cargando recursos...
