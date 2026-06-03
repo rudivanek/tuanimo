@@ -48,6 +48,8 @@ import { generateReflectionPrompt, classifySignalFromMetadata } from '../lib/ref
 import type { ReflectionPromptResult, ReflectionPromptSignal } from '../lib/reflectionPrompt';
 import { classifyDelta } from '../lib/reflectionDelta';
 import { recordFlightEvent } from '../lib/elenaFlightRecorder';
+import { useNavigationGuard } from '../hooks/useNavigationGuard';
+import { NavigationGuardModal } from '../components/NavigationGuardModal';
 
 interface JournalEntry {
   id: string;
@@ -392,6 +394,17 @@ export function JournalPage() {
       justSavedTimerRef.current = null;
     }, 8000);
   };
+
+  // Dirty when the user has typed content in a new entry or a draft, and hasn't
+  // just finished saving.  Saved entries being re-edited are handled by auto-save
+  // drafts, but we don't block navigation on those since every keystroke there
+  // is already persisted as a draft or the original saved entry is still intact.
+  const isDirty =
+    (isNewEntry || isDraftEntry) &&
+    content.trim().length > 0 &&
+    !justSaved;
+
+  const { pendingPath, confirmNavigation, cancelNavigation } = useNavigationGuard(isDirty);
 
   useEffect(() => {
     return () => {
@@ -1106,6 +1119,14 @@ export function JournalPage() {
       className="flex overflow-hidden bg-app-bg"
       style={{ height: 'calc(100dvh - var(--chrome-total))' }}
     >
+      {/* Navigation guard modal */}
+      {pendingPath && (
+        <NavigationGuardModal
+          context="journal"
+          onConfirm={confirmNavigation}
+          onCancel={cancelNavigation}
+        />
+      )}
       {/* ── Sidebar ── */}
       <aside
         className={`
