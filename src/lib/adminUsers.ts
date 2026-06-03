@@ -114,6 +114,20 @@ export interface ReconcileResult {
   entries_fixed: number;
 }
 
+export interface ResetTokenResult {
+  success: boolean;
+  deleted_token_rows: number;
+  cycle_start_reset: boolean;
+}
+
+export async function resetTokenUsage(userId: string): Promise<ResetTokenResult> {
+  const { data, error } = await supabase.rpc('admin_reset_token_usage', {
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  return data as ResetTokenResult;
+}
+
 export async function reconcileJournalStorage(userId?: string): Promise<ReconcileResult> {
   const { data, error } = await supabase.rpc('admin_reconcile_journal_storage', {
     p_user_id: userId ?? null,
