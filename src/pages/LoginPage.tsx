@@ -3,25 +3,53 @@ import { Eye, EyeOff, Leaf } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Redirect } from 'wouter';
 
+type Mode = 'login' | 'register';
+
 export function LoginPage() {
+  const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const { signIn, user } = useAuth();
+  const [isError, setIsError] = useState(false);
+  const { signIn, signUp, user } = useAuth();
 
   if (user) return <Redirect to="/app/chat" />;
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setMessage('');
+    setIsError(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+    setIsError(false);
 
-    const { error } = await signIn(email, password);
-
-    if (error) {
-      setMessage(error.message || 'Error. Por favor, intenta de nuevo.');
+    if (mode === 'login') {
+      const { error } = await signIn(email, password);
+      if (error) {
+        setIsError(true);
+        setMessage(error.message || 'Error. Por favor, intenta de nuevo.');
+      }
+    } else {
+      const { error } = await signUp(email, password, firstName, lastName);
+      if (error) {
+        setIsError(true);
+        setMessage(error.message || 'Error al crear la cuenta. Intenta de nuevo.');
+      } else {
+        // Auto sign-in after successful registration
+        const { error: signInError } = await signIn(email, password);
+        if (signInError) {
+          setIsError(false);
+          setMessage('Cuenta creada. Ya puedes iniciar sesión.');
+        }
+      }
     }
 
     setLoading(false);
@@ -29,9 +57,14 @@ export function LoginPage() {
 
   const focusStyle = '0 0 0 3px var(--focus)';
 
+  const inputClass =
+    'w-full px-4 py-3 rounded-12 border border-app-border bg-app-surface text-app-text placeholder:text-app-muted text-sm focus:outline-none transition';
+
   return (
     <div className="min-h-screen bg-app-bg flex items-center justify-center p-5">
       <div className="max-w-md w-full bg-app-surface rounded-[18px] shadow-app p-8">
+
+        {/* Logo */}
         <div className="flex justify-center mb-6">
           <div className="w-14 h-14 bg-sage-soft rounded-full flex items-center justify-center">
             <Leaf className="w-7 h-7 text-sage-strong" />
@@ -42,11 +75,78 @@ export function LoginPage() {
           <span className="text-[20px] font-semibold tracking-tight text-app-text">Tu-Animo</span>
           <span className="text-[20px] font-semibold tracking-tight text-sage-strong">.app</span>
         </div>
-        <p className="text-center text-app-muted text-sm mb-8">
+        <p className="text-center text-app-muted text-sm mb-7">
           Tu espacio seguro para el bienestar emocional
         </p>
 
+        {/* Mode toggle */}
+        <div className="flex rounded-12 border border-app-border overflow-hidden mb-6">
+          <button
+            type="button"
+            onClick={() => switchMode('login')}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              mode === 'login'
+                ? 'bg-sage-strong text-white'
+                : 'bg-app-surface text-app-muted hover:text-app-text'
+            }`}
+          >
+            Iniciar sesión
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode('register')}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              mode === 'register'
+                ? 'bg-sage-strong text-white'
+                : 'bg-app-surface text-app-muted hover:text-app-text'
+            }`}
+          >
+            Crear cuenta
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+
+          {/* Name fields — register only */}
+          {mode === 'register' && (
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label htmlFor="firstName" className="block text-sm font-medium text-app-text mb-1.5">
+                  Nombre
+                </label>
+                <input
+                  id="firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  className={inputClass}
+                  style={{ boxShadow: 'none' }}
+                  onFocus={(e) => (e.currentTarget.style.boxShadow = focusStyle)}
+                  onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
+                  placeholder="Tu nombre"
+                />
+              </div>
+              <div className="flex-1">
+                <label htmlFor="lastName" className="block text-sm font-medium text-app-text mb-1.5">
+                  Apellido
+                </label>
+                <input
+                  id="lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className={inputClass}
+                  style={{ boxShadow: 'none' }}
+                  onFocus={(e) => (e.currentTarget.style.boxShadow = focusStyle)}
+                  onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
+                  placeholder="Tu apellido"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Email */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-app-text mb-1.5">
               Correo electrónico
@@ -57,14 +157,15 @@ export function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-12 border border-app-border bg-app-surface text-app-text placeholder:text-app-muted text-sm focus:outline-none transition"
+              className={inputClass}
               style={{ boxShadow: 'none' }}
-              onFocus={(e) => e.currentTarget.style.boxShadow = focusStyle}
-              onBlur={(e) => e.currentTarget.style.boxShadow = 'none'}
+              onFocus={(e) => (e.currentTarget.style.boxShadow = focusStyle)}
+              onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
               placeholder="tu@email.com"
             />
           </div>
 
+          {/* Password */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-app-text mb-1.5">
               Contraseña
@@ -77,10 +178,10 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full pl-4 pr-11 py-3 rounded-12 border border-app-border bg-app-surface text-app-text placeholder:text-app-muted text-sm focus:outline-none transition"
+                className={`w-full pl-4 pr-11 py-3 rounded-12 border border-app-border bg-app-surface text-app-text placeholder:text-app-muted text-sm focus:outline-none transition`}
                 style={{ boxShadow: 'none' }}
-                onFocus={(e) => e.currentTarget.style.boxShadow = focusStyle}
-                onBlur={(e) => e.currentTarget.style.boxShadow = 'none'}
+                onFocus={(e) => (e.currentTarget.style.boxShadow = focusStyle)}
+                onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
                 placeholder="Mínimo 6 caracteres"
               />
               <button
@@ -100,16 +201,22 @@ export function LoginPage() {
             disabled={loading}
             className="w-full bg-sage-strong hover:bg-[#4e7260] text-white font-semibold py-3 rounded-12 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
-            {loading ? 'Procesando...' : 'Iniciar sesión'}
+            {loading
+              ? 'Procesando...'
+              : mode === 'login'
+              ? 'Iniciar sesión'
+              : 'Crear cuenta'}
           </button>
         </form>
 
         {message && (
-          <div className={`mt-4 p-3.5 rounded-12 text-sm ${
-            message.includes('Error')
-              ? 'bg-red-50 text-danger border border-red-100'
-              : 'bg-sage-soft text-sage-strong border border-sage-soft'
-          }`}>
+          <div
+            className={`mt-4 p-3.5 rounded-12 text-sm ${
+              isError
+                ? 'bg-red-50 text-danger border border-red-100'
+                : 'bg-sage-soft text-sage-strong border border-sage-soft'
+            }`}
+          >
             {message}
           </div>
         )}
