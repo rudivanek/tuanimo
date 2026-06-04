@@ -432,6 +432,7 @@ interface AIResponse {
   reply: string;
   meta: ChatMeta;
   chips?: string[];
+  commitment_suggestion?: string | null;
 }
 
 interface ChatResponse {
@@ -1642,6 +1643,7 @@ CRITICAL: You MUST respond ONLY with valid JSON matching this exact schema:
 {
   "reply": "your empathetic response here",
   "chips": ["Cuando estoy solo en casa", "Cuando pienso en el futuro"],
+  "commitment_suggestion": null,
   "meta": {
     "state": "E3_EXPAND",
     "emotion": "anxious",
@@ -1653,6 +1655,16 @@ CRITICAL: You MUST respond ONLY with valid JSON matching this exact schema:
 }
 
 If no chips are appropriate, use an empty array: "chips": []
+
+commitment_suggestion: A short, concrete action the user can attempt before the next session (max 80 chars). Use null in most cases. ONLY suggest one when ALL of these are true:
+- The conversation has at least 4 user turns
+- The user has named something specific they want to change, try, or do differently
+- The conversation is naturally winding down (state is E6_CLOSE or the user expressed closure)
+- The crisis level is NO
+- The suggestion emerges organically from what the USER said — never invent one
+Good examples: "Llamar a mi hermano esta semana", "Escribir una línea sobre lo que extraño", "Salir a caminar tres veces"
+Bad examples: generic advice, therapeutic homework, anything the user didn't hint at themselves
+When in doubt, use null. Less is more.
 
 State meanings:
 - E0_VALIDATE: Initial validation phase
@@ -1795,6 +1807,12 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
     if (!aiResponse.meta) {
       aiResponse.meta = { state: "E3_EXPAND", emotion: "unknown", intensity: 5, valence: "neutral", stuck: false, crisis: "NO" };
     }
+
+    // Extract and sanitize commitment_suggestion
+    const rawSuggestion = typeof aiResponse.commitment_suggestion === 'string'
+      ? aiResponse.commitment_suggestion.trim().slice(0, 80)
+      : null;
+    const commitmentSuggestion = rawSuggestion && rawSuggestion.length > 5 ? rawSuggestion : null;
 
     const trimmedReply = (aiResponse.reply ?? "").replace(/\s+/g, " ").trim();
     if (trimmedReply.length === 0) {
@@ -1946,6 +1964,7 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
         mode_used: modeUsed,
         support_routine_id: selectedRoutine?.id ?? null,
         suggested_practicas: includePracticas,
+        commitment_suggestion: commitmentSuggestion,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
