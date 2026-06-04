@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
-import { BarChart3, ChevronLeft, RefreshCw, AlertCircle, Inbox } from 'lucide-react';
+import { BarChart3, ChevronLeft, RefreshCw, AlertCircle, Inbox, Download } from 'lucide-react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import { utils, writeFile } from 'xlsx';
 import { supabase } from '../../lib/supabaseClient';
 
 interface ReportRow {
@@ -40,18 +41,20 @@ function formatDate(iso: string): string {
   return iso.slice(0, 10);
 }
 
-const today        = new Date();
-const defaultFrom  = toIsoDate(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000));
-const defaultUntil = toIsoDate(today);
-
 export function TokenUsagePage() {
-  const [selectedUser, setSelectedUser]   = useState<string>('');
-  const [dateFrom,     setDateFrom]       = useState(defaultFrom);
-  const [dateUntil,    setDateUntil]      = useState(defaultUntil);
-  const [appliedFilters, setAppliedFilters] = useState({
-    user:  '',
-    from:  defaultFrom,
-    until: defaultUntil,
+  // Compute defaults inside the component so they're always fresh on mount
+  const [selectedUser, setSelectedUser] = useState<string>('');
+  const [dateFrom,     setDateFrom]     = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return toIsoDate(d);
+  });
+  const [dateUntil, setDateUntil] = useState(() => toIsoDate(new Date()));
+  const [appliedFilters, setAppliedFilters] = useState(() => {
+    const now = new Date();
+    const from = new Date(now);
+    from.setDate(from.getDate() - 30);
+    return { user: '', from: toIsoDate(from), until: toIsoDate(now) };
   });
 
   const handleApply = useCallback(() => {
@@ -96,6 +99,71 @@ export function TokenUsagePage() {
     cost:             rows.reduce((s, r) => s + Number(r.total_cost_usd),    0),
   }), [rows]);
 
+  // ── Excel export ──────────────────────────────────────────────────────────
+  const handleExport = useCallback(() => {
+    if (rows.length === 0) return;
+
+    const userLabel = appliedFilters.user
+      ? (users.find(u => u.user_id === appliedFilters.user)?.user_label ?? appliedFilters.user)
+      : 'Todos';
+
+    // Detail sheet
+    const detailData = rows.map(r => ({
+      Usuario:         r.user_label,
+      Fecha:           formatDate(r.usage_date),
+      'Tokens Entrada': Number(r.prompt_tokens),
+      'Tokens Salida':  Number(r.completion_tokens),
+      'Total Tokens':   Number(r.total_tokens),
+      'Costo (USD)':    Number(r.total_cost_usd),
+    }));
+
+    // Totals row
+    detailData.push({
+      Usuario:         'TOTAL',
+      Fecha:           '',
+      'Tokens Entrada': totals.promptTokens,
+      'Tokens Salida':  totals.completionTokens,
+      'Total Tokens':   totals.totalTokens,
+      'Costo (USD)':    totals.cost,
+    });
+
+    const wb  = utils.book_new();
+    const ws  = utils.json_to_sheet(detailData);
+
+    // Column widths
+    ws['!cols'] = [
+      { wch: 28 }, // Usuario
+      { wch: 12 }, // Fecha
+      { wch: 16 }, // Tokens Entrada
+      { wch: 14 }, // Tokens Salida
+      { wch: 14 }, // Total Tokens
+      { wch: 14 }, // Costo
+    ];
+
+    utils.book_append_sheet(wb, ws, 'Uso de Tokens');
+
+    // Summary sheet
+    const summaryData = [
+      { Métrica: 'Usuarios',       Valor: totals.distinctUsers },
+      { Métrica: 'Tokens Entrada', Valor: totals.promptTokens },
+      { Métrica: 'Tokens Salida',  Valor: totals.completionTokens },
+      { Métrica: 'Total Tokens',   Valor: totals.totalTokens },
+      { Métrica: 'Costo Total (USD)', Valor: totals.cost },
+      { Métrica: 'Costo/M Tokens (USD)', Valor: totals.totalTokens > 0 ? +((totals.cost / totals.totalTokens) * 1_000_000).toFixed(4) : 0 },
+      { Métrica: '─────────────', Valor: '' },
+      { Métrica: 'Filtro Usuario', Valor: userLabel },
+      { Métrica: 'Filtro Desde',   Valor: appliedFilters.from },
+      { Métrica: 'Filtro Hasta',   Valor: appliedFilters.until },
+      { Métrica: 'Exportado',      Valor: new Date().toLocaleString('es-MX') },
+    ];
+    const ws2 = utils.json_to_sheet(summaryData);
+    ws2['!cols'] = [{ wch: 22 }, { wch: 22 }];
+    utils.book_append_sheet(wb, ws2, 'Resumen');
+
+    const filename = `tuanimo-tokens_${appliedFilters.from}_${appliedFilters.until}.xlsx`;
+    writeFile(wb, filename);
+  }, [rows, totals, appliedFilters, users]);
+
   return (
     <div
       className="bg-app-bg p-5 space-y-5"
@@ -122,6 +190,16 @@ export function TokenUsagePage() {
             </div>
             <p className="text-sm text-app-muted mt-0.5">Consumo y costo por usuario y fecha</p>
           </div>
+          {/* Export button */}
+          <button
+            onClick={handleExport}
+            disabled={rows.length === 0 || isFetching}
+            title="Exportar a Excel"
+            className="mt-0.5 flex items-center gap-2 h-9 px-4 rounded-10 bg-app-surface border border-app-border text-sm font-medium text-app-text hover:border-sage-strong hover:text-sage-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Download size={15} />
+            <span className="hidden sm:inline">Excel</span>
+          </button>
         </div>
 
         {/* Filters */}
