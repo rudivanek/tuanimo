@@ -8,10 +8,10 @@ interface CommitmentSuggestionProps {
 
 export function CommitmentSuggestion({ text, onAccept, onIgnore }: CommitmentSuggestionProps) {
   return (
-    <div className="mx-3 mb-2 rounded-2xl border border-sage/30 bg-sage-soft/50 p-3.5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div className="mx-3 mb-2 rounded-2xl border border-[#AFA9EC]/40 bg-[#EEEDFE] p-3.5 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex items-start gap-2 mb-2.5">
-        <Sparkles size={14} className="text-sage-strong flex-shrink-0 mt-0.5" />
-        <p className="text-[12px] text-sage-strong font-medium leading-snug">
+        <Sparkles size={14} className="text-[#3C3489] flex-shrink-0 mt-0.5" />
+        <p className="text-[12px] text-[#3C3489] font-medium leading-snug">
           Elena sugiere un compromiso
         </p>
       </div>
@@ -21,7 +21,7 @@ export function CommitmentSuggestion({ text, onAccept, onIgnore }: CommitmentSug
       <div className="flex gap-2 pl-5">
         <button
           onClick={onAccept}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-sage-strong text-white text-[12.5px] font-medium hover:opacity-90 transition-opacity"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#534AB7] text-white text-[12.5px] font-medium hover:opacity-90 transition-opacity"
         >
           <Check size={13} />
           Aceptar
