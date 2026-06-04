@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
 import { Layout } from './components/Layout';
 import { InstallPrompt } from './components/InstallPrompt';
+import { OnboardingTour } from './components/OnboardingTour';
 
 const JournalPage    = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
 const InsightsPage   = lazy(() => import('./pages/InsightsPage').then(m => ({ default: m.InsightsPage })));
@@ -118,6 +119,9 @@ function App() {
 
       {/* PWA install prompt — only shows on mobile, only when logged in, only if not already installed */}
       <InstallPrompt />
+
+      {/* First-launch onboarding tour — auto-shows once, re-triggerable from Configuración */}
+      {user && <OnboardingTour />}
     </>
   );
 }
