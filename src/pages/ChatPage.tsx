@@ -311,24 +311,32 @@ export function ChatPage() {
   }, [user]);
 
   // Journal → Elena reflection: create a fresh thread and auto-send.
+  // We read+clear sessionStorage and set the fired ref synchronously before
+  // any async work so a re-render (e.g. profile loading) can't double-fire.
   const journalReflectionFiredRef = useRef(false);
+  const journalReflectionEntryRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (journalReflectionFiredRef.current) return;
+    try {
+      const stored = sessionStorage.getItem('journalReflectionEntry');
+      if (stored) {
+        sessionStorage.removeItem('journalReflectionEntry');
+        journalReflectionEntryRef.current = stored;
+      }
+    } catch {}
+  }, []);
   useEffect(() => {
     if (!user || !profile || journalReflectionFiredRef.current) return;
-    let entry: string | null = null;
-    try {
-      entry = sessionStorage.getItem('journalReflectionEntry');
-      if (entry) sessionStorage.removeItem('journalReflectionEntry');
-    } catch {}
-    if (!entry) return;
+    const entryContent = journalReflectionEntryRef.current;
+    if (!entryContent) return;
     journalReflectionFiredRef.current = true;
-    const entryContent = entry;
+    journalReflectionEntryRef.current = null;
     const fire = async () => {
       const newThreadId = await createNewThread({ skipWelcome: true });
       if (!newThreadId) return;
       const message = `He escrito esto en mi diario y me gustaría que lo leyeras:
 
 ${entryContent}`;
-      // Wait for currentThreadId state to settle, then send directly
       setTimeout(() => {
         handleSendMessage(message, newThreadId, null);
       }, 500);
