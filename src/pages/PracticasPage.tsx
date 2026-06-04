@@ -290,7 +290,7 @@ export function PracticasPage() {
                 <div key={c.id}
                   className={[
                     'bg-app-surface rounded-[16px] border p-4 transition-all',
-                    c.status === 'pending' ? 'border-app-border shadow-app' : 'border-app-border opacity-60',
+                    c.status === 'done' ? 'border-app-border opacity-55' : 'border-app-border shadow-app',
                   ].join(' ')}
                 >
                   {/* Source badge + date */}
@@ -305,39 +305,44 @@ export function PracticasPage() {
 
                   {/* Text */}
                   <p className={['text-[14px] leading-relaxed mb-3',
-                    c.status !== 'pending' ? 'text-app-muted line-through' : 'text-app-text'
+                    c.status === 'done' ? 'text-app-muted line-through' : 'text-app-text'
                   ].join(' ')}>
                     {c.text}
                   </p>
 
                   {/* Outcome */}
-                  {c.status === 'pending' ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleCommitmentResolve(c.id, 'done')}
-                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-sm font-medium bg-sage-soft text-sage-strong hover:opacity-90 transition-opacity"
-                      >
-                        <CheckCircle2 size={14} />
-                        Lo hice
-                      </button>
-                      <button
-                        onClick={() => handleCommitmentResolve(c.id, 'not_done')}
-                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-sm font-medium bg-app-surface border border-app-border text-app-muted hover:opacity-90 transition-opacity"
-                      >
-                        <XCircle size={14} />
-                        No del todo
-                      </button>
-                    </div>
-                  ) : (
+                  {c.status === 'done' ? (
                     <div className="flex items-center gap-2">
-                      {c.status === 'done'
-                        ? <CheckCircle2 size={14} className="text-sage-strong flex-shrink-0" />
-                        : <XCircle size={14} className="text-app-muted flex-shrink-0" />
-                      }
+                      <CheckCircle2 size={14} className="text-sage-strong flex-shrink-0" />
                       <span className="text-[12px] text-app-muted">
-                        {c.status === 'done' ? 'Completado' : 'No completado'}
+                        Completado
                         {c.resolved_at && ` · ${new Date(c.resolved_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}`}
                       </span>
+                    </div>
+                  ) : (
+                    <div>
+                      {c.status === 'not_done' && (
+                        <p className="text-[11.5px] text-app-muted mb-2 flex items-center gap-1">
+                          <XCircle size={12} className="flex-shrink-0" />
+                          No completado — ¿quieres marcarlo ahora?
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleCommitmentResolve(c.id, 'done')}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-sm font-medium bg-sage-soft text-sage-strong hover:opacity-90 transition-opacity"
+                        >
+                          <CheckCircle2 size={14} />
+                          Lo hice
+                        </button>
+                        <button
+                          onClick={() => handleCommitmentResolve(c.id, 'not_done')}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-sm font-medium bg-app-surface border border-app-border text-app-muted hover:opacity-90 transition-opacity"
+                        >
+                          <XCircle size={14} />
+                          No del todo
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
