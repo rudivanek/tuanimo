@@ -182,6 +182,13 @@ export function JournalPage() {
   const contentRef = useRef(content);
   const { showActivation, dismiss: dismissActivation, evidenceEnough } = useInsightActivation();
 
+  // ── Commitment state ──────────────────────────────────────────────────────
+  const [activeCommitment, setActiveCommitment] = useState<Commitment | null>(null);
+  const [showCommitmentInput, setShowCommitmentInput] = useState(false);
+  const [commitmentDraft, setCommitmentDraft] = useState('');
+  const [savingCommitment, setSavingCommitment] = useState(false);
+  const commitmentInputRef = useRef<HTMLInputElement>(null);
+
   const frPageOpenedRef = useRef(false);
   const frPrevStarterPromptRef = useRef(false);
   const frPrevReflectionRef = useRef(false);
@@ -429,6 +436,23 @@ export function JournalPage() {
   useEffect(() => {
     if (user && profile) loadEntries();
   }, [user, profile?.id]);
+
+  useEffect(() => {
+    if (user) getActiveCommitment(user.id).then(setActiveCommitment);
+  }, [user?.id]);
+
+  const handleSaveJournalCommitment = async () => {
+    const text = commitmentDraft.trim();
+    if (!text || !user) return;
+    setSavingCommitment(true);
+    const saved = await createCommitment(user.id, text, 'user');
+    setSavingCommitment(false);
+    if (saved) {
+      setActiveCommitment(saved);
+      setCommitmentDraft('');
+      setShowCommitmentInput(false);
+    }
+  };
 
   useEffect(() => {
     if (user) loadProgress();
