@@ -310,8 +310,8 @@ export function ChatPage() {
     if (user) loadThreads();
   }, [user]);
 
-  // Journal → Elena reflection: pre-fill the input with the journal entry
-  // so the user can review it and send it themselves.
+  // Journal → Elena reflection: create a fresh thread then pre-fill the
+  // input so the user can review and send it themselves.
   const journalReflectionFiredRef = useRef(false);
   useEffect(() => {
     if (!user || journalReflectionFiredRef.current) return;
@@ -322,10 +322,17 @@ export function ChatPage() {
     } catch {}
     if (!entry) return;
     journalReflectionFiredRef.current = true;
-    const message = `He escrito esto en mi diario y me gustaría que lo leyeras:
+    const entryContent = entry;
+    const fire = async () => {
+      const newThreadId = await createNewThread({ skipWelcome: true });
+      if (!newThreadId) return;
+      const message = `He escrito esto en mi diario y me gustaría que lo leyeras:
 
-${entry}`;
-    setInputMessage(message);
+${entryContent}`;
+      setInputMessage(message);
+      setTimeout(() => chatInputRef.current?.focus(), 100);
+    };
+    setTimeout(fire, 300);
   }, [user]);
 
   useEffect(() => {
