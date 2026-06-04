@@ -11,7 +11,8 @@ import { getJournalPrompts, TokenLimitError, generateAIReflectionPrompt, generat
 import { extractLanguageSignals } from '../lib/languageSignals';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { detectTopicRepetition } from '../lib/diaryDraft';
-import { BookOpen, Plus, Sparkles, Calendar, Tag, Trash2, GripVertical, ArrowLeft, Lock, Download, MessageCircle, X, ChevronRight, Check } from 'lucide-react';
+import { BookOpen, Plus, Sparkles, Calendar, Tag, Trash2, GripVertical, ArrowLeft, Lock, Download, MessageCircle, X, ChevronRight, Check, Star } from 'lucide-react';
+import { getActiveCommitment, createCommitment, type Commitment } from '../lib/commitments';
 import { useLatestInsightAt } from '../hooks/useLatestInsightAt';
 import { hasNewInsightsSinceLastView } from '../lib/insightVisibility';
 import { ExportModal } from '../components/ExportModal';
@@ -1469,6 +1470,49 @@ export function JournalPage() {
                 >
                   <Download size={16} />
                 </button>
+              )}
+              {!isTokenExhausted && !activeCommitment && (
+                <div className="flex-shrink-0">
+                  {showCommitmentInput ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        ref={commitmentInputRef}
+                        value={commitmentDraft}
+                        onChange={e => setCommitmentDraft(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleSaveJournalCommitment();
+                          if (e.key === 'Escape') { setShowCommitmentInput(false); setCommitmentDraft(''); }
+                        }}
+                        placeholder="¿Qué quieres intentar?"
+                        maxLength={200}
+                        className="w-44 sm:w-56 rounded-10 border border-app-border px-2.5 py-1.5 text-[12.5px] text-app-text placeholder:text-app-muted bg-app-surface focus:outline-none focus:ring-2 focus:ring-sage-strong/25"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleSaveJournalCommitment}
+                        disabled={!commitmentDraft.trim() || savingCommitment}
+                        className="rounded-10 px-2.5 py-1.5 bg-sage-strong text-white text-[12.5px] font-medium hover:bg-[#4e7260] transition-colors disabled:opacity-40"
+                      >
+                        {savingCommitment ? '...' : 'Guardar'}
+                      </button>
+                      <button
+                        onClick={() => { setShowCommitmentInput(false); setCommitmentDraft(''); }}
+                        className="p-1.5 text-app-muted hover:text-app-text transition-colors"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setShowCommitmentInput(true); setTimeout(() => commitmentInputRef.current?.focus(), 0); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-10 border border-app-border text-app-muted hover:text-sage-strong hover:border-sage-strong transition-colors text-[12px]"
+                      title="Agregar compromiso"
+                    >
+                      <Star size={12} />
+                      <span className="hidden sm:inline">Compromiso</span>
+                    </button>
+                  )}
+                </div>
               )}
               {!isTokenExhausted ? (
                 <div className="flex items-center gap-2 flex-shrink-0">
