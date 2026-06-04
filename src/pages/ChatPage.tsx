@@ -48,6 +48,7 @@ import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import { NavigationGuardModal } from '../components/NavigationGuardModal';
 import { CrisisResourceModal } from '../components/CrisisResourceModal';
 import { CommitmentCard } from '../components/CommitmentCard';
+import { CommitmentSuggestion } from '../components/CommitmentSuggestion';
 import { getActiveCommitment, createCommitment, type Commitment } from '../lib/commitments';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -117,6 +118,7 @@ export function ChatPage() {
   const [commitmentDraft, setCommitmentDraft] = useState('');
   const [savingCommitment, setSavingCommitment] = useState(false);
   const commitmentInputRef = useRef<HTMLInputElement>(null);
+  const [pendingElenaCommitment, setPendingElenaCommitment] = useState<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -1018,6 +1020,11 @@ export function ChatPage() {
         commitmentForThisMessage,
       );
 
+      // ── Elena commitment suggestion ──────────────────────────────────────
+      if (aiResponse.commitment_suggestion && !activeCommitment) {
+        setPendingElenaCommitment(aiResponse.commitment_suggestion);
+      }
+
       if (aiResponse.boundary_triggered) {
         boundaryAttemptsByThreadRef.current[threadId] = threadBoundaryAttempts + 1;
       } else if (isEmotionalMessage(messageToSend)) {
@@ -1775,6 +1782,18 @@ export function ChatPage() {
           />
         )}
 
+        {pendingElenaCommitment && !activeCommitment && (
+          <CommitmentSuggestion
+            text={pendingElenaCommitment}
+            onAccept={async () => {
+              if (!user) return;
+              const saved = await createCommitment(user.id, pendingElenaCommitment, 'elena');
+              if (saved) setActiveCommitment(saved);
+              setPendingElenaCommitment(null);
+            }}
+            onIgnore={() => setPendingElenaCommitment(null)}
+          />
+        )}
         {activeCommitment && (
           <CommitmentCard
             commitment={activeCommitment}
