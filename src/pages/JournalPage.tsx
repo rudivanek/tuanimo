@@ -499,14 +499,13 @@ export function JournalPage() {
 
   useEffect(() => {
     if (entries.length < 3) return;
-    // Only show when the user is viewing an existing saved entry
-    if (!selectedEntry || selectedEntry.is_draft || isNewEntry) return;
+    if (isNewEntry) return; // don't show on a blank new entry
     const result = detectTopicRepetition(entries);
     if (result.detected) {
       setShowChatSuggestion(true);
       setChatSuggestionKeyword(result.keyword);
     }
-  }, [entries.length, selectedEntry?.id, isNewEntry]);
+  }, [entries.length, isNewEntry]);
 
   useEffect(() => {
     if (storageState === 'warning' || storageState === 'critical') {
