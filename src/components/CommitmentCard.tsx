@@ -28,12 +28,12 @@ export function CommitmentCard({ commitment, onReflect, onDismissed }: Commitmen
   }
 
   return (
-    <div className="mx-3 mb-3 rounded-2xl border border-[var(--color-border-secondary)] bg-[var(--color-background-secondary)] p-4">
+    <div className="mx-3 mb-3 rounded-2xl border border-[#AFA9EC]/40 bg-[#EEEDFE] p-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <Sparkles size={15} className="text-[var(--color-text-accent)] shrink-0 mt-0.5" />
-          <span className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide">
+          <Sparkles size={15} className="text-[#534AB7] shrink-0 mt-0.5" />
+          <span className="text-xs font-medium text-[#3C3489] uppercase tracking-wide">
             {commitment.source === 'elena' ? 'Compromiso con Elena' : 'Tu compromiso'}
           </span>
         </div>
