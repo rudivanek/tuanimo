@@ -18,6 +18,7 @@ export function Layout({ children }: LayoutProps) {
   const { signOut } = useAuth();
 
   const [insightViewVersion, setInsightViewVersion] = useState(0);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const handler = () => setInsightViewVersion(v => v + 1);
@@ -64,7 +65,7 @@ export function Layout({ children }: LayoutProps) {
 
           {/* Quick logout */}
           <button
-            onClick={signOut}
+            onClick={() => setShowLogoutConfirm(true)}
             className="flex items-center justify-center w-8 h-8 rounded-full text-app-muted hover:text-app-text transition-colors duration-150"
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
@@ -131,6 +132,32 @@ export function Layout({ children }: LayoutProps) {
           })}
         </div>
       </nav>
+
+      {/* ── Logout confirmation ── */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-app-surface rounded-[18px] shadow-app border border-app-border w-full max-w-xs p-6">
+            <p className="text-[15px] font-semibold text-app-text mb-1">¿Cerrar sesión?</p>
+            <p className="text-sm text-app-muted mb-5 leading-snug">
+              Tendrás que volver a iniciar sesión para acceder a tu cuenta.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 py-2.5 rounded-12 border border-app-border text-app-text text-sm font-medium hover:bg-app-bg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { setShowLogoutConfirm(false); signOut(); }}
+                className="flex-1 py-2.5 rounded-12 bg-sage-strong text-white text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
