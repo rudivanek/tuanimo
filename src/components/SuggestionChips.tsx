@@ -43,8 +43,8 @@ export function SuggestionChips({ chips, onSelect, source, isAdaptive = false, t
             onClick={() => handleClick(chip)}
             className="
               px-3.5 py-1.5 text-[13px] font-medium rounded-full
-              bg-sage-soft text-sage-strong border border-sage/40
-              hover:bg-sage/20 hover:border-sage-strong/40
+              bg-[#E6F1FB] text-[#185FA5] border border-[#85B7EB]
+              hover:bg-[#B5D4F4]/40 hover:border-[#378ADD]/50
               active:scale-95
               transition-all duration-150 ease-out
               min-h-[44px] leading-tight text-left
