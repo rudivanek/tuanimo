@@ -310,6 +310,35 @@ export function ChatPage() {
     if (user) loadThreads();
   }, [user]);
 
+  // Journal → Elena reflection: when user tapped the chip in JournalPage,
+  // create a fresh thread and auto-send the journal entry content.
+  const journalReflectionFiredRef = useRef(false);
+  useEffect(() => {
+    if (!user || !profile || journalReflectionFiredRef.current) return;
+    let entry: string | null = null;
+    try {
+      entry = sessionStorage.getItem('journalReflectionEntry');
+      if (entry) sessionStorage.removeItem('journalReflectionEntry');
+    } catch {}
+    if (!entry) return;
+    journalReflectionFiredRef.current = true;
+    const entryContent = entry;
+    // Wait for threads to be ready, then create a new thread and send
+    const fire = async () => {
+      const newThreadId = await createNewThread({ skipWelcome: true });
+      if (!newThreadId) return;
+      // Small delay to let thread state settle
+      setTimeout(() => {
+        const message = `He escrito esto en mi diario y me gustaría que lo leyeras:
+
+${entryContent}`;
+        handleSendMessage(message, newThreadId, null);
+      }, 400);
+    };
+    // Slight delay to let loadThreads complete
+    setTimeout(fire, 600);
+  }, [user, profile]);
+
   useEffect(() => {
     if (!user) return;
     getActiveCommitment(user.id).then(setActiveCommitment);
