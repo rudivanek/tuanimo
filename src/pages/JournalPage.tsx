@@ -499,12 +499,13 @@ export function JournalPage() {
 
   useEffect(() => {
     if (entries.length < 3) return;
+    if (isNewEntry) return; // don't show on a blank new entry
     const result = detectTopicRepetition(entries);
     if (result.detected) {
       setShowChatSuggestion(true);
       setChatSuggestionKeyword(result.keyword);
     }
-  }, [entries.length]);
+  }, [entries.length, isNewEntry]);
 
   useEffect(() => {
     if (storageState === 'warning' || storageState === 'critical') {
