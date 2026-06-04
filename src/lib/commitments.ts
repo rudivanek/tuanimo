@@ -4,7 +4,7 @@ export interface Commitment {
   id: string;
   user_id: string;
   text: string;
-  status: 'pending' | 'done' | 'not_done';
+  status: 'pending' | 'done' | 'not_done' | 'dismissed';
   source: 'user' | 'elena';
   created_at: string;
   resolved_at: string | null;
@@ -28,16 +28,17 @@ export async function getActiveCommitment(userId: string): Promise<Commitment | 
   return data as Commitment | null;
 }
 
-/** Create a new commitment. Replaces any existing pending one for this user. */
+/** Create a new commitment. Silently dismisses any existing pending one. */
 export async function createCommitment(
   userId: string,
   text: string,
   source: 'user' | 'elena' = 'user',
 ): Promise<Commitment | null> {
-  // Dismiss any existing pending commitment first (only one at a time)
+  // Dismiss any existing pending commitment — use 'dismissed' not 'not_done'
+  // so the history only shows commitments the user actually resolved
   await supabase
     .from('commitments')
-    .update({ status: 'not_done', resolved_at: new Date().toISOString() })
+    .update({ status: 'dismissed', resolved_at: new Date().toISOString() })
     .eq('user_id', userId)
     .eq('status', 'pending');
 
@@ -54,7 +55,7 @@ export async function createCommitment(
   return data as Commitment;
 }
 
-/** Mark a commitment as done or not_done. */
+/** Mark a commitment as done or not_done (user consciously resolved it). */
 export async function resolveCommitment(
   commitmentId: string,
   outcome: 'done' | 'not_done',
@@ -71,11 +72,11 @@ export async function resolveCommitment(
   return true;
 }
 
-/** Dismiss (silently abandon) a commitment without reflection. */
+/** Silently dismiss a commitment (user tapped ✕ on the card). */
 export async function dismissCommitment(commitmentId: string): Promise<boolean> {
   const { error } = await supabase
     .from('commitments')
-    .update({ status: 'not_done', resolved_at: new Date().toISOString() })
+    .update({ status: 'dismissed', resolved_at: new Date().toISOString() })
     .eq('id', commitmentId);
 
   if (error) {
