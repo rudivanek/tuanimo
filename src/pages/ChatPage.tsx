@@ -2086,7 +2086,7 @@ ${entryContent}`;
                 setShowCommitmentInput(true);
                 setTimeout(() => commitmentInputRef.current?.focus(), 0);
               }}
-              className="mb-2 text-[11.5px] text-app-muted hover:text-sage-strong transition-colors flex items-center gap-1"
+              className="mb-2 text-[11.5px] text-[#534AB7] hover:text-[#3C3489] transition-colors flex items-center gap-1"
             >
               <Plus size={11} />
               Agregar compromiso
