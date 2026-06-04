@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { BarChart3, ChevronLeft, RefreshCw, AlertCircle, Inbox, Download } from 'lucide-react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { utils, writeFile } from 'xlsx';
+
 import { supabase } from '../../lib/supabaseClient';
 
 interface ReportRow {
@@ -99,7 +99,7 @@ export function TokenUsagePage() {
     cost:             rows.reduce((s, r) => s + Number(r.total_cost_usd),    0),
   }), [rows]);
 
-  // ── Excel export ──────────────────────────────────────────────────────────
+  // ── CSV export (no external dependency) ──────────────────────────────────
   const handleExport = useCallback(() => {
     if (rows.length === 0) return;
 
@@ -107,61 +107,49 @@ export function TokenUsagePage() {
       ? (users.find(u => u.user_id === appliedFilters.user)?.user_label ?? appliedFilters.user)
       : 'Todos';
 
-    // Detail sheet
-    const detailData = rows.map(r => ({
-      Usuario:         r.user_label,
-      Fecha:           formatDate(r.usage_date),
-      'Tokens Entrada': Number(r.prompt_tokens),
-      'Tokens Salida':  Number(r.completion_tokens),
-      'Total Tokens':   Number(r.total_tokens),
-      'Costo (USD)':    Number(r.total_cost_usd),
-    }));
+    const escape = (v: string | number) => {
+      const s = String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    };
 
-    // Totals row
-    detailData.push({
-      Usuario:         'TOTAL',
-      Fecha:           '',
-      'Tokens Entrada': totals.promptTokens,
-      'Tokens Salida':  totals.completionTokens,
-      'Total Tokens':   totals.totalTokens,
-      'Costo (USD)':    totals.cost,
-    });
+    const headers = ['Usuario', 'Fecha', 'Tokens Entrada', 'Tokens Salida', 'Total Tokens', 'Costo (USD)'];
+    const dataRows = rows.map(r => [
+      r.user_label,
+      formatDate(r.usage_date),
+      Number(r.prompt_tokens),
+      Number(r.completion_tokens),
+      Number(r.total_tokens),
+      Number(r.total_cost_usd),
+    ]);
+    dataRows.push(['TOTAL', '', totals.promptTokens, totals.completionTokens, totals.totalTokens, totals.cost]);
 
-    const wb  = utils.book_new();
-    const ws  = utils.json_to_sheet(detailData);
-
-    // Column widths
-    ws['!cols'] = [
-      { wch: 28 }, // Usuario
-      { wch: 12 }, // Fecha
-      { wch: 16 }, // Tokens Entrada
-      { wch: 14 }, // Tokens Salida
-      { wch: 14 }, // Total Tokens
-      { wch: 14 }, // Costo
+    const summaryRows = [
+      [],
+      ['--- Resumen ---'],
+      ['Usuarios', totals.distinctUsers],
+      ['Tokens Entrada', totals.promptTokens],
+      ['Tokens Salida', totals.completionTokens],
+      ['Total Tokens', totals.totalTokens],
+      ['Costo Total (USD)', totals.cost],
+      ['Costo/M Tokens (USD)', totals.totalTokens > 0 ? +((totals.cost / totals.totalTokens) * 1_000_000).toFixed(4) : 0],
+      [],
+      ['Filtro Usuario', userLabel],
+      ['Filtro Desde', appliedFilters.from],
+      ['Filtro Hasta', appliedFilters.until],
+      ['Exportado', new Date().toLocaleString('es-MX')],
     ];
 
-    utils.book_append_sheet(wb, ws, 'Uso de Tokens');
+    const allRows = [headers, ...dataRows, ...summaryRows];
+    const csv = '\uFEFF' + allRows.map(row => (row as (string | number)[]).map(escape).join(',')).join('\n');
 
-    // Summary sheet
-    const summaryData = [
-      { Métrica: 'Usuarios',       Valor: totals.distinctUsers },
-      { Métrica: 'Tokens Entrada', Valor: totals.promptTokens },
-      { Métrica: 'Tokens Salida',  Valor: totals.completionTokens },
-      { Métrica: 'Total Tokens',   Valor: totals.totalTokens },
-      { Métrica: 'Costo Total (USD)', Valor: totals.cost },
-      { Métrica: 'Costo/M Tokens (USD)', Valor: totals.totalTokens > 0 ? +((totals.cost / totals.totalTokens) * 1_000_000).toFixed(4) : 0 },
-      { Métrica: '─────────────', Valor: '' },
-      { Métrica: 'Filtro Usuario', Valor: userLabel },
-      { Métrica: 'Filtro Desde',   Valor: appliedFilters.from },
-      { Métrica: 'Filtro Hasta',   Valor: appliedFilters.until },
-      { Métrica: 'Exportado',      Valor: new Date().toLocaleString('es-MX') },
-    ];
-    const ws2 = utils.json_to_sheet(summaryData);
-    ws2['!cols'] = [{ wch: 22 }, { wch: 22 }];
-    utils.book_append_sheet(wb, ws2, 'Resumen');
-
-    const filename = `tuanimo-tokens_${appliedFilters.from}_${appliedFilters.until}.xlsx`;
-    writeFile(wb, filename);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `tuanimo-tokens_${appliedFilters.from}_${appliedFilters.until}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }, [rows, totals, appliedFilters, users]);
 
   return (
@@ -198,7 +186,7 @@ export function TokenUsagePage() {
             className="mt-0.5 flex items-center gap-2 h-9 px-4 rounded-10 bg-app-surface border border-app-border text-sm font-medium text-app-text hover:border-sage-strong hover:text-sage-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Download size={15} />
-            <span className="hidden sm:inline">Excel</span>
+            <span className="hidden sm:inline">CSV</span>
           </button>
         </div>
 
