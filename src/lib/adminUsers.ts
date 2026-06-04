@@ -57,11 +57,50 @@ export async function softDeleteUser(userId: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function purgeUserData(userId: string): Promise<void> {
-  const { error } = await supabase.rpc('admin_purge_user_data', {
-    p_user_id: userId,
+/** Hard-delete: removes all data AND deletes from auth.users. Irreversible. */
+export async function hardDeleteUser(userId: string): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('No hay sesión activa. Por favor recarga la página.');
+
+  const res = await fetch(`${FUNCTIONS_URL}/delete-account`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: ANON_KEY,
+    },
+    body: JSON.stringify({ user_id: userId }),
   });
-  if (error) throw error;
+
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error ?? 'Error al eliminar usuario');
+}
+
+/** Self-delete: user deletes their own account. Signs them out after. */
+export async function deleteOwnAccount(): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('No hay sesión activa. Por favor recarga la página.');
+
+  const res = await fetch(`${FUNCTIONS_URL}/delete-account`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: ANON_KEY,
+    },
+    body: JSON.stringify({}), // no user_id = self-delete
+  });
+
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error ?? 'Error al eliminar cuenta');
+
+  // Sign out locally after successful delete
+  await supabase.auth.signOut();
+}
+
+/** @deprecated Use hardDeleteUser instead */
+export async function purgeUserData(userId: string): Promise<void> {
+  return hardDeleteUser(userId);
 }
 
 export interface ResetUserResult {
@@ -154,4 +193,12 @@ export async function updateUserPassword(userId: string, password: string): Prom
 
   const json = await res.json();
   if (!res.ok) throw new Error(json.error ?? 'Error al actualizar contraseña');
+}
+
+export async function setFlightRecorderForUser(userId: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_flight_recorder', {
+    p_user_id: userId,
+    p_enabled: enabled,
+  });
+  if (error) throw error;
 }
