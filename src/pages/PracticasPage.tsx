@@ -56,6 +56,7 @@ export function PracticasPage() {
       .from('commitments')
       .select('*')
       .eq('user_id', user.id)
+      .in('status', ['pending', 'done', 'not_done'])
       .order('created_at', { ascending: false })
       .limit(20);
     if (!error && data) setCommitments(data as Commitment[]);
@@ -64,6 +65,13 @@ export function PracticasPage() {
 
   useEffect(() => {
     if (user) loadCommitments();
+  }, [user, loadCommitments]);
+
+  // Reload when user returns to this tab
+  useEffect(() => {
+    const onFocus = () => { if (user) loadCommitments(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [user, loadCommitments]);
 
   const handleCommitmentResolve = async (id: string, outcome: 'done' | 'not_done') => {
