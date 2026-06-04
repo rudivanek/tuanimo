@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CheckSquare, Square, Clock, RefreshCw, BookOpen, Sparkles, CheckCircle2, XCircle, MessageCircle } from 'lucide-react';
+import { CheckSquare, Square, Clock, RefreshCw, BookOpen, Sparkles, CheckCircle2, Trash2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
-import { getActiveCommitment, resolveCommitment, type Commitment } from '../lib/commitments';
+import { getActiveCommitment, resolveCommitment, dismissCommitment, type Commitment } from '../lib/commitments';
 
 interface Task {
   id: string;
@@ -76,6 +76,11 @@ export function PracticasPage() {
 
   const handleCommitmentResolve = async (id: string, outcome: 'done' | 'not_done') => {
     await resolveCommitment(id, outcome);
+    loadCommitments();
+  };
+
+  const handleCommitmentDelete = async (id: string) => {
+    await dismissCommitment(id);
     loadCommitments();
   };
 
@@ -289,12 +294,12 @@ export function PracticasPage() {
               {commitments.map(c => (
                 <div key={c.id}
                   className={[
-                    'bg-app-surface rounded-[16px] border p-4 transition-all',
-                    c.status === 'done' ? 'border-app-border opacity-55' : 'border-app-border shadow-app',
+                    'bg-app-surface rounded-[16px] border px-4 py-3 transition-all',
+                    c.status === 'done' ? 'border-app-border opacity-50' : 'border-app-border',
                   ].join(' ')}
                 >
                   {/* Source badge + date */}
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-2.5">
                     <span className="text-[11px] font-medium text-sage-strong bg-sage-soft px-2.5 py-0.5 rounded-full">
                       {c.source === 'elena' ? 'Sugerido por Elena' : 'Tuyo'}
                     </span>
@@ -303,47 +308,45 @@ export function PracticasPage() {
                     </span>
                   </div>
 
-                  {/* Text */}
-                  <p className={['text-[14px] leading-relaxed mb-3',
-                    c.status === 'done' ? 'text-app-muted line-through' : 'text-app-text'
-                  ].join(' ')}>
-                    {c.text}
-                  </p>
+                  {/* Single row: checkbox + text + trash */}
+                  <div className="flex items-center gap-3">
+                    {/* Checkbox — only active for pending/not_done */}
+                    {c.status === 'done' ? (
+                      <CheckCircle2 size={20} className="flex-shrink-0 text-sage-strong" strokeWidth={1.8} />
+                    ) : (
+                      <button
+                        onClick={() => handleCommitmentResolve(c.id, 'done')}
+                        className="flex-shrink-0 text-app-muted hover:text-sage-strong transition-colors"
+                        aria-label="Marcar como completado"
+                      >
+                        <CheckCircle2 size={20} strokeWidth={1.8} />
+                      </button>
+                    )}
 
-                  {/* Outcome */}
-                  {c.status === 'done' ? (
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 size={14} className="text-sage-strong flex-shrink-0" />
-                      <span className="text-[12px] text-app-muted">
-                        Completado
-                        {c.resolved_at && ` · ${new Date(c.resolved_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}`}
-                      </span>
-                    </div>
-                  ) : (
-                    <div>
-                      {c.status === 'not_done' && (
-                        <p className="text-[11.5px] text-app-muted mb-2 flex items-center gap-1">
-                          <XCircle size={12} className="flex-shrink-0" />
-                          No completado — ¿quieres marcarlo ahora?
-                        </p>
-                      )}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleCommitmentResolve(c.id, 'done')}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-sm font-medium bg-sage-soft text-sage-strong hover:opacity-90 transition-opacity"
-                        >
-                          <CheckCircle2 size={14} />
-                          Lo hice
-                        </button>
-                        <button
-                          onClick={() => handleCommitmentResolve(c.id, 'not_done')}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-sm font-medium bg-app-surface border border-app-border text-app-muted hover:opacity-90 transition-opacity"
-                        >
-                          <XCircle size={14} />
-                          No del todo
-                        </button>
-                      </div>
-                    </div>
+                    {/* Text */}
+                    <p className={['flex-1 text-[14px] leading-relaxed',
+                      c.status === 'done' ? 'text-app-muted line-through' : 'text-app-text'
+                    ].join(' ')}>
+                      {c.text}
+                    </p>
+
+                    {/* Delete — only for non-done */}
+                    {c.status !== 'done' && (
+                      <button
+                        onClick={() => handleCommitmentDelete(c.id)}
+                        className="flex-shrink-0 p-1 text-app-muted hover:text-danger transition-colors"
+                        aria-label="Eliminar compromiso"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Completion date for done items */}
+                  {c.status === 'done' && c.resolved_at && (
+                    <p className="text-[11px] text-app-muted mt-1.5 pl-8">
+                      Completado · {new Date(c.resolved_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                    </p>
                   )}
                 </div>
               ))}
