@@ -221,7 +221,18 @@ export function LoginPage() {
           </div>
         )}
 
-        <p className="mt-6 text-xs text-center text-app-muted leading-relaxed">
+        {mode === 'login' && (
+          <div className="mt-4 text-center">
+            <a
+              href="/reset-password"
+              className="text-sm text-app-muted hover:text-app-text transition-colors"
+            >
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
+        )}
+
+        <p className="mt-4 text-xs text-center text-app-muted leading-relaxed">
           Al continuar, aceptas nuestros términos de servicio y política de privacidad
         </p>
       </div>
