@@ -41,8 +41,8 @@ export function JournalChatOriginBanner({ sourceChatId, isDraft, onNavigate }: J
   return (
     <div className="animate-in fade-in slide-in-from-top-1 duration-300 flex-shrink-0">
       <div className="flex items-center gap-3 px-4 py-3 bg-app-surface border-b border-app-border">
-        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-sage-soft flex items-center justify-center">
-          <MessageCircle size={13} className="text-sage-strong" />
+        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[#FAEEDA] flex items-center justify-center">
+          <MessageCircle size={13} className="text-[#854F0B]" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10.5px] text-app-muted font-semibold uppercase tracking-wide mb-0.5">
@@ -56,8 +56,8 @@ export function JournalChatOriginBanner({ sourceChatId, isDraft, onNavigate }: J
             onClick={onNavigate}
             className="
               flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5
-              bg-sage-soft text-sage-strong text-[12px] font-medium
-              rounded-[10px] border border-sage-soft hover:bg-sage-strong hover:text-white
+              bg-[#FAEEDA] text-[#854F0B] text-[12px] font-medium
+              rounded-[10px] border border-[#EF9F27]/40 hover:bg-[#EF9F27]/20 hover:text-[#633806]
               transition-colors whitespace-nowrap
             "
           >
