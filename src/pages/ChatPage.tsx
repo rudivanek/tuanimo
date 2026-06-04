@@ -334,15 +334,16 @@ export function ChatPage() {
     const fire = async () => {
       const newThreadId = await createNewThread({ skipWelcome: true });
       if (!newThreadId) return;
-      // Explicitly point UI at the new thread and clear messages before sending
       setCurrentThreadId(newThreadId);
       setMessages([]);
-      const message = `He escrito esto en mi diario y me gustaría que lo leyeras:
-
-${entryContent}`;
+      const message = `He escrito esto en mi diario y me gustaría que lo leyeras:\n\n${entryContent}`;
+      // Pre-fill input and simulate send button click so it goes through
+      // the exact same code path as a normal user message.
+      setInputMessage(message);
       setTimeout(() => {
-        handleSendMessage(message, newThreadId, null);
-      }, 300);
+        const sendBtn = document.querySelector<HTMLButtonElement>('button[data-journal-send]');
+        sendBtn?.click();
+      }, 400);
     };
     setTimeout(fire, 600);
   }, [user, profile]);
@@ -2138,6 +2139,7 @@ ${entryContent}`;
               onClick={() => handleSendMessage()}
               disabled={isSending || !inputMessage.trim() || !currentThreadId || !!tokenLimitError || isTokenExhausted || !profile}
               title={isTokenExhausted ? 'Límite de tokens alcanzado — puedes leer tus conversaciones, pero no enviar nuevos mensajes.' : undefined}
+              data-journal-send
               className="flex-shrink-0 bg-sage-strong text-white rounded-12 px-4 py-2.5 hover:bg-[#4e7260] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 text-sm font-medium"
             >
               <Send size={15} />
