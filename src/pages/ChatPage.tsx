@@ -1751,7 +1751,7 @@ ${entryContent}`;
                 type="button"
                 onClick={() => setShowConvertModal(true)}
                 title="Convertir a entrada de diario"
-                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-app-border text-app-muted hover:text-sage-strong hover:border-sage-strong hover:bg-sage-soft transition-colors text-[12px] font-medium"
+                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[#EF9F27]/40 text-[#854F0B] bg-[#FAEEDA] hover:bg-[#EF9F27]/20 transition-colors text-[12px] font-medium"
               >
                 <BookOpen size={13} />
                 <span className="hidden sm:inline">Convertir a diario</span>
