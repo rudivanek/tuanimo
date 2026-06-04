@@ -64,10 +64,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, firstName: string, lastName?: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (!error && data.user) {
+      // Save name to profile
       await supabase.from('profiles').update({
         first_name: firstName.trim() || null,
         last_name: lastName?.trim() || null,
       }).eq('id', data.user.id);
+
+      // Send welcome email — fire and forget, don't block login on failure
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (token) {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+          fetch(`${supabaseUrl}/functions/v1/send-welcome-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+          }).catch((err) => console.warn('Welcome email failed (non-blocking):', err));
+        }
+      } catch (err) {
+        console.warn('Welcome email setup failed (non-blocking):', err);
+      }
     }
     return { error };
   };
