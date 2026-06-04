@@ -33,6 +33,7 @@ export interface ChatResponse {
   mode_used?: 'REFLECTION' | 'SUPPORT' | 'BOUNDARY' | 'CRISIS';
   support_routine_id?: string | null;
   suggested_practicas?: boolean;
+  commitment_suggestion?: string | null;
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
