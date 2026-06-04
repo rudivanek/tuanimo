@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { MessageCircle, BookOpen, BarChart3, Settings, Shield, CheckSquare } from 'lucide-react';
+import { MessageCircle, BookOpen, BarChart3, Settings, Shield, CheckSquare, LogOut } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 import { useLatestInsightAt } from '../hooks/useLatestInsightAt';
 import { hasNewInsightsSinceLastView } from '../lib/insightVisibility';
 import { HeaderTokenBudget } from './HeaderTokenBudget';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const { data: isAdmin } = useAdmin();
   const { data: latestInsight } = useLatestInsightAt();
+  const { signOut } = useAuth();
 
   const [insightViewVersion, setInsightViewVersion] = useState(0);
 
@@ -54,11 +56,23 @@ export function Layout({ children }: LayoutProps) {
           <span className="text-[18px] font-semibold tracking-tight text-app-text">Tu-Animo</span>
           <span className="text-[18px] font-semibold tracking-tight text-sage-strong">.app</span>
           <span className="text-xs text-app-muted ml-2 hidden sm:inline">
-            Tu consejera de IA<span className="ml-1 text-sage-strong/70 font-medium">14.1</span>
+            Tu consejera de IA<span className="ml-1 text-sage-strong/70 font-medium">14.0</span>
           </span>
         </div>
-        <div className="ml-auto flex items-center gap-2 pr-1">
+        <div className="ml-auto flex items-center gap-1 pr-1">
           <HeaderTokenBudget />
+
+          {/* Quick logout */}
+          <button
+            onClick={signOut}
+            className="flex items-center justify-center w-8 h-8 rounded-full text-app-muted hover:text-app-text transition-colors duration-150"
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
+          >
+            <LogOut size={15} strokeWidth={1.8} />
+          </button>
+
+          {/* Settings */}
           <Link href="/settings">
             <button
               className={[
