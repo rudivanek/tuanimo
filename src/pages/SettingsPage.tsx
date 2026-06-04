@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Volume2, VolumeX, Bell, RefreshCw } from 'lucide-react';
+import { LogOut, Volume2, VolumeX, Bell, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
 import { TokenUsageSection } from '../components/TokenUsageSection';
 import { useSoundSettings } from '../hooks/useSoundSettings';
 import { supabase } from '../lib/supabaseClient';
 import { HelpGuideButton } from '../components/HelpGuide';
+import { deleteOwnAccount } from '../lib/adminUsers';
 
 function Toggle({
   checked,
@@ -127,12 +128,93 @@ function useEmailPrefs() {
   return { prefs, loading, savingField, update };
 }
 
+// ─── Delete account confirmation dialog ──────────────────────────────────────
+
+function DeleteAccountDialog({
+  onCancel,
+  onConfirm,
+  loading,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+}) {
+  const [typed, setTyped] = useState('');
+  const confirmed = typed.trim().toLowerCase() === 'eliminar';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-app-surface rounded-[18px] shadow-app border border-app-border w-full max-w-sm p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle size={16} className="text-danger" />
+          </div>
+          <h2 className="text-[16px] font-semibold text-app-text">Eliminar cuenta</h2>
+        </div>
+
+        <p className="text-sm text-app-muted leading-relaxed mb-4">
+          Esta acción es <strong className="text-app-text">permanente e irreversible</strong>. Se eliminarán todos tus chats, entradas del diario, insights y datos personales. No hay forma de recuperarlos.
+        </p>
+
+        <p className="text-[12.5px] text-app-muted mb-2">
+          Escribe <span className="font-semibold text-app-text">eliminar</span> para confirmar:
+        </p>
+        <input
+          type="text"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          placeholder="eliminar"
+          className="w-full px-4 py-2.5 rounded-12 border border-app-border bg-app-bg text-app-text text-sm focus:outline-none focus:ring-2 focus:ring-danger/30 mb-5"
+          autoComplete="off"
+          autoCapitalize="none"
+        />
+
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-12 border border-app-border text-app-text text-sm font-medium hover:bg-app-bg transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={!confirmed || loading}
+            className="flex-1 py-2.5 rounded-12 bg-danger text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
+          >
+            {loading
+              ? <><RefreshCw size={13} className="animate-spin" /> Eliminando…</>
+              : <><Trash2 size={13} /> Eliminar todo</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
   const { signOut, user } = useAuth();
   const { settings, update: updateSound, isSaving: isSavingSound } = useSoundSettings();
   const { prefs, loading: loadingPrefs, savingField, update: updateEmailPref } = useEmailPrefs();
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteAccount = async () => {
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      await deleteOwnAccount();
+      // deleteOwnAccount signs out — user will be redirected by AuthContext
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Error al eliminar cuenta');
+      setDeleteLoading(false);
+    }
+  };
 
   return (
     <div className="bg-app-bg p-5 space-y-5" style={{ minHeight: 'calc(100dvh - var(--chrome-total))', paddingBottom: 'calc(var(--nav-total) + 1.5rem)' }}>
@@ -250,16 +332,43 @@ export function SettingsPage() {
               <p className="text-sm text-app-text font-medium">{user.email}</p>
             </div>
           )}
-          <button
-            onClick={signOut}
-            className="flex items-center gap-2 px-5 py-2.5 bg-danger text-white rounded-12 hover:opacity-90 transition-opacity text-sm font-medium"
-          >
-            <LogOut size={16} />
-            Cerrar sesión
-          </button>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={signOut}
+              className="flex items-center gap-2 px-5 py-2.5 bg-danger text-white rounded-12 hover:opacity-90 transition-opacity text-sm font-medium w-fit"
+            >
+              <LogOut size={16} />
+              Cerrar sesión
+            </button>
+
+            <div className="pt-1 border-t border-app-border mt-1">
+              <p className="text-[12px] text-app-muted mb-3 leading-snug">
+                Al eliminar tu cuenta se borrarán permanentemente todos tus datos: chats, diario, insights y perfil.
+              </p>
+              {deleteError && (
+                <p className="text-[12px] text-danger mb-3">{deleteError}</p>
+              )}
+              <button
+                onClick={() => setShowDeleteDialog(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-12 border border-red-200 text-danger text-sm font-medium hover:bg-red-50 transition-colors w-fit"
+              >
+                <Trash2 size={14} />
+                Eliminar mi cuenta
+              </button>
+            </div>
+          </div>
         </div>
 
       </div>
+
+      {/* ── Delete confirmation modal ── */}
+      {showDeleteDialog && (
+        <DeleteAccountDialog
+          onCancel={() => { setShowDeleteDialog(false); setDeleteError(null); }}
+          onConfirm={handleDeleteAccount}
+          loading={deleteLoading}
+        />
+      )}
     </div>
   );
 }
