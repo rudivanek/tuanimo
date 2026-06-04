@@ -1540,7 +1540,7 @@ export function JournalPage() {
                   ) : (
                     <button
                       onClick={() => { setShowCommitmentInput(true); setTimeout(() => commitmentInputRef.current?.focus(), 0); }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-10 border border-app-border text-app-muted hover:text-sage-strong hover:border-sage-strong transition-colors text-[12px]"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-10 border border-[#AFA9EC]/50 text-[#534AB7] bg-[#EEEDFE] hover:bg-[#CECBF6]/50 transition-colors text-[12px]"
                       title="Agregar compromiso"
                     >
                       <Star size={12} />
@@ -1589,7 +1589,7 @@ export function JournalPage() {
                     } catch {}
                     setLocation('/chat');
                   }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-[12px] bg-sage-soft border border-sage-strong/20 text-sage-strong text-[13px] font-medium hover:bg-sage-strong/10 transition-colors w-full"
+                  className="flex items-center gap-2 px-3 py-2 rounded-[12px] bg-[#FAEEDA] border border-[#EF9F27]/40 text-[#854F0B] text-[13px] font-medium hover:bg-[#EF9F27]/20 transition-colors w-full"
                 >
                   <MessageCircle size={14} className="flex-shrink-0" />
                   <span>Elena puede reflexionar sobre esto →</span>
@@ -1700,16 +1700,16 @@ export function JournalPage() {
 
             {/* Repeated-topic chat suggestion */}
             {showChatSuggestion && (
-              <div className="flex items-start justify-between gap-3 px-4 py-3 bg-app-surface border-b border-app-border flex-shrink-0">
+              <div className="flex items-start justify-between gap-3 px-4 py-3 bg-[#FAEEDA] border-b border-[#EF9F27]/30 flex-shrink-0">
                 <div className="flex items-start gap-2.5">
-                  <MessageCircle size={14} className="text-app-muted mt-0.5 flex-shrink-0" />
+                  <MessageCircle size={14} className="text-[#854F0B] mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-[12.5px] text-app-text leading-snug">
                       Este tema aparece varias veces en tu diario. ¿Te gustaría hablarlo con Elena?
                     </p>
                     <button
                       onClick={() => setLocation('/app/chat')}
-                      className="mt-1.5 text-[12px] font-medium text-sage-strong hover:underline"
+                      className="mt-1.5 text-[12px] font-medium text-[#633806] hover:underline"
                     >
                       Ir al chat
                     </button>
