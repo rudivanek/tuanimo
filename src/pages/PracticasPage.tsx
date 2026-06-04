@@ -330,16 +330,14 @@ export function PracticasPage() {
                       {c.text}
                     </p>
 
-                    {/* Delete — only for non-done */}
-                    {c.status !== 'done' && (
-                      <button
-                        onClick={() => handleCommitmentDelete(c.id)}
-                        className="flex-shrink-0 p-1 text-app-muted hover:text-danger transition-colors"
-                        aria-label="Eliminar compromiso"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
+                    {/* Delete — always visible */}
+                    <button
+                      onClick={() => handleCommitmentDelete(c.id)}
+                      className="flex-shrink-0 p-1 text-app-muted hover:text-danger transition-colors"
+                      aria-label="Eliminar compromiso"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
 
                   {/* Completion date for done items */}
