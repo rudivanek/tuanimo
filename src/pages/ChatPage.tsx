@@ -334,14 +334,17 @@ export function ChatPage() {
     const fire = async () => {
       const newThreadId = await createNewThread({ skipWelcome: true });
       if (!newThreadId) return;
+      // Explicitly point UI at the new thread and clear messages before sending
+      setCurrentThreadId(newThreadId);
+      setMessages([]);
       const message = `He escrito esto en mi diario y me gustaría que lo leyeras:
 
 ${entryContent}`;
       setTimeout(() => {
         handleSendMessage(message, newThreadId, null);
-      }, 500);
+      }, 300);
     };
-    setTimeout(fire, 300);
+    setTimeout(fire, 600);
   }, [user, profile]);
 
   useEffect(() => {
