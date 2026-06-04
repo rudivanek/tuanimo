@@ -100,6 +100,8 @@ export function JournalPage() {
   const [showSaveCrisisBanner, setShowSaveCrisisBanner] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [showElenaChip, setShowElenaChip] = useState(false);
+  const elenaChipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const justSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [tokenLimitError, setTokenLimitError] = useState<string | null>(null);
   const [readOnlyWarning, setReadOnlyWarning] = useState(false);
@@ -395,13 +397,22 @@ export function JournalPage() {
     hasNewInsightsSinceLastView(latestInsight.created_at) &&
     !interactedForCurrentInsight;
 
-  const triggerJustSaved = () => {
+  const triggerJustSaved = (showChip = false) => {
     if (justSavedTimerRef.current) clearTimeout(justSavedTimerRef.current);
     setJustSaved(true);
     justSavedTimerRef.current = setTimeout(() => {
       setJustSaved(false);
       justSavedTimerRef.current = null;
     }, 8000);
+    // Show Elena reflection chip only when requested (new entries ≥ 200 chars)
+    if (showChip) {
+      if (elenaChipTimerRef.current) clearTimeout(elenaChipTimerRef.current);
+      setShowElenaChip(true);
+      elenaChipTimerRef.current = setTimeout(() => {
+        setShowElenaChip(false);
+        elenaChipTimerRef.current = null;
+      }, 12000);
+    }
   };
 
   // Dirty when the user has typed content in a new entry or a draft, and hasn't
@@ -1123,7 +1134,7 @@ export function JournalPage() {
           // QA_TEMP: fullText included for temporary QA observability — remove before GA
           const saveSourceUpdate = selectedEntry.origin === 'chat' ? 'converted_from_chat' : selectedPrompt ? 'prompted' : 'manual';
           recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { fullText: content, entryLength: content.length, isDraft: false, isUpdate: true, source: saveSourceUpdate });
-          triggerJustSaved();
+          triggerJustSaved(false);
           if (detectCrisisInContent(content + " " + resolvedTitle)) setShowSaveCrisisBanner(true);
         }
       } else {
@@ -1201,7 +1212,7 @@ export function JournalPage() {
           // QA_TEMP: fullText included for temporary QA observability — remove before GA
           const saveSourceNew = selectedPrompt ? 'prompted' : 'manual';
           recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { fullText: content, entryLength: content.length, isDraft: false, isUpdate: false, source: saveSourceNew });
-          triggerJustSaved();
+          triggerJustSaved(content.trim().length >= 200);
           if (detectCrisisInContent(content + " " + resolvedTitle)) setShowSaveCrisisBanner(true);
         }
       }
@@ -1567,6 +1578,24 @@ export function JournalPage() {
                 </div>
               )}
             </div>
+
+            {/* Elena reflection chip — appears after saving */}
+            {showElenaChip && (
+              <div className="px-4 py-2 flex-shrink-0">
+                <button
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('journalReflectionEntry', content);
+                    } catch {}
+                    setLocation('/chat');
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-[12px] bg-sage-soft border border-sage-strong/20 text-sage-strong text-[13px] font-medium hover:bg-sage-strong/10 transition-colors w-full"
+                >
+                  <MessageCircle size={14} className="flex-shrink-0" />
+                  <span>Elena puede reflexionar sobre esto →</span>
+                </button>
+              </div>
+            )}
 
             {/* Read-only persistent banner */}
             {isTokenExhausted && (
