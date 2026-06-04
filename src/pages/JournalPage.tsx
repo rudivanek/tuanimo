@@ -7,12 +7,11 @@ import { audioManager } from '../lib/audio';
 import { supabase } from '../lib/supabaseClient';
 import { useProfile } from '../hooks/useProfile';
 import { useTokenStatus } from '../hooks/useTokenStatus';
-import { getJournalPrompts, TokenLimitError, generateAIReflectionPrompt, generateTitle } from '../lib/api';
+import { getJournalPrompts, TokenLimitError, generateAIReflectionPrompt } from '../lib/api';
 import { extractLanguageSignals } from '../lib/languageSignals';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { detectTopicRepetition } from '../lib/diaryDraft';
-import { BookOpen, Plus, Sparkles, Calendar, Tag, Trash2, GripVertical, ArrowLeft, Lock, Download, MessageCircle, X, ChevronRight, Check, Star } from 'lucide-react';
-import { getActiveCommitment, createCommitment, type Commitment } from '../lib/commitments';
+import { BookOpen, Plus, Sparkles, Calendar, Tag, Trash2, GripVertical, ArrowLeft, Lock, Download, MessageCircle, X, ChevronRight, Check } from 'lucide-react';
 import { useLatestInsightAt } from '../hooks/useLatestInsightAt';
 import { hasNewInsightsSinceLastView } from '../lib/insightVisibility';
 import { ExportModal } from '../components/ExportModal';
@@ -97,7 +96,6 @@ export function JournalPage() {
   const [tags, setTags] = useState('');
   const [isLoadingPrompts, setIsLoadingPrompts] = useState(false);
   const [promptsCrisis, setPromptsCrisis] = useState<'NO' | 'MAYBE' | 'YES'>('NO');
-  const [showSaveCrisisBanner, setShowSaveCrisisBanner] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const justSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -595,9 +593,7 @@ export function JournalPage() {
     setSelectedPrompt('');
     setTags('');
     setShowSidebar(false);
-    setPrompts([]);
-    setTokenLimitError(null); // clear any previous prompt error
-    setShowSaveCrisisBanner(false);
+    loadPrompts();
   };
 
   const handleSelectEntry = (entry: JournalEntry) => {
@@ -613,7 +609,6 @@ export function JournalPage() {
     setTags(entry.tags.join(', '));
     setShowSidebar(false);
     setIsDraftEntry(entry.is_draft);
-    setShowSaveCrisisBanner(false);
   };
 
   const selectEntryById = async (id: string): Promise<boolean> => {
@@ -957,80 +952,6 @@ export function JournalPage() {
   }, []);
   // ────────────────────────────────────────────────────────────────────────────
 
-  // Lightweight client-side crisis signal detection — no API call
-  // Returns true if the plaintext text (content + title) contains crisis-level language
-  // Covers Spanish and English — the two languages TuAnimo users write in
-  const detectCrisisInContent = (text: string): boolean => {
-    const lower = text.toLowerCase();
-    const crisisSignals = [
-      // ── Spanish ──────────────────────────────────────────────────────────
-      'suicid',                         // suicidio, suicida, suicidal, suicidarse
-      'pensamiento suicida',
-      'pensamientos suicidas',
-      'quitarme la vida',
-      'acabar con mi vida',
-      'terminar con mi vida',
-      'no quiero vivir',
-      'no quiero seguir viviendo',
-      'no quiero seguir aquí',
-      'quiero morir',
-      'deseo morir',
-      'mejor estaría muerto',
-      'mejor estaría muerta',
-      'mejor muerto',
-      'mejor muerta',
-      'me quiero matar',
-      'quiero matarme',
-      'hacerme daño',
-      'hacerme daño',
-      'lastimarme',
-      'cortarme',
-      'autolesion',                     // autolesión, autolesionarme
-      'no vale la pena vivir',
-      'no tiene sentido seguir',
-      'no tiene sentido vivir',
-      'desaparecer para siempre',
-      'no puedo más con mi vida',
-      'nadie me extrañaría',
-      'sin mí estarían mejor',
-      'sin mi estarían mejor',
-      'todos estarían mejor sin mí',
-      'todos estarian mejor sin mi',
-      // ── English ──────────────────────────────────────────────────────────
-      'suicidal',
-      'suicide',
-      'kill myself',
-      'killing myself',
-      'end my life',
-      'ending my life',
-      'take my life',
-      'taking my life',
-      'want to die',
-      'wanting to die',
-      'wish i was dead',
-      'wish i were dead',
-      'better off dead',
-      'better off without me',
-      'no reason to live',
-      'not worth living',
-      'can\'t go on',
-      'cannot go on',
-      'can\'t take it anymore',
-      'cannot take it anymore',
-      'don\'t want to live',
-      'do not want to live',
-      'hurt myself',
-      'hurting myself',
-      'self-harm',
-      'self harm',
-      'cut myself',
-      'cutting myself',
-      'nobody would miss me',
-      'everyone would be better',
-    ];
-    return crisisSignals.some(signal => lower.includes(signal));
-  };
-
   const handleSave = async () => {
     if (!user || !content.trim() || !profile) return;
     if (isTokenExhausted) {
@@ -1041,22 +962,6 @@ export function JournalPage() {
     setIsSaving(true);
     setStorageLimitError(null);
     try {
-      // ── Auto-title when field is empty ────────────────────────────────────
-      // Generate a title from the first 300 chars of content before saving.
-      // Best-effort: if it fails the existing 'Sin título' fallback is used.
-      let resolvedTitle = title.trim();
-      if (!resolvedTitle && content.trim()) {
-        const generated = await generateTitle({
-          context: 'journal',
-          firstUserMessage: content.trim().slice(0, 300),
-        });
-        if (generated) {
-          resolvedTitle = generated;
-          setTitle(generated); // update the visible input too
-        }
-      }
-      // ─────────────────────────────────────────────────────────────────────
-
       const encryptedContent = await encryptForUser(content, profile);
       const tagsArray = tags.split(',').map(t => t.trim()).filter(t => t);
 
@@ -1065,7 +970,7 @@ export function JournalPage() {
         const { error } = await supabase
           .from('journal_entries')
           .update({
-            title: resolvedTitle || 'Sin título',
+            title: title || 'Sin título',
             content_enc: encryptedContent,
             enc_version: 2,
             prompt: selectedPrompt || null,
@@ -1083,7 +988,7 @@ export function JournalPage() {
         } else {
           const updated: JournalEntry = {
             ...selectedEntry,
-            title: resolvedTitle || 'Sin título',
+            title: title || 'Sin título',
             content,
             prompt: selectedPrompt || undefined,
             tags: tagsArray,
@@ -1100,7 +1005,6 @@ export function JournalPage() {
           const saveSourceUpdate = selectedEntry.origin === 'chat' ? 'converted_from_chat' : selectedPrompt ? 'prompted' : 'manual';
           recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { fullText: content, entryLength: content.length, isDraft: false, isUpdate: true, source: saveSourceUpdate });
           triggerJustSaved();
-          if (detectCrisisInContent(content + " " + resolvedTitle)) setShowSaveCrisisBanner(true);
         }
       } else {
         const shiftedEntries = entries.map((e, i) => ({ ...e, sort_order: i + 1 }));
@@ -1119,7 +1023,7 @@ export function JournalPage() {
           const { data, error } = await supabase
             .from('journal_entries')
             .update({
-              title: resolvedTitle || 'Sin título',
+              title: title || 'Sin título',
               content_enc: encryptedContent,
               enc_version: 2,
               prompt: selectedPrompt || null,
@@ -1139,7 +1043,7 @@ export function JournalPage() {
             .from('journal_entries')
             .insert({
               user_id: user.id,
-              title: resolvedTitle || 'Sin título',
+              title: title || 'Sin título',
               content_enc: encryptedContent,
               enc_version: 2,
               prompt: selectedPrompt || null,
@@ -1160,7 +1064,7 @@ export function JournalPage() {
           autoSavedDraftIdRef.current = null; // clear the draft tracking ref
           const created: JournalEntry = {
             id: savedEntryData.id,
-            title: resolvedTitle || 'Sin título',
+            title: title || 'Sin título',
             content,
             prompt: selectedPrompt || undefined,
             tags: tagsArray,
@@ -1178,7 +1082,6 @@ export function JournalPage() {
           const saveSourceNew = selectedPrompt ? 'prompted' : 'manual';
           recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { fullText: content, entryLength: content.length, isDraft: false, isUpdate: false, source: saveSourceNew });
           triggerJustSaved();
-          if (detectCrisisInContent(content + " " + resolvedTitle)) setShowSaveCrisisBanner(true);
         }
       }
     } catch (error) {
@@ -1471,49 +1374,6 @@ export function JournalPage() {
                   <Download size={16} />
                 </button>
               )}
-              {!isTokenExhausted && !activeCommitment && (
-                <div className="flex-shrink-0">
-                  {showCommitmentInput ? (
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        ref={commitmentInputRef}
-                        value={commitmentDraft}
-                        onChange={e => setCommitmentDraft(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleSaveJournalCommitment();
-                          if (e.key === 'Escape') { setShowCommitmentInput(false); setCommitmentDraft(''); }
-                        }}
-                        placeholder="¿Qué quieres intentar?"
-                        maxLength={200}
-                        className="w-44 sm:w-56 rounded-10 border border-app-border px-2.5 py-1.5 text-[12.5px] text-app-text placeholder:text-app-muted bg-app-surface focus:outline-none focus:ring-2 focus:ring-sage-strong/25"
-                        autoFocus
-                      />
-                      <button
-                        onClick={handleSaveJournalCommitment}
-                        disabled={!commitmentDraft.trim() || savingCommitment}
-                        className="rounded-10 px-2.5 py-1.5 bg-sage-strong text-white text-[12.5px] font-medium hover:bg-[#4e7260] transition-colors disabled:opacity-40"
-                      >
-                        {savingCommitment ? '...' : 'Guardar'}
-                      </button>
-                      <button
-                        onClick={() => { setShowCommitmentInput(false); setCommitmentDraft(''); }}
-                        className="p-1.5 text-app-muted hover:text-app-text transition-colors"
-                      >
-                        <X size={13} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => { setShowCommitmentInput(true); setTimeout(() => commitmentInputRef.current?.focus(), 0); }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-10 border border-app-border text-app-muted hover:text-sage-strong hover:border-sage-strong transition-colors text-[12px]"
-                      title="Agregar compromiso"
-                    >
-                      <Star size={12} />
-                      <span className="hidden sm:inline">Compromiso</span>
-                    </button>
-                  )}
-                </div>
-              )}
               {!isTokenExhausted ? (
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {/* Auto-save status indicator */}
@@ -1685,24 +1545,10 @@ export function JournalPage() {
               </div>
             )}
 
-            {/* Crisis alert — from prompts */}
+            {/* Crisis alert */}
             {promptsCrisis !== 'NO' && (
               <div className="px-4 py-3 border-b border-red-200 flex-shrink-0">
                 <CrisisAlert />
-              </div>
-            )}
-
-            {/* Crisis banner — shown after saving an entry with crisis signals */}
-            {showSaveCrisisBanner && promptsCrisis === 'NO' && (
-              <div className="px-4 py-3 border-b border-red-100 flex-shrink-0 relative">
-                <CrisisAlert />
-                <button
-                  onClick={() => setShowSaveCrisisBanner(false)}
-                  className="absolute top-4 right-4 p-1 text-red-300 hover:text-red-500 transition-colors text-xs"
-                  aria-label="Cerrar"
-                >
-                  ✕
-                </button>
               </div>
             )}
 
