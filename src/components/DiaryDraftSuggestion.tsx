@@ -63,11 +63,11 @@ export function DiaryDraftSuggestion({
         <div className="flex items-start gap-3">
           <div className="mt-0.5 flex-shrink-0 relative">
             <span
-              className="absolute inset-0 rounded-full bg-sage-strong/20 animate-pulse-ring pointer-events-none"
+              className="absolute inset-0 rounded-full bg-[#EF9F27]/20 animate-pulse-ring pointer-events-none"
               aria-hidden="true"
             />
-            <div className="w-8 h-8 rounded-full bg-sage-soft flex items-center justify-center relative">
-              <BookOpen size={15} className="text-sage-strong" />
+            <div className="w-8 h-8 rounded-full bg-[#FAEEDA] flex items-center justify-center relative">
+              <BookOpen size={15} className="text-[#854F0B]" />
             </div>
           </div>
           <div className="flex-1 min-w-0">
@@ -86,8 +86,8 @@ export function DiaryDraftSuggestion({
                 className="
                   relative overflow-hidden
                   inline-flex items-center gap-1.5 px-3.5 py-1.5
-                  bg-sage-strong text-white text-[12.5px] font-medium
-                  rounded-[10px] transition-colors hover:bg-[#4e7260]
+                  bg-[#BA7517] text-white text-[12.5px] font-medium
+                  rounded-[10px] transition-colors hover:bg-[#854F0B]
                   disabled:opacity-60 disabled:cursor-not-allowed
                 "
               >
