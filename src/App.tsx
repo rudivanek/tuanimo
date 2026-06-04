@@ -7,8 +7,8 @@ import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
 import { Layout } from './components/Layout';
 import { InstallPrompt } from './components/InstallPrompt';
-import { OnboardingTour } from './components/OnboardingTour';
 
+const ResetPasswordPage  = lazy(() => import('./pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })));
 const JournalPage    = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
 const InsightsPage   = lazy(() => import('./pages/InsightsPage').then(m => ({ default: m.InsightsPage })));
 const SettingsPage   = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
@@ -98,6 +98,7 @@ function App() {
       <Switch>
         <Route path="/"                      component={HomeRoute} />
         <Route path="/login"                 component={LoginPage} />
+        <Route path="/reset-password"        component={() => <Suspense fallback={<PageLoader />}><ResetPasswordPage /></Suspense>} />
         <Route path="/chat"                  component={ChatRoute} />
         <Route path="/journal"               component={JournalRoute} />
         <Route path="/practicas"             component={PracticasRoute} />
@@ -119,9 +120,6 @@ function App() {
 
       {/* PWA install prompt — only shows on mobile, only when logged in, only if not already installed */}
       <InstallPrompt />
-
-      {/* First-launch onboarding tour — auto-shows once, re-triggerable from Configuración */}
-      {user && <OnboardingTour />}
     </>
   );
 }
