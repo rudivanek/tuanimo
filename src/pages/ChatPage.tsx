@@ -48,7 +48,7 @@ import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import { NavigationGuardModal } from '../components/NavigationGuardModal';
 import { CrisisResourceModal } from '../components/CrisisResourceModal';
 import { CommitmentCard } from '../components/CommitmentCard';
-import { getActiveCommitment, type Commitment } from '../lib/commitments';
+import { getActiveCommitment, createCommitment, type Commitment } from '../lib/commitments';
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const LS_DISMISS_KEY = (k: string) => `diary_hint_dismissed_${k}`;
@@ -113,6 +113,10 @@ export function ChatPage() {
   const [showCrisisModal, setShowCrisisModal] = useState(false);
   const [activeCommitment, setActiveCommitment] = useState<Commitment | null>(null);
   const [pendingCommitment, setPendingCommitment] = useState<{ text: string; outcome: 'done' | 'not_done' } | null>(null);
+  const [showCommitmentInput, setShowCommitmentInput] = useState(false);
+  const [commitmentDraft, setCommitmentDraft] = useState('');
+  const [savingCommitment, setSavingCommitment] = useState(false);
+  const commitmentInputRef = useRef<HTMLInputElement>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -1482,6 +1486,19 @@ export function ChatPage() {
     }
   };
 
+  const handleSaveCommitment = async () => {
+    const text = commitmentDraft.trim();
+    if (!text || !user) return;
+    setSavingCommitment(true);
+    const saved = await createCommitment(user.id, text, 'user');
+    setSavingCommitment(false);
+    if (saved) {
+      setActiveCommitment(saved);
+      setCommitmentDraft('');
+      setShowCommitmentInput(false);
+    }
+  };
+
   const getChatExport = (format: ExportFormat) =>
     formatChatExport(
       { id: currentThread?.id ?? '', title: currentThread?.title ?? 'Untitled Chat', created_at: currentThread?.created_at ?? new Date().toISOString() },
@@ -1983,6 +2000,49 @@ export function ChatPage() {
             <p className="mb-2 text-[10.5px] text-app-muted/45 text-center leading-relaxed">
               Tus conversaciones ayudan a Elena a detectar patrones con el tiempo.
             </p>
+          )}
+          {/* ── Commitment creator ── */}
+          {showCommitmentInput ? (
+            <div className="flex gap-2 items-center mb-2">
+              <input
+                ref={commitmentInputRef}
+                value={commitmentDraft}
+                onChange={e => setCommitmentDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSaveCommitment();
+                  if (e.key === 'Escape') { setShowCommitmentInput(false); setCommitmentDraft(''); }
+                }}
+                placeholder="¿Qué quieres intentar antes de la próxima sesión?"
+                maxLength={200}
+                className="flex-1 min-w-0 rounded-12 border border-app-border px-3.5 py-2 text-sm text-app-text placeholder:text-app-muted bg-app-surface focus:outline-none focus:ring-2 focus:ring-sage-strong/25"
+                autoFocus
+              />
+              <button
+                onClick={handleSaveCommitment}
+                disabled={!commitmentDraft.trim() || savingCommitment}
+                className="flex-shrink-0 bg-sage-strong text-white rounded-12 px-3.5 py-2 text-sm font-medium hover:bg-[#4e7260] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {savingCommitment ? '...' : 'Guardar'}
+              </button>
+              <button
+                onClick={() => { setShowCommitmentInput(false); setCommitmentDraft(''); }}
+                className="flex-shrink-0 p-2 rounded-xl text-app-muted hover:text-app-text transition-colors"
+                aria-label="Cancelar"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ) : !activeCommitment && currentThreadId && (
+            <button
+              onClick={() => {
+                setShowCommitmentInput(true);
+                setTimeout(() => commitmentInputRef.current?.focus(), 0);
+              }}
+              className="mb-2 text-[11.5px] text-app-muted hover:text-sage-strong transition-colors flex items-center gap-1"
+            >
+              <Plus size={11} />
+              Agregar compromiso
+            </button>
           )}
           <div className="flex gap-2 items-end">
             <textarea
