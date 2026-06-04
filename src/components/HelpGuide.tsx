@@ -12,6 +12,8 @@ import {
   ChevronUp,
   Sparkles,
   Heart,
+  CheckSquare,
+  ListTodo,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -89,6 +91,19 @@ const sections: Section[] = [
         q: '¿Hay un límite de mensajes?',
         a: 'Depende de tu plan. En el plan gratuito hay un límite mensual de tokens (unidad de medida del uso de IA). Puedes ver cuánto has usado en Configuración → Uso. Cuando te acercas al límite, Elena te lo avisa.',
       },
+      {
+        q: '¿Qué pasa si Elena detecta que estoy en crisis?',
+        a: (
+          <>
+            Si Elena detecta señales de crisis en lo que escribes, aparece automáticamente un botón{' '}
+            <strong>"Ver recursos de ayuda"</strong> en el chat. Al tocarlo se abre una lista con líneas de apoyo en México disponibles las 24 horas — SAPTEL y Línea de la Vida — gratuitas y confidenciales. Elena no reemplaza estos servicios.
+          </>
+        ),
+      },
+      {
+        q: '¿Puedo exportar una conversación?',
+        a: 'Sí. En la parte superior del chat hay un ícono de descarga. Puedes exportar la conversación activa en formato de texto. También puedes convertir cualquier conversación en una entrada de Diario con el botón "Convertir a diario".',
+      },
     ],
   },
   {
@@ -165,6 +180,33 @@ const sections: Section[] = [
       {
         q: '¿Qué es la Reflexión semanal?',
         a: 'Una vez por semana, Elena genera un texto de síntesis que integra lo observado en tus conversaciones y Diario. No es un resumen literal: es una lectura interpretativa de lo que ha estado presente en tu semana emocional.',
+      },
+    ],
+  },
+  {
+    id: 'practicas',
+    icon: <ListTodo size={15} className="text-sage-strong" />,
+    title: 'Prácticas y Compromisos',
+    items: [
+      {
+        q: '¿Qué son las Prácticas?',
+        a: 'Las Prácticas son tres acciones pequeñas que Elena elige cada día basándose en los temas que han surgido en tus conversaciones. No son tareas obligatorias — son invitaciones a llevar algo de la reflexión al día a día. Se renuevan cada medianoche.',
+      },
+      {
+        q: '¿Qué son los Compromisos?',
+        a: 'Los Compromisos son intenciones personales que tú mismo creas. A diferencia de las Prácticas (que Elena elige), un Compromiso es algo que tú decides intentar antes de la próxima sesión. Por ejemplo: "Llamar a mi hermano esta semana" o "Salir a caminar tres veces".',
+      },
+      {
+        q: '¿Cómo creo un Compromiso?',
+        a: 'En el chat, justo encima del campo de texto, aparece un botón pequeño "+ Agregar compromiso". Lo escribes y lo guardas. Solo puedes tener un compromiso activo a la vez.',
+      },
+      {
+        q: '¿Qué pasa con un Compromiso cuando vuelvo al chat?',
+        a: 'Si tienes un compromiso pendiente, aparece una tarjeta en la parte superior del chat. Puedes marcarlo con ✓ (Lo hice) o borrarlo. Si lo marcas, Elena abre la conversación desde ese punto — reconociendo lo que hiciste o explorando contigo qué pasó.',
+      },
+      {
+        q: '¿Dónde veo el historial de mis Compromisos?',
+        a: 'En la sección Prácticas, debajo de las prácticas del día, hay una subsección con todos tus compromisos. Los pendientes muestran un checkbox para marcarlos como completados. Los completados se muestran con tachado y fecha. Puedes eliminar cualquiera con el ícono de papelera.',
       },
     ],
   },
