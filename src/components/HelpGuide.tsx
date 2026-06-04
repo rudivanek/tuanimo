@@ -198,7 +198,17 @@ const sections: Section[] = [
       },
       {
         q: '¿Cómo creo un Compromiso?',
-        a: 'En el chat, justo encima del campo de texto, aparece un botón pequeño "+ Agregar compromiso". Lo escribes y lo guardas. Solo puedes tener un compromiso activo a la vez.',
+        a: (
+          <>
+            Hay tres formas:
+            <ul className="list-disc list-inside space-y-1 text-[13px] mt-1.5">
+              <li><strong>Desde el chat:</strong> justo encima del campo de texto aparece un botón pequeño "+ Agregar compromiso".</li>
+              <li><strong>Desde el diario:</strong> mientras escribes una entrada, hay un botón "Compromiso" en la barra superior. Si algo cristaliza mientras escribes, lo capturas ahí mismo sin salir de la página.</li>
+              <li><strong>Elena lo sugiere:</strong> si en una conversación nombraste algo concreto y la conversación está cerrando naturalmente, Elena puede proponerte uno. Aparece una tarjeta con "Aceptar" o "Ignorar" — sin presión.</li>
+            </ul>
+            En todos los casos, solo puedes tener un compromiso activo a la vez.
+          </>
+        ),
       },
       {
         q: '¿Qué pasa con un Compromiso cuando vuelvo al chat?',
