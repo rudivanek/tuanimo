@@ -310,11 +310,11 @@ export function ChatPage() {
     if (user) loadThreads();
   }, [user]);
 
-  // Journal → Elena reflection: when user tapped the chip in JournalPage,
-  // create a fresh thread and auto-send the journal entry content.
+  // Journal → Elena reflection: pre-fill the input with the journal entry
+  // so the user can review it and send it themselves.
   const journalReflectionFiredRef = useRef(false);
   useEffect(() => {
-    if (!user || !profile || journalReflectionFiredRef.current) return;
+    if (!user || journalReflectionFiredRef.current) return;
     let entry: string | null = null;
     try {
       entry = sessionStorage.getItem('journalReflectionEntry');
@@ -322,22 +322,11 @@ export function ChatPage() {
     } catch {}
     if (!entry) return;
     journalReflectionFiredRef.current = true;
-    const entryContent = entry;
-    // Wait for threads to be ready, then create a new thread and send
-    const fire = async () => {
-      const newThreadId = await createNewThread({ skipWelcome: true });
-      if (!newThreadId) return;
-      // Small delay to let thread state settle
-      setTimeout(() => {
-        const message = `He escrito esto en mi diario y me gustaría que lo leyeras:
+    const message = `He escrito esto en mi diario y me gustaría que lo leyeras:
 
-${entryContent}`;
-        handleSendMessage(message, newThreadId, null);
-      }, 400);
-    };
-    // Slight delay to let loadThreads complete
-    setTimeout(fire, 600);
-  }, [user, profile]);
+${entry}`;
+    setInputMessage(message);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
