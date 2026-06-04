@@ -1,8 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { BarChart3, ChevronLeft, RefreshCw, AlertCircle, Inbox, Download } from 'lucide-react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-
 import { supabase } from '../../lib/supabaseClient';
 
 interface ReportRow {
@@ -20,7 +19,13 @@ interface UserOption {
   user_label: string;
 }
 
-function toIsoDate(d: Date): string {
+function getNow(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getMinus30(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
   return d.toISOString().slice(0, 10);
 }
 
@@ -31,9 +36,9 @@ function formatTokens(n: number): string {
 }
 
 function formatCost(n: number): string {
-  if (n === 0)      return '$0.000000';
-  if (n < 0.0001)   return `$${n.toFixed(8)}`;
-  if (n < 0.01)     return `$${n.toFixed(6)}`;
+  if (n === 0)    return '$0.000000';
+  if (n < 0.0001) return `$${n.toFixed(8)}`;
+  if (n < 0.01)   return `$${n.toFixed(6)}`;
   return `$${n.toFixed(4)}`;
 }
 
@@ -42,23 +47,17 @@ function formatDate(iso: string): string {
 }
 
 export function TokenUsagePage() {
-  // Compute defaults inside the component so they're always fresh on mount
   const [selectedUser, setSelectedUser] = useState<string>('');
-  const [dateFrom,     setDateFrom]     = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return toIsoDate(d);
-  });
-  const [dateUntil, setDateUntil] = useState(() => toIsoDate(new Date()));
-  const [appliedFilters, setAppliedFilters] = useState(() => {
-    const now = new Date();
-    const from = new Date(now);
-    from.setDate(from.getDate() - 30);
-    return { user: '', from: toIsoDate(from), until: toIsoDate(now) };
-  });
+  const [dateFrom,     setDateFrom]     = useState<string>(getMinus30);
+  const [dateUntil,    setDateUntil]    = useState<string>(getNow);
+
+  // queryKey drives the fetch — only changes when Aplicar is clicked
+  const [queryKey, setQueryKey] = useState<[string, string, string]>(
+    () => ['', getMinus30(), getNow()]
+  );
 
   const handleApply = useCallback(() => {
-    setAppliedFilters({ user: selectedUser, from: dateFrom, until: dateUntil });
+    setQueryKey([selectedUser, dateFrom, dateUntil]);
   }, [selectedUser, dateFrom, dateUntil]);
 
   const { data: users = [] } = useQuery<UserOption[]>({
@@ -71,6 +70,8 @@ export function TokenUsagePage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const [appliedUser, appliedFrom, appliedUntil] = queryKey;
+
   const {
     data: rows = [],
     isFetching,
@@ -78,12 +79,12 @@ export function TokenUsagePage() {
     error,
     refetch,
   } = useQuery<ReportRow[]>({
-    queryKey: ['admin-token-usage', appliedFilters],
+    queryKey: ['admin-token-usage', appliedUser, appliedFrom, appliedUntil],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('admin_token_usage_report', {
-        p_date_from:  appliedFilters.from,
-        p_date_until: appliedFilters.until,
-        p_user_id:    appliedFilters.user || null,
+        p_date_from:  appliedFrom,
+        p_date_until: appliedUntil,
+        p_user_id:    appliedUser || null,
       });
       if (error) throw error;
       return data as ReportRow[];
@@ -99,12 +100,12 @@ export function TokenUsagePage() {
     cost:             rows.reduce((s, r) => s + Number(r.total_cost_usd),    0),
   }), [rows]);
 
-  // ── CSV export (no external dependency) ──────────────────────────────────
+  // ── CSV export ────────────────────────────────────────────────────────────
   const handleExport = useCallback(() => {
     if (rows.length === 0) return;
 
-    const userLabel = appliedFilters.user
-      ? (users.find(u => u.user_id === appliedFilters.user)?.user_label ?? appliedFilters.user)
+    const userLabel = appliedUser
+      ? (users.find(u => u.user_id === appliedUser)?.user_label ?? appliedUser)
       : 'Todos';
 
     const escape = (v: string | number) => {
@@ -114,7 +115,7 @@ export function TokenUsagePage() {
     };
 
     const headers = ['Usuario', 'Fecha', 'Tokens Entrada', 'Tokens Salida', 'Total Tokens', 'Costo (USD)'];
-    const dataRows = rows.map(r => [
+    const dataRows: (string | number)[][] = rows.map(r => [
       r.user_label,
       formatDate(r.usage_date),
       Number(r.prompt_tokens),
@@ -124,7 +125,7 @@ export function TokenUsagePage() {
     ]);
     dataRows.push(['TOTAL', '', totals.promptTokens, totals.completionTokens, totals.totalTokens, totals.cost]);
 
-    const summaryRows = [
+    const summaryRows: (string | number)[][] = [
       [],
       ['--- Resumen ---'],
       ['Usuarios', totals.distinctUsers],
@@ -132,25 +133,24 @@ export function TokenUsagePage() {
       ['Tokens Salida', totals.completionTokens],
       ['Total Tokens', totals.totalTokens],
       ['Costo Total (USD)', totals.cost],
-      ['Costo/M Tokens (USD)', totals.totalTokens > 0 ? +((totals.cost / totals.totalTokens) * 1_000_000).toFixed(4) : 0],
+      ['Costo/M Tokens', totals.totalTokens > 0 ? +((totals.cost / totals.totalTokens) * 1_000_000).toFixed(4) : 0],
       [],
       ['Filtro Usuario', userLabel],
-      ['Filtro Desde', appliedFilters.from],
-      ['Filtro Hasta', appliedFilters.until],
+      ['Filtro Desde', appliedFrom],
+      ['Filtro Hasta', appliedUntil],
       ['Exportado', new Date().toLocaleString('es-MX')],
     ];
 
     const allRows = [headers, ...dataRows, ...summaryRows];
-    const csv = '\uFEFF' + allRows.map(row => (row as (string | number)[]).map(escape).join(',')).join('\n');
-
+    const csv = '\uFEFF' + allRows.map(row => row.map(escape).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `tuanimo-tokens_${appliedFilters.from}_${appliedFilters.until}.csv`;
+    a.download = `tuanimo-tokens_${appliedFrom}_${appliedUntil}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [rows, totals, appliedFilters, users]);
+  }, [rows, totals, appliedUser, appliedFrom, appliedUntil, users]);
 
   return (
     <div
@@ -178,11 +178,10 @@ export function TokenUsagePage() {
             </div>
             <p className="text-sm text-app-muted mt-0.5">Consumo y costo por usuario y fecha</p>
           </div>
-          {/* Export button */}
           <button
             onClick={handleExport}
             disabled={rows.length === 0 || isFetching}
-            title="Exportar a Excel"
+            title="Exportar a CSV"
             className="mt-0.5 flex items-center gap-2 h-9 px-4 rounded-10 bg-app-surface border border-app-border text-sm font-medium text-app-text hover:border-sage-strong hover:text-sage-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Download size={15} />
@@ -308,73 +307,37 @@ export function TokenUsagePage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-app-border">
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
-                      Usuario
-                    </th>
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
-                      Fecha
-                    </th>
-                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
-                      Entrada
-                    </th>
-                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
-                      Salida
-                    </th>
-                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
-                      Total
-                    </th>
-                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">
-                      Costo (USD)
-                    </th>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Usuario</th>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Fecha</th>
+                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Entrada</th>
+                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Salida</th>
+                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Total</th>
+                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Costo (USD)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr
                       key={`${row.user_id}-${row.usage_date}`}
-                      className={`border-b border-app-border last:border-0 transition-colors hover:bg-app-bg/60 ${
-                        isFetching ? 'opacity-50' : ''
-                      }`}
+                      className={`border-b border-app-border last:border-0 transition-colors hover:bg-app-bg/60 ${isFetching ? 'opacity-50' : ''}`}
                     >
-                      <td className="px-5 py-3 text-app-text font-medium max-w-[200px] truncate">
-                        {row.user_label}
-                      </td>
-                      <td className="px-5 py-3 text-app-muted tabular-nums">
-                        {formatDate(row.usage_date)}
-                      </td>
-                      <td className="px-5 py-3 text-right text-app-muted tabular-nums">
-                        {formatTokens(Number(row.prompt_tokens))}
-                      </td>
-                      <td className="px-5 py-3 text-right text-app-muted tabular-nums">
-                        {formatTokens(Number(row.completion_tokens))}
-                      </td>
-                      <td className="px-5 py-3 text-right text-app-text tabular-nums font-medium">
-                        {formatTokens(Number(row.total_tokens))}
-                      </td>
-                      <td className="px-5 py-3 text-right text-sage-strong tabular-nums font-semibold">
-                        {formatCost(Number(row.total_cost_usd))}
-                      </td>
+                      <td className="px-5 py-3 text-app-text font-medium max-w-[200px] truncate">{row.user_label}</td>
+                      <td className="px-5 py-3 text-app-muted tabular-nums">{formatDate(row.usage_date)}</td>
+                      <td className="px-5 py-3 text-right text-app-muted tabular-nums">{formatTokens(Number(row.prompt_tokens))}</td>
+                      <td className="px-5 py-3 text-right text-app-muted tabular-nums">{formatTokens(Number(row.completion_tokens))}</td>
+                      <td className="px-5 py-3 text-right text-app-text tabular-nums font-medium">{formatTokens(Number(row.total_tokens))}</td>
+                      <td className="px-5 py-3 text-right text-sage-strong tabular-nums font-semibold">{formatCost(Number(row.total_cost_usd))}</td>
                     </tr>
                   ))}
                 </tbody>
                 {rows.length > 1 && (
                   <tfoot>
                     <tr className="bg-app-bg/60 border-t-2 border-app-border">
-                      <td className="px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider" colSpan={2}>
-                        Total
-                      </td>
-                      <td className="px-5 py-3 text-right font-semibold text-app-muted tabular-nums">
-                        {formatTokens(totals.promptTokens)}
-                      </td>
-                      <td className="px-5 py-3 text-right font-semibold text-app-muted tabular-nums">
-                        {formatTokens(totals.completionTokens)}
-                      </td>
-                      <td className="px-5 py-3 text-right font-semibold text-app-text tabular-nums">
-                        {formatTokens(totals.totalTokens)}
-                      </td>
-                      <td className="px-5 py-3 text-right font-semibold text-sage-strong tabular-nums">
-                        {formatCost(totals.cost)}
-                      </td>
+                      <td className="px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider" colSpan={2}>Total</td>
+                      <td className="px-5 py-3 text-right font-semibold text-app-muted tabular-nums">{formatTokens(totals.promptTokens)}</td>
+                      <td className="px-5 py-3 text-right font-semibold text-app-muted tabular-nums">{formatTokens(totals.completionTokens)}</td>
+                      <td className="px-5 py-3 text-right font-semibold text-app-text tabular-nums">{formatTokens(totals.totalTokens)}</td>
+                      <td className="px-5 py-3 text-right font-semibold text-sage-strong tabular-nums">{formatCost(totals.cost)}</td>
                     </tr>
                   </tfoot>
                 )}
