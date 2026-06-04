@@ -5,6 +5,7 @@ import { TokenUsageSection } from '../components/TokenUsageSection';
 import { useSoundSettings } from '../hooks/useSoundSettings';
 import { supabase } from '../lib/supabaseClient';
 import { HelpGuideButton } from '../components/HelpGuide';
+import { useTour } from '../components/OnboardingTour';
 import { deleteOwnAccount } from '../lib/adminUsers';
 
 function Toggle({
@@ -199,6 +200,7 @@ export function SettingsPage() {
   const { signOut, user } = useAuth();
   const { settings, update: updateSound, isSaving: isSavingSound } = useSoundSettings();
   const { prefs, loading: loadingPrefs, savingField, update: updateEmailPref } = useEmailPrefs();
+  const { resetTour } = useTour();
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -357,6 +359,23 @@ export function SettingsPage() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* ── Onboarding tour ── */}
+        <div className="bg-app-surface rounded-[16px] shadow-app border border-app-border p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sage-strong text-[15px]">✦</span>
+            <h2 className="text-[15px] font-semibold text-app-text">Guía de introducción</h2>
+          </div>
+          <p className="text-[12.5px] text-app-muted mb-4 leading-snug">
+            Vuelve a ver la guía que aparece la primera vez que abres la app.
+          </p>
+          <button
+            onClick={resetTour}
+            className="flex items-center gap-2 px-4 py-2 rounded-12 border border-app-border text-app-text text-sm font-medium hover:bg-app-surface-2 transition-colors"
+          >
+            Ver guía de introducción
+          </button>
         </div>
 
       </div>
