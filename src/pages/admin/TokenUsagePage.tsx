@@ -231,7 +231,7 @@ export function TokenUsagePage() {
       const headers = ['Usuario','Chat','Operación','Modelo','Fecha/Hora','Tokens','Costo Real (USD)','Costo si Sonnet (USD)','Ahorro %'];
       const data = sessionRows.map(r => [
         r.user_email, r.thread_title, r.operation, r.model,
-        r.created_at_local.slice(0,19).replace('T',' '),
+        r.created_at_local,
         Number(r.total_tokens), Number(r.cost_usd), Number(r.cost_if_sonnet),
         r.saving_pct === 0 ? 'baseline' : Number(r.saving_pct)+'%'
       ]);
@@ -710,7 +710,7 @@ export function TokenUsagePage() {
                               <span className={`text-[11px] font-medium ${meta.color}`}>{meta.label}</span>
                             </td>
                             <td className="px-4 py-3 text-[11px] text-app-muted tabular-nums whitespace-nowrap">
-                              {row.created_at_local.slice(0,19).replace('T',' ')}
+                              {row.created_at_local}
                             </td>
                             <td className="px-4 py-3 text-right text-xs text-app-text tabular-nums">{formatTokens(Number(row.total_tokens))}</td>
                             <td className="px-4 py-3 text-right text-xs text-sage-strong tabular-nums font-semibold">{formatCost(Number(row.cost_usd))}</td>
