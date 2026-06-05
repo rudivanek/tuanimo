@@ -904,7 +904,15 @@ async function logTokenUsageAndIncrement(userId: string, operation: string, mode
   const { error: insertError } = await svc.from("token_usage").insert({
     user_id: userId, operation, model, ...safeUsage,
     ...(threadId ? { thread_id: threadId } : {}),
-    ...(usage === null ? { metadata: { usage_missing: true } } : {}),
+    metadata: {
+      ...(usage === null ? { usage_missing: true } : {}),
+      config: {
+        model: model,
+        history_cap_enabled: historyCapEnabled,
+        history_cap_messages: historyCapMessages,
+        max_tokens: maxTokens,
+      },
+    },
   });
   if (insertError) console.error("TOKEN_USAGE_LOG_FAILED", JSON.stringify(insertError), { userId, operation });
 }
