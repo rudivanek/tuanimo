@@ -1928,15 +1928,7 @@ export function ChatPage() {
               </div>
             </div>
           )}
-          {linkedEntry && (
-            <ChatLinkedJournalBanner
-              entry={linkedEntry}
-              onOpen={() => {
-                sessionStorage.setItem('diaryAutoOpen', linkedEntry.id);
-                setLocation('/journal');
-              }}
-            />
-          )}
+
           {showContinuationHint && (
             <p className="text-center text-[12.5px] text-app-muted py-3 px-4 animate-in fade-in duration-500">
               {latestCounselorStance === 'CONNECTION'
