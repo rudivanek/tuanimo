@@ -1744,8 +1744,7 @@ export function ChatPage() {
               </div>
             )}
           </div>
-          {messages.length > 0 && currentThread && !editingInHeader && (
-            <>
+          {messages.length > 0 && currentThread && !editingInHeader && !linkedEntry && (
               <button
                 type="button"
                 onClick={() => setShowConvertModal(true)}
@@ -1755,6 +1754,8 @@ export function ChatPage() {
                 <BookOpen size={13} />
                 <span className="hidden sm:inline">Convertir a diario</span>
               </button>
+          )}
+          {messages.length > 0 && currentThread && !editingInHeader && (
               <button
                 onClick={() => setShowExport(true)}
                 title="Exportar conversación"
@@ -1762,7 +1763,6 @@ export function ChatPage() {
               >
                 <Download size={16} />
               </button>
-            </>
           )}
         </div>
 
