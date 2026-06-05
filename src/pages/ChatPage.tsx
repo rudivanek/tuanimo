@@ -162,7 +162,21 @@ export function ChatPage() {
 
   interface LinkedEntry { id: string; title: string | null; is_draft: boolean; saved_at: string | null; }
   const [linkedEntry, setLinkedEntry] = useState<LinkedEntry | null>(null);
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLinkedEntryLoading, setIsLinkedEntryLoading] = useState(false);
+
+  // Auto-dismiss banner 5s after a journal entry is linked
+  useEffect(() => {
+    if (linkedEntry) {
+      setBannerVisible(true);
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+      bannerTimerRef.current = setTimeout(() => setBannerVisible(false), 5000);
+    } else {
+      setBannerVisible(false);
+    }
+    return () => { if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current); };
+  }, [linkedEntry]);
 
   const frPrevShowDiaryHintRef = useRef(false);
   const frPrevShowActivationRef = useRef(false);
@@ -1959,7 +1973,7 @@ export function ChatPage() {
               </div>
             </div>
           )}
-          {linkedEntry && (
+          {linkedEntry && bannerVisible && (
             <ChatLinkedJournalBanner
               entry={linkedEntry}
               onOpen={() => {
