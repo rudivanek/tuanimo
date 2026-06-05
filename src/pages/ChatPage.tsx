@@ -1711,7 +1711,7 @@ export function ChatPage() {
               </div>
             )}
           </div>
-          {messages.length > 0 && currentThread && !editingInHeader && (
+          {messages.length > 0 && currentThread && !editingInHeader && !linkedEntry && (
             <>
               <button
                 type="button"
