@@ -7,7 +7,6 @@ import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
 import { Layout } from './components/Layout';
 import { InstallPrompt } from './components/InstallPrompt';
-import { OnboardingTour } from './components/OnboardingTour';
 
 const ResetPasswordPage  = lazy(() => import('./pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })));
 const JournalPage    = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
@@ -23,6 +22,7 @@ const CrisisResourcesPage = lazy(() => import('./pages/admin/CrisisResourcesPage
 const PlanLimitsPage     = lazy(() => import('./pages/admin/PlanLimitsPage').then(m => ({ default: m.PlanLimitsPage })));
 const AdminEmailPage     = lazy(() => import('./pages/admin/AdminEmailPage').then(m => ({ default: m.AdminEmailPage })));
 const CostPerCyclePage   = lazy(() => import('./pages/admin/CostPerCyclePage').then(m => ({ default: m.CostPerCyclePage })));
+const AISettingsPage     = lazy(() => import('./pages/admin/AISettingsPage').then(m => ({ default: m.AISettingsPage })));
 
 function LoadingScreen() {
   return (
@@ -114,16 +114,14 @@ function App() {
         <Route path="/admin/crisis-resources"  component={CrisisResourcesRoute} />
         <Route path="/admin/plan-limits"     component={PlanLimitsRoute} />
         <Route path="/admin/email-campaigns" component={AdminEmailRoute} />
+        <Route path="/admin/ai-settings"     component={() => <Suspense fallback={<LoadingScreen />}><AISettingsPage /></Suspense>} />
         <Route>
           {user ? <Redirect to="/chat" /> : <Redirect to="/" />}
         </Route>
       </Switch>
 
-      {/* PWA install prompt */}
+      {/* PWA install prompt — only shows on mobile, only when logged in, only if not already installed */}
       <InstallPrompt />
-
-      {/* Onboarding tour — auto-shows on first login, re-triggerable from Configuración */}
-      {user && <OnboardingTour />}
     </>
   );
 }
