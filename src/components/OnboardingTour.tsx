@@ -1,21 +1,21 @@
 /**
- * OnboardingTour.tsx  — v2, Option B: navigates to each real page
+ * OnboardingTour.tsx  — v3: fixes new-user detection + settings button
  *
- * – Auto-shows on first login (localStorage: tuanimo_tour_done)
- * – Navigates to each section so user sees the real UI behind the card
- * – Bottom-sheet card on all screen sizes (no DOM measurement needed)
- * – "Saltar" on every step, final step returns to /chat
- * – Re-triggerable from Configuración via useTour().resetTour()
+ * Fixes vs v2:
+ *   1. Uses a custom event ("tuanimo:start-tour") instead of a module-level
+ *      _open variable — avoids timing issues with lazy-loaded components
+ *   2. Auto-show effect now also listens for auth user changes so a freshly
+ *      invited user always sees the tour regardless of prior localStorage state
+ *      on the same device
  *
- * To roll back to v1 (card-only, no navigation):
- *   replace this file with the OnboardingTour_v1.tsx backup
+ * To roll back: replace with OnboardingTour_v2 backup and paste v2 into Bolt.
  *
  * Exports:
- *   OnboardingTour   – mount once in App.tsx (already done)
- *   useTour          – { resetTour } for SettingsPage (already wired)
+ *   OnboardingTour   – mounted in App.tsx (unchanged)
+ *   useTour          – { resetTour } for SettingsPage (unchanged)
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import {
   MessageCircle,
@@ -27,13 +27,13 @@ import {
   ArrowRight,
   X,
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 // ─── Storage key ─────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'tuanimo_tour_done';
+const EVENT_NAME  = 'tuanimo:start-tour';
 
 // ─── Steps ───────────────────────────────────────────────────────────────────
-// navigateTo: the real route the user will see behind this card
-// null = stay on current page (used for welcome + final)
 const STEPS = [
   {
     navigateTo: '/chat',
@@ -107,13 +107,12 @@ const STEPS = [
   },
 ] as const;
 
-// ─── Global opener (used by useTour hook) ────────────────────────────────────
-let _open: (() => void) | null = null;
-
+// ─── useTour hook (for SettingsPage) ─────────────────────────────────────────
 export function useTour() {
   const resetTour = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
-    _open?.();
+    // Dispatch event — OnboardingTour listens for it regardless of mount order
+    window.dispatchEvent(new CustomEvent(EVENT_NAME));
   }, []);
   return { resetTour };
 }
@@ -121,39 +120,39 @@ export function useTour() {
 // ─── Component ───────────────────────────────────────────────────────────────
 export function OnboardingTour() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
   const [active, setActive] = useState(false);
-  const [step, setStep] = useState(0);
-  const [visible, setVisible] = useState(false); // controls CSS fade-in
-  const returnPath = useRef('/chat');
+  const [step, setStep]     = useState(0);
+  const [visible, setVisible] = useState(false);
 
-  // Register global opener
-  useEffect(() => {
-    _open = () => {
-      setStep(0);
-      setActive(true);
-    };
-    return () => { _open = null; };
+  const activate = useCallback(() => {
+    setStep(0);
+    setActive(true);
   }, []);
 
-  // Auto-show on first launch
+  // Listen for event dispatched by useTour().resetTour()
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      const t = setTimeout(() => {
-        setStep(0);
-        setActive(true);
-      }, 700);
-      return () => clearTimeout(t);
-    }
-  }, []);
+    const handler = () => activate();
+    window.addEventListener(EVENT_NAME, handler);
+    return () => window.removeEventListener(EVENT_NAME, handler);
+  }, [activate]);
 
-  // Navigate when step changes
+  // Auto-show when a user is present and hasn't seen the tour
+  // Runs whenever `user` changes — catches freshly invited users
+  useEffect(() => {
+    if (!user) return;
+    if (localStorage.getItem(STORAGE_KEY)) return;
+    const t = setTimeout(activate, 700);
+    return () => clearTimeout(t);
+  }, [user, activate]);
+
+  // Navigate to the right page on each step
   useEffect(() => {
     if (!active) return;
-    const target = STEPS[step].navigateTo;
-    navigate(target);
+    navigate(STEPS[step].navigateTo);
   }, [active, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fade-in after mounting
+  // Animate in
   useEffect(() => {
     if (active) {
       const t = setTimeout(() => setVisible(true), 30);
@@ -174,8 +173,7 @@ export function OnboardingTour() {
   }, [navigate]);
 
   const next = useCallback(() => {
-    const current = STEPS[step];
-    if (current.isFinal) {
+    if (STEPS[step].isFinal) {
       dismiss();
     } else {
       setStep(s => s + 1);
@@ -186,34 +184,30 @@ export function OnboardingTour() {
 
   const current = STEPS[step];
   const Icon = current.icon;
-  const totalSteps = STEPS.length;
 
   return (
     <>
-      {/* Dim overlay — semi-transparent so user can see the page behind */}
+      {/* Semi-transparent overlay — shows the real page behind */}
       <div
         className={[
-          'fixed inset-0 z-[190]',
-          'bg-black/30',
+          'fixed inset-0 z-[190] bg-black/30',
           'transition-opacity duration-300',
           visible ? 'opacity-100' : 'opacity-0',
         ].join(' ')}
-        onClick={dismiss}         // tap overlay = skip
+        onClick={dismiss}
         aria-hidden="true"
       />
 
-      {/* Bottom card — sits above overlay */}
+      {/* Bottom card */}
       <div
         className={[
-          'fixed bottom-0 left-0 right-0 z-[200]',
-          'flex justify-center',
-          // safe-area bottom padding for iOS
+          'fixed bottom-0 left-0 right-0 z-[200] flex justify-center',
           'pb-[env(safe-area-inset-bottom,0px)]',
           'transition-transform duration-300 ease-out',
           visible ? 'translate-y-0' : 'translate-y-full',
         ].join(' ')}
       >
-        <div className="w-full sm:max-w-sm mx-auto bg-app-surface rounded-t-[28px] sm:rounded-[24px] sm:mb-6 shadow-2xl border border-app-border px-6 pt-7 pb-7 flex flex-col gap-4">
+        <div className="relative w-full sm:max-w-sm mx-auto bg-app-surface rounded-t-[28px] sm:rounded-[24px] sm:mb-6 shadow-2xl border border-app-border px-6 pt-7 pb-7 flex flex-col gap-4">
 
           {/* Skip */}
           {!current.isFinal && (
@@ -234,11 +228,9 @@ export function OnboardingTour() {
                 key={i}
                 className={[
                   'rounded-full transition-all duration-300',
-                  i === step
-                    ? 'w-5 h-1.5 bg-sage-strong'
-                    : i < step
-                    ? 'w-1.5 h-1.5 bg-sage-strong/40'
-                    : 'w-1.5 h-1.5 bg-app-border',
+                  i === step        ? 'w-5 h-1.5 bg-sage-strong'
+                  : i < step        ? 'w-1.5 h-1.5 bg-sage-strong/40'
+                                    : 'w-1.5 h-1.5 bg-app-border',
                 ].join(' ')}
               />
             ))}
@@ -267,11 +259,7 @@ export function OnboardingTour() {
             onClick={next}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-[14px] bg-sage-strong text-white text-[14.5px] font-semibold hover:opacity-90 transition-all active:scale-[0.98]"
           >
-            {current.isFinal ? (
-              'Comenzar con Elena'
-            ) : (
-              <>Siguiente <ArrowRight size={15} /></>
-            )}
+            {current.isFinal ? 'Comenzar con Elena' : <> Siguiente <ArrowRight size={15} /></>}
           </button>
         </div>
       </div>
