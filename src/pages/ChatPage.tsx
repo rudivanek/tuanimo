@@ -15,7 +15,7 @@ import { getLastUserChatTimestamp, buildContextualGreeting, getInsightSnippetFor
 import { FollowUpBox } from '../components/FollowUpBox';
 import { PracticasConfirmModal } from '../components/PracticasConfirmModal';
 import { DiaryDraftSuggestion } from '../components/DiaryDraftSuggestion';
-
+import { ChatLinkedJournalBanner } from '../components/ChatLinkedJournalBanner';
 import { SuggestionChips } from '../components/SuggestionChips';
 import { ExportModal } from '../components/ExportModal';
 import { MessageContent } from '../components/MessageContent';
@@ -309,44 +309,6 @@ export function ChatPage() {
   useEffect(() => {
     if (user) loadThreads();
   }, [user]);
-
-  // Journal → Elena reflection: create a fresh thread and auto-send.
-  // We read+clear sessionStorage and set the fired ref synchronously before
-  // any async work so a re-render (e.g. profile loading) can't double-fire.
-  const journalReflectionFiredRef = useRef(false);
-  const journalReflectionEntryRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (journalReflectionFiredRef.current) return;
-    try {
-      const stored = sessionStorage.getItem('journalReflectionEntry');
-      if (stored) {
-        sessionStorage.removeItem('journalReflectionEntry');
-        journalReflectionEntryRef.current = stored;
-      }
-    } catch {}
-  }, []);
-  useEffect(() => {
-    if (!user || !profile || journalReflectionFiredRef.current) return;
-    const entryContent = journalReflectionEntryRef.current;
-    if (!entryContent) return;
-    journalReflectionFiredRef.current = true;
-    journalReflectionEntryRef.current = null;
-    const fire = async () => {
-      const newThreadId = await createNewThread({ skipWelcome: true });
-      if (!newThreadId) return;
-      setCurrentThreadId(newThreadId);
-      setMessages([]);
-      const message = `He escrito esto en mi diario y me gustaría que lo leyeras:\n\n${entryContent}`;
-      // Pre-fill input and simulate send button click so it goes through
-      // the exact same code path as a normal user message.
-      setInputMessage(message);
-      setTimeout(() => {
-        const sendBtn = document.querySelector<HTMLButtonElement>('button[data-journal-send]');
-        sendBtn?.click();
-      }, 400);
-    };
-    setTimeout(fire, 600);
-  }, [user, profile]);
 
   useEffect(() => {
     if (!user) return;
@@ -1270,8 +1232,15 @@ export function ChatPage() {
       } else if (error instanceof Error && error.message === 'No active session') {
         setChatError('Sesión no disponible. Por favor recarga la página e intenta de nuevo.');
       } else if (error instanceof Error && (error.message === 'SESSION_EXPIRED' || error.message.startsWith('Unauthorized'))) {
-        await supabase.auth.signOut();
-        setChatError('Tu sesión ha expirado. Por favor inicia sesión de nuevo.');
+        // Try silent refresh before signing out
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (!refreshError && refreshData.session) {
+          // Session refreshed — just show a retry message, don't sign out
+          setChatError('Hubo un problema de conexión. Por favor intenta de nuevo.');
+        } else {
+          await supabase.auth.signOut();
+          setChatError('Tu sesión ha expirado. Por favor inicia sesión de nuevo.');
+        }
       } else {
         const msg = error instanceof Error ? error.message : String(error);
         if (msg === 'OPENAI_UNAVAILABLE') {
@@ -1732,7 +1701,9 @@ export function ChatPage() {
               <div className="min-w-0">
                 {currentThread ? (
                   <h1
-                    className="text-[15px] font-semibold text-app-text truncate"
+                    className="text-[15px] font-semibold text-app-text truncate cursor-text hover:text-sage-strong transition-colors"
+                    onClick={startEditTitleFromHeader}
+                    title="Clic para renombrar"
                   >
                     {currentThread.title}
                   </h1>
@@ -1744,18 +1715,17 @@ export function ChatPage() {
               </div>
             )}
           </div>
-          {messages.length > 0 && currentThread && !editingInHeader && !linkedEntry && (
+          {messages.length > 0 && currentThread && !editingInHeader && (
+            <>
               <button
                 type="button"
                 onClick={() => setShowConvertModal(true)}
                 title="Convertir a entrada de diario"
-                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[#EF9F27]/40 text-[#854F0B] bg-[#FAEEDA] hover:bg-[#EF9F27]/20 transition-colors text-[12px] font-medium"
+                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-app-border text-app-muted hover:text-sage-strong hover:border-sage-strong hover:bg-sage-soft transition-colors text-[12px] font-medium"
               >
                 <BookOpen size={13} />
                 <span className="hidden sm:inline">Convertir a diario</span>
               </button>
-          )}
-          {messages.length > 0 && currentThread && !editingInHeader && (
               <button
                 onClick={() => setShowExport(true)}
                 title="Exportar conversación"
@@ -1763,6 +1733,7 @@ export function ChatPage() {
               >
                 <Download size={16} />
               </button>
+            </>
           )}
         </div>
 
@@ -1957,7 +1928,15 @@ export function ChatPage() {
               </div>
             </div>
           )}
-
+          {linkedEntry && (
+            <ChatLinkedJournalBanner
+              entry={linkedEntry}
+              onOpen={() => {
+                sessionStorage.setItem('diaryAutoOpen', linkedEntry.id);
+                setLocation('/journal');
+              }}
+            />
+          )}
           {showContinuationHint && (
             <p className="text-center text-[12.5px] text-app-muted py-3 px-4 animate-in fade-in duration-500">
               {latestCounselorStance === 'CONNECTION'
@@ -2080,31 +2059,16 @@ export function ChatPage() {
               </button>
             </div>
           ) : !activeCommitment && currentThreadId && (
-            <div className="mb-2 flex items-center justify-between">
-              <button
-                onClick={() => {
-                  setShowCommitmentInput(true);
-                  setTimeout(() => commitmentInputRef.current?.focus(), 0);
-                }}
-                className="text-[11.5px] text-[#534AB7] hover:text-[#3C3489] transition-colors flex items-center gap-1"
-              >
-                <Plus size={11} />
-                Agregar compromiso
-              </button>
-              {linkedEntry && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    sessionStorage.setItem('diaryAutoOpen', linkedEntry.id);
-                    setLocation('/journal');
-                  }}
-                  className="flex items-center gap-1 px-2 py-1 rounded-full bg-sage-soft text-sage-strong text-[11px] font-medium hover:bg-sage-soft/80 transition-colors"
-                >
-                  <BookOpen size={11} />
-                  Reflexión guardada
-                </button>
-              )}
-            </div>
+            <button
+              onClick={() => {
+                setShowCommitmentInput(true);
+                setTimeout(() => commitmentInputRef.current?.focus(), 0);
+              }}
+              className="mb-2 text-[11.5px] text-app-muted hover:text-sage-strong transition-colors flex items-center gap-1"
+            >
+              <Plus size={11} />
+              Agregar compromiso
+            </button>
           )}
           <div className="flex gap-2 items-end">
             <textarea
@@ -2144,7 +2108,6 @@ export function ChatPage() {
               onClick={() => handleSendMessage()}
               disabled={isSending || !inputMessage.trim() || !currentThreadId || !!tokenLimitError || isTokenExhausted || !profile}
               title={isTokenExhausted ? 'Límite de tokens alcanzado — puedes leer tus conversaciones, pero no enviar nuevos mensajes.' : undefined}
-              data-journal-send
               className="flex-shrink-0 bg-sage-strong text-white rounded-12 px-4 py-2.5 hover:bg-[#4e7260] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 text-sm font-medium"
             >
               <Send size={15} />
