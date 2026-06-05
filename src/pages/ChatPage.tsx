@@ -1618,9 +1618,7 @@ export function ChatPage() {
                       </div>
                       <div className="min-w-0">
                         <div
-                          className="font-medium text-sm text-app-text truncate cursor-text hover:text-sage-strong transition-colors"
-                          onClick={(e) => startEditTitle(thread, e)}
-                          title="Clic para renombrar"
+                          className="font-medium text-sm text-app-text truncate"
                         >
                           {thread.title}
                         </div>
