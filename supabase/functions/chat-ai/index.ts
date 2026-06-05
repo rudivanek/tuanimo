@@ -1202,6 +1202,27 @@ They just indicated they did not complete it, or not fully. Do NOT treat this as
       : '';
 
     // ── NEW EXISTENTIAL SYSTEM PROMPT ─────────────────────────────────────────
+    // ── Read AI settings from DB ──────────────────────────────────────────
+    let chatModel = 'claude-sonnet-4-6';
+    let historyCapEnabled = false;
+    let historyCapMessages = 12;
+    let maxTokens = 1024;
+    try {
+      const { data: settingsData } = await supabase.rpc('get_ai_settings');
+      if (settingsData) {
+        chatModel           = settingsData.chat_model           ?? chatModel;
+        historyCapEnabled   = settingsData.history_cap_enabled  === 'true';
+        historyCapMessages  = parseInt(settingsData.history_cap_messages ?? '12', 10);
+        maxTokens           = parseInt(settingsData.max_tokens            ?? '1024', 10);
+      }
+    } catch (_) { /* use defaults */ }
+
+    // Apply history cap if enabled
+    if (historyCapEnabled && conversationHistory && conversationHistory.length > historyCapMessages) {
+      conversationHistory = conversationHistory.slice(-historyCapMessages);
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     const systemPrompt = `You are Elena, an emotionally intelligent AI companion inside a mental wellness app called TuAnimo.
 
 Your therapeutic foundation is existential therapy — grounded in the work of Irvin Yalom and Viktor Frankl.
@@ -1688,8 +1709,8 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
 
     function buildAnthropicBody(msgs: Array<{ role: string; content: string }>) {
       return JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 2500,
+        model: chatModel,
+        max_tokens: maxTokens,
         temperature: 0.8,
         system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
         messages: msgs,
@@ -1826,8 +1847,8 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
       console.warn("[chat-ai] Banned label detected — retrying once", { snippet: aiResponse.reply.slice(0, 120) });
       const guardSystemContent = systemPrompt + "\n\nCRITICAL OVERRIDE: Your previous response contained a banned feeling label or forbidden phrase. Rewrite the COMPLETE response using only experiential, sensory language. Do NOT use: confusión, desorientación, ansiedad, tristeza, angustia, frustración, agotamiento, bloqueo emocional, estado emocional, a veces, es comprensible, es normal, es natural. Every sentence must pass SELF-CHECK before you output.";
       const guardBody = JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 2500,
+        model: chatModel,
+        max_tokens: maxTokens,
         temperature: 0.8,
         system: [{ type: "text", text: guardSystemContent, cache_control: { type: "ephemeral" } }],
         messages: [
