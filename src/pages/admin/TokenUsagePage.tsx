@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { BarChart3, ChevronLeft, RefreshCw, AlertCircle, Inbox, Download, Users, List } from 'lucide-react';
+import { BarChart3, ChevronLeft, RefreshCw, AlertCircle, Inbox, Download, Users, List, Zap } from 'lucide-react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
@@ -35,6 +35,17 @@ interface CycleSummaryRow {
   daily_tokens_limit: number;
 }
 
+interface ModelRow {
+  model: string;
+  calls: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  total_tokens: number;
+  cost_usd: number;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function localToday(): string {
@@ -60,6 +71,15 @@ function formatDate(iso: string): string { return iso.slice(0,10); }
 
 const PLAN_LABELS: Record<string,string> = { starter:'Starter', pro:'Pro', power:'Power' };
 
+const MODEL_LABELS: Record<string,{ label: string; color: string }> = {
+  'claude-sonnet-4-6':         { label: 'Claude Sonnet 4.6',       color: 'text-sage-strong' },
+  'claude-haiku-4-5-20251001': { label: 'Claude Haiku 4.5',        color: 'text-blue-500' },
+  'claude-haiku-4-5':          { label: 'Claude Haiku 4.5',        color: 'text-blue-500' },
+  'claude-opus-4-6':           { label: 'Claude Opus 4.6',         color: 'text-purple-500' },
+  'gpt-4o-mini':               { label: 'GPT-4o mini',             color: 'text-emerald-500' },
+  'gpt-4o':                    { label: 'GPT-4o',                  color: 'text-emerald-600' },
+};
+
 // ── Cycle progress bar ────────────────────────────────────────────────────────
 
 function CycleBar({ used, limit }: { used: number; limit: number }) {
@@ -80,7 +100,7 @@ function CycleBar({ used, limit }: { used: number; limit: number }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-type ViewMode = 'detail' | 'summary';
+type ViewMode = 'detail' | 'summary' | 'models';
 
 export function TokenUsagePage() {
   const [viewMode, setViewMode]     = useState<ViewMode>('detail');
@@ -143,7 +163,23 @@ export function TokenUsagePage() {
       enabled: viewMode === 'summary',
     });
 
-  const isFetching = viewMode === 'detail' ? fetchingRows : fetchingSummary;
+  // Model breakdown view data
+  const { data: modelRows = [], isFetching: fetchingModels, isError: errorModels } =
+    useQuery<ModelRow[]>({
+      queryKey: ['admin-token-by-model', appliedUser, appliedFrom, appliedUntil],
+      queryFn: async () => {
+        const { data, error } = await supabase.rpc('admin_token_usage_by_model', {
+          p_date_from: appliedFrom, p_date_until: appliedUntil,
+          p_user_id: appliedUser || null,
+        });
+        if (error) throw error;
+        return data as ModelRow[];
+      },
+      staleTime: 0,
+      enabled: viewMode === 'models',
+    });
+
+  const isFetching = viewMode === 'detail' ? fetchingRows : viewMode === 'summary' ? fetchingSummary : fetchingModels;
 
   const totals = useMemo(() => ({
     distinctUsers:    new Set(rows.map(r => r.user_id)).size,
@@ -155,6 +191,24 @@ export function TokenUsagePage() {
 
   // CSV export
   const handleExport = useCallback(() => {
+    if (viewMode === 'models') {
+      if (modelRows.length === 0) return;
+      const esc = (v: string|number) => { const s=String(v); return s.includes(',')||s.includes('"')?`"${s.replace(/"/g,'""')}"`:`${s}`; };
+      const sonnetRow = modelRows.find(r => r.model === 'claude-sonnet-4-6');
+      const headers = ['Modelo','Llamadas','Tokens Entrada','Tokens Salida','Cache Read','Cache Write','Total Tokens','Costo (USD)','% del Total','vs Sonnet'];
+      const totalCost = modelRows.reduce((s,r) => s + Number(r.cost_usd), 0);
+      const data = modelRows.map(r => {
+        const pct = totalCost > 0 ? ((Number(r.cost_usd)/totalCost)*100).toFixed(1)+'%' : '0%';
+        const vsSonnet = sonnetRow && r.model !== 'claude-sonnet-4-6'
+          ? ((Number(r.cost_usd) - Number(sonnetRow.cost_usd)) / Number(sonnetRow.cost_usd) * 100).toFixed(1)+'%'
+          : 'baseline';
+        return [MODEL_LABELS[r.model]?.label ?? r.model, Number(r.calls), Number(r.prompt_tokens), Number(r.completion_tokens), Number(r.cache_read_tokens), Number(r.cache_write_tokens), Number(r.total_tokens), Number(r.cost_usd), pct, vsSonnet];
+      });
+      const csv = '﻿' + [headers,...data].map(r=>r.map(esc).join(',')).join('\n'));
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})), download:`tuanimo-modelos_${appliedFrom}_${appliedUntil}.csv` });
+      a.click(); URL.revokeObjectURL(a.href);
+      return;
+    }
     if (viewMode === 'detail') {
       if (rows.length === 0) return;
       const esc = (v: string|number) => { const s=String(v); return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:`${s}`; };
@@ -212,11 +266,18 @@ export function TokenUsagePage() {
             >
               <Users size={13} /> Por usuario
             </button>
+            <button
+              onClick={() => setViewMode('models')}
+              title="Comparar modelos"
+              className={`flex items-center gap-1.5 h-7 px-3 rounded-[8px] text-xs font-medium transition-colors ${viewMode==='models' ? 'bg-sage-strong text-white' : 'text-app-muted hover:text-app-text'}`}
+            >
+              <Zap size={13} /> Modelos
+            </button>
           </div>
 
           <button
             onClick={handleExport}
-            disabled={(viewMode==='detail' ? rows.length===0 : summaryRows.length===0) || isFetching}
+            disabled={(viewMode==='detail' ? rows.length===0 : viewMode==='summary' ? summaryRows.length===0 : modelRows.length===0) || isFetching}
             title="Exportar a CSV"
             className="mt-0.5 flex items-center gap-2 h-9 px-4 rounded-10 bg-app-surface border border-app-border text-sm font-medium text-app-text hover:border-sage-strong hover:text-sage-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -402,6 +463,117 @@ export function TokenUsagePage() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── MODELS VIEW ── */}
+        {viewMode === 'models' && (
+          <div className="space-y-4">
+            {/* Filters (reuse same date/user filters) */}
+            <div className="bg-app-surface border border-app-border rounded-[16px] shadow-app p-5 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-3 items-end">
+                <div>
+                  <label className="text-[11px] font-medium text-app-muted uppercase tracking-wider block mb-1.5">Usuario</label>
+                  <select value={selectedUser} onChange={e=>setSelectedUser(e.target.value)}
+                    className="w-full h-10 px-3 rounded-10 bg-app-bg border border-app-border text-sm text-app-text focus:outline-none focus:border-sage-strong transition-colors">
+                    <option value="">Todos los usuarios</option>
+                    {users.map(u => <option key={u.user_id} value={u.user_id}>{u.user_label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-app-muted uppercase tracking-wider block mb-1.5">Desde</label>
+                  <input type="date" value={dateFrom} max={dateUntil} onChange={e=>setDateFrom(e.target.value)}
+                    className="h-10 px-3 rounded-10 bg-app-bg border border-app-border text-sm text-app-text focus:outline-none focus:border-sage-strong transition-colors" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-app-muted uppercase tracking-wider block mb-1.5">Hasta</label>
+                  <input type="date" value={dateUntil} min={dateFrom} onChange={e=>setDateUntil(e.target.value)}
+                    className="h-10 px-3 rounded-10 bg-app-bg border border-app-border text-sm text-app-text focus:outline-none focus:border-sage-strong transition-colors" />
+                </div>
+                <button onClick={handleApply} disabled={fetchingModels}
+                  className="h-10 px-5 rounded-10 bg-sage-strong text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center gap-2">
+                  {fetchingModels ? <RefreshCw size={14} className="animate-spin" /> : null}
+                  Aplicar
+                </button>
+              </div>
+              <button onClick={setLast30} className="text-[11px] font-medium text-app-muted hover:text-sage-strong underline underline-offset-2 transition-colors">
+                Últimos 30 días
+              </button>
+            </div>
+
+            {/* Model comparison table */}
+            <div className="bg-app-surface border border-app-border rounded-[16px] shadow-app overflow-hidden">
+              {fetchingModels && modelRows.length === 0 ? (
+                <div className="flex items-center justify-center h-40 gap-2 text-sm text-app-muted"><RefreshCw size={16} className="animate-spin" /> Cargando...</div>
+              ) : errorModels ? (
+                <div className="flex items-center justify-center h-40 text-sm text-red-500">Error al cargar datos</div>
+              ) : modelRows.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 gap-2 text-app-muted"><Inbox size={28} strokeWidth={1.5}/><p className="text-sm">Sin datos para el período seleccionado</p></div>
+              ) : (() => {
+                const totalCost = modelRows.reduce((s,r) => s + Number(r.cost_usd), 0);
+                const totalTokens = modelRows.reduce((s,r) => s + Number(r.total_tokens), 0);
+                const sonnetRow = modelRows.find(r => r.model === 'claude-sonnet-4-6');
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-app-border">
+                          <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Modelo</th>
+                          <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Llamadas</th>
+                          <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Total Tokens</th>
+                          <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Costo (USD)</th>
+                          <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">% del total</th>
+                          <th className="text-right px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">vs Sonnet</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {modelRows.map(row => {
+                          const pct = totalCost > 0 ? (Number(row.cost_usd)/totalCost*100) : 0;
+                          const meta = MODEL_LABELS[row.model] ?? { label: row.model, color: 'text-app-text' };
+                          let vsSonnet: string | null = null;
+                          let vsSonnetColor = 'text-app-muted';
+                          if (sonnetRow && row.model !== 'claude-sonnet-4-6' && Number(sonnetRow.cost_usd) > 0) {
+                            const diff = (Number(row.cost_usd) - Number(sonnetRow.cost_usd)) / Number(sonnetRow.cost_usd) * 100;
+                            vsSonnet = `${diff > 0 ? '+' : ''}${diff.toFixed(0)}%`;
+                            vsSonnetColor = diff < 0 ? 'text-green-600 font-semibold' : diff > 0 ? 'text-red-500' : 'text-app-muted';
+                          }
+                          return (
+                            <tr key={row.model} className="border-b border-app-border last:border-0 hover:bg-app-bg/60">
+                              <td className="px-5 py-4">
+                                <p className={`text-sm font-semibold ${meta.color}`}>{meta.label}</p>
+                                <p className="text-[10px] text-app-muted font-mono mt-0.5">{row.model}</p>
+                              </td>
+                              <td className="px-5 py-4 text-right text-app-muted tabular-nums">{Number(row.calls).toLocaleString()}</td>
+                              <td className="px-5 py-4 text-right text-app-text tabular-nums font-medium">{formatTokens(Number(row.total_tokens))}</td>
+                              <td className="px-5 py-4 text-right text-sage-strong tabular-nums font-semibold">{formatCost(Number(row.cost_usd))}</td>
+                              <td className="px-5 py-4 text-right tabular-nums">
+                                <div className="flex items-center justify-end gap-2">
+                                  <div className="w-16 h-1.5 bg-app-border rounded-full overflow-hidden">
+                                    <div className="h-full bg-sage-strong rounded-full" style={{ width:`${pct}%` }} />
+                                  </div>
+                                  <span className="text-xs text-app-muted">{pct.toFixed(1)}%</span>
+                                </div>
+                              </td>
+                              <td className={`px-5 py-4 text-right tabular-nums text-sm ${vsSonnetColor}`}>
+                                {row.model === 'claude-sonnet-4-6' ? <span className="text-[11px] text-app-muted">baseline</span> : vsSonnet ?? '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-app-bg/60 border-t-2 border-app-border">
+                          <td className="px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider" colSpan={2}>Total</td>
+                          <td className="px-5 py-3 text-right font-semibold text-app-text tabular-nums">{formatTokens(totalTokens)}</td>
+                          <td className="px-5 py-3 text-right font-semibold text-sage-strong tabular-nums">{formatCost(totalCost)}</td>
+                          <td colSpan={2} />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         )}
 
