@@ -2059,16 +2059,30 @@ export function ChatPage() {
               </button>
             </div>
           ) : !activeCommitment && currentThreadId && (
-            <button
-              onClick={() => {
-                setShowCommitmentInput(true);
-                setTimeout(() => commitmentInputRef.current?.focus(), 0);
-              }}
-              className="mb-2 text-[11.5px] text-app-muted hover:text-sage-strong transition-colors flex items-center gap-1"
-            >
-              <Plus size={11} />
-              Agregar compromiso
-            </button>
+            <div className="mb-2 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setShowCommitmentInput(true);
+                  setTimeout(() => commitmentInputRef.current?.focus(), 0);
+                }}
+                className="text-[11.5px] text-app-muted hover:text-sage-strong transition-colors flex items-center gap-1"
+              >
+                <Plus size={11} />
+                Agregar compromiso
+              </button>
+              {linkedEntry && (
+                <button
+                  onClick={() => {
+                    sessionStorage.setItem('diaryAutoOpen', linkedEntry.id);
+                    setLocation('/journal');
+                  }}
+                  className="flex items-center gap-1 text-[11px] text-sage-strong hover:opacity-75 transition-opacity bg-sage-strong/8 px-2 py-0.5 rounded-full"
+                >
+                  <BookOpen size={11} />
+                  Reflexión guardada
+                </button>
+              )}
+            </div>
           )}
           <div className="flex gap-2 items-end">
             <textarea
