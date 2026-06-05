@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../hooks/useProfile';
 import { useTokenStatus } from '../hooks/useTokenStatus';
+import { useAdmin } from '../hooks/useAdmin';
 import { Zap, DollarSign, TrendingUp, Calendar, Clock } from 'lucide-react';
 
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
@@ -126,6 +127,7 @@ export function TokenUsageSection() {
   const [aggregated, setAggregated] = useState<AggregatedOperation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const cycleResetLabel = getNextCycleReset(user?.created_at);
+  const { isAdmin } = useAdmin();
 
   useEffect(() => {
     if (!user) return;
@@ -202,7 +204,7 @@ export function TokenUsageSection() {
               resetNote={`Se renueva el ${cycleResetLabel}`}
             />
 
-            {!isLoading && (
+            {!isLoading && isAdmin && (
               <div className="flex items-center justify-between pt-3 border-t border-app-border">
                 <div className="flex items-center gap-2 text-sm text-app-muted">
                   <DollarSign size={15} className="text-sage-strong" />
