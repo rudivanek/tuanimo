@@ -15,7 +15,7 @@ import { getLastUserChatTimestamp, buildContextualGreeting, getInsightSnippetFor
 import { FollowUpBox } from '../components/FollowUpBox';
 import { PracticasConfirmModal } from '../components/PracticasConfirmModal';
 import { DiaryDraftSuggestion } from '../components/DiaryDraftSuggestion';
-import { ChatLinkedJournalBanner } from '../components/ChatLinkedJournalBanner';
+
 import { SuggestionChips } from '../components/SuggestionChips';
 import { ExportModal } from '../components/ExportModal';
 import { MessageContent } from '../components/MessageContent';
@@ -162,21 +162,7 @@ export function ChatPage() {
 
   interface LinkedEntry { id: string; title: string | null; is_draft: boolean; saved_at: string | null; }
   const [linkedEntry, setLinkedEntry] = useState<LinkedEntry | null>(null);
-  const [bannerVisible, setBannerVisible] = useState(false);
-  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLinkedEntryLoading, setIsLinkedEntryLoading] = useState(false);
-
-  // Auto-dismiss banner 5s after a journal entry is linked
-  useEffect(() => {
-    if (linkedEntry) {
-      setBannerVisible(true);
-      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-      bannerTimerRef.current = setTimeout(() => setBannerVisible(false), 5000);
-    } else {
-      setBannerVisible(false);
-    }
-    return () => { if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current); };
-  }, [linkedEntry]);
 
   const frPrevShowDiaryHintRef = useRef(false);
   const frPrevShowActivationRef = useRef(false);
@@ -1973,15 +1959,7 @@ export function ChatPage() {
               </div>
             </div>
           )}
-          {linkedEntry && bannerVisible && (
-            <ChatLinkedJournalBanner
-              entry={linkedEntry}
-              onOpen={() => {
-                sessionStorage.setItem('diaryAutoOpen', linkedEntry.id);
-                setLocation('/journal');
-              }}
-            />
-          )}
+
           {showContinuationHint && (
             <p className="text-center text-[12.5px] text-app-muted py-3 px-4 animate-in fade-in duration-500">
               {latestCounselorStance === 'CONNECTION'
@@ -2104,16 +2082,31 @@ export function ChatPage() {
               </button>
             </div>
           ) : !activeCommitment && currentThreadId && (
-            <button
-              onClick={() => {
-                setShowCommitmentInput(true);
-                setTimeout(() => commitmentInputRef.current?.focus(), 0);
-              }}
-              className="mb-2 text-[11.5px] text-[#534AB7] hover:text-[#3C3489] transition-colors flex items-center gap-1"
-            >
-              <Plus size={11} />
-              Agregar compromiso
-            </button>
+            <div className="mb-2 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setShowCommitmentInput(true);
+                  setTimeout(() => commitmentInputRef.current?.focus(), 0);
+                }}
+                className="text-[11.5px] text-[#534AB7] hover:text-[#3C3489] transition-colors flex items-center gap-1"
+              >
+                <Plus size={11} />
+                Agregar compromiso
+              </button>
+              {linkedEntry && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sessionStorage.setItem('diaryAutoOpen', linkedEntry.id);
+                    setLocation('/journal');
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-full bg-sage-soft text-sage-strong text-[11px] font-medium hover:bg-sage-soft/80 transition-colors"
+                >
+                  <BookOpen size={11} />
+                  Reflexión guardada
+                </button>
+              )}
+            </div>
           )}
           <div className="flex gap-2 items-end">
             <textarea
