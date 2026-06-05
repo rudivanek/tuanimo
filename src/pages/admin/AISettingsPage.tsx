@@ -68,7 +68,12 @@ export function AISettingsPage() {
     setSaving(false);
   }
 
-  const isDirty = original && JSON.stringify(settings) !== JSON.stringify(original);
+  const isDirty = original && (
+    settings.chat_model           !== original.chat_model           ||
+    settings.history_cap_enabled  !== original.history_cap_enabled  ||
+    settings.history_cap_messages !== original.history_cap_messages ||
+    settings.max_tokens           !== original.max_tokens
+  );
   const capEnabled = settings.history_cap_enabled === 'true';
 
   if (loading) {
