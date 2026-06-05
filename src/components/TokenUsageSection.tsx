@@ -6,16 +6,26 @@ import { useTokenStatus } from '../hooks/useTokenStatus';
 import { Zap, DollarSign, TrendingUp, Calendar, Clock } from 'lucide-react';
 
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  'gpt-4o-mini': { input: 0.15, output: 0.60 },
-  'gpt-4o': { input: 2.50, output: 10.00 },
-  'gpt-4': { input: 30.00, output: 60.00 },
-  'gpt-3.5-turbo': { input: 0.50, output: 1.50 },
+  // Anthropic
+  'claude-sonnet-4-6':          { input: 3.00,  output: 15.00 },
+  'claude-opus-4-6':            { input: 15.00, output: 75.00 },
+  'claude-haiku-4-5-20251001':  { input: 0.80,  output: 4.00  },
+  'claude-haiku-4-5':           { input: 0.80,  output: 4.00  },
+  // OpenAI
+  'gpt-4o-mini':    { input: 0.15,  output: 0.60  },
+  'gpt-4o':         { input: 2.50,  output: 10.00 },
+  'gpt-4':          { input: 30.00, output: 60.00 },
+  'gpt-3.5-turbo':  { input: 0.50,  output: 1.50  },
 };
 
 const OPERATION_LABELS: Record<string, string> = {
-  chat: 'Chat con Elena',
-  journal_prompts: 'Sugerencias de escritura',
-  mood_insights: 'Insights de ánimo',
+  chat:                  'Chat con Elena',
+  journal_prompts:       'Sugerencias de escritura',
+  mood_insights:         'Insights de ánimo',
+  generate_title:        'Generación de títulos',
+  ai_reflection_prompt:  'Reflexiones del diario',
+  chat_to_journal:       'Resumen a diario',
+  ai_mini_insight:       'Micro-insights',
 };
 
 const PLAN_LABELS: Record<string, string> = {
@@ -95,12 +105,27 @@ function BudgetBar({ label, icon, used, limit, resetNote }: BudgetBarProps) {
   );
 }
 
+function getNextCycleReset(signupAt: string | null | undefined): string {
+  if (!signupAt) return '—';
+  const signup = new Date(signupAt);
+  const now = new Date();
+  const signupDay = signup.getDate();
+  let candidate = new Date(now.getFullYear(), now.getMonth(), signupDay,
+    signup.getHours(), signup.getMinutes(), signup.getSeconds());
+  if (candidate <= now) {
+    candidate = new Date(now.getFullYear(), now.getMonth() + 1, signupDay,
+      signup.getHours(), signup.getMinutes(), signup.getSeconds());
+  }
+  return candidate.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 export function TokenUsageSection() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
   const budget = useTokenStatus();
   const [aggregated, setAggregated] = useState<AggregatedOperation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const cycleResetLabel = getNextCycleReset(user?.created_at);
 
   useEffect(() => {
     if (!user) return;
@@ -167,14 +192,14 @@ export function TokenUsageSection() {
               icon={<Clock size={13} />}
               used={budget.dailyUsed}
               limit={budget.dailyLimit}
-              resetNote="Se restablece a las 00:00 UTC"
+              resetNote="Se restablece cada día a las 00:00 UTC"
             />
             <BudgetBar
-              label="Este mes"
+              label="Este ciclo"
               icon={<Calendar size={13} />}
               used={budget.monthlyUsed}
               limit={budget.monthlyLimit}
-              resetNote="Se restablece el 1 de cada mes"
+              resetNote={`Se renueva el ${cycleResetLabel}`}
             />
 
             {!isLoading && (
@@ -231,7 +256,7 @@ export function TokenUsageSection() {
           </div>
 
           <p className="text-[11px] text-app-muted mt-3 leading-relaxed">
-            Precios de referencia: gpt-4o-mini $0.15/1M tokens entrada · $0.60/1M tokens salida
+            Precios de referencia: Claude Sonnet $3.00/1M entrada · $15.00/1M salida · GPT-4o-mini $0.15/1M entrada · $0.60/1M salida
           </p>
         </div>
       )}
