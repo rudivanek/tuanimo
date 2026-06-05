@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { BarChart3, ChevronLeft, RefreshCw, AlertCircle, Inbox, Download, Users, List, Zap } from 'lucide-react';
+import { BarChart3, ChevronLeft, RefreshCw, AlertCircle, Inbox, Download, Users, List, Zap, MessageSquare } from 'lucide-react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
@@ -44,6 +44,24 @@ interface ModelRow {
   cache_write_tokens: number;
   total_tokens: number;
   cost_usd: number;
+}
+
+interface SessionRow {
+  usage_id: string;
+  user_email: string;
+  thread_id: string | null;
+  thread_title: string;
+  operation: string;
+  model: string;
+  created_at_local: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  total_tokens: number;
+  cost_usd: number;
+  cost_if_sonnet: number;
+  saving_pct: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -100,7 +118,7 @@ function CycleBar({ used, limit }: { used: number; limit: number }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-type ViewMode = 'detail' | 'summary' | 'models';
+type ViewMode = 'detail' | 'summary' | 'models' | 'sessions';
 
 export function TokenUsagePage() {
   const [viewMode, setViewMode]     = useState<ViewMode>('detail');
@@ -179,7 +197,23 @@ export function TokenUsagePage() {
       enabled: viewMode === 'models',
     });
 
-  const isFetching = viewMode === 'detail' ? fetchingRows : viewMode === 'summary' ? fetchingSummary : fetchingModels;
+  // Sessions tab data
+  const { data: sessionRows = [], isFetching: fetchingSessions, isError: errorSessions } =
+    useQuery<SessionRow[]>({
+      queryKey: ['admin-token-sessions', appliedUser, appliedFrom, appliedUntil],
+      queryFn: async () => {
+        const { data, error } = await supabase.rpc('admin_token_usage_sessions', {
+          p_date_from: appliedFrom, p_date_until: appliedUntil,
+          p_user_id: appliedUser || null,
+        });
+        if (error) throw error;
+        return data as SessionRow[];
+      },
+      staleTime: 0,
+      enabled: viewMode === 'sessions',
+    });
+
+  const isFetching = viewMode === 'detail' ? fetchingRows : viewMode === 'summary' ? fetchingSummary : viewMode === 'models' ? fetchingModels : fetchingSessions;
 
   const totals = useMemo(() => ({
     distinctUsers:    new Set(rows.map(r => r.user_id)).size,
@@ -191,6 +225,22 @@ export function TokenUsagePage() {
 
   // CSV export
   const handleExport = useCallback(() => {
+    if (viewMode === 'sessions') {
+      if (sessionRows.length === 0) return;
+      const esc = (v: string|number) => { const s=String(v); return s.includes(',')||s.includes('"')?`"${s.replace(/"/g,'""')}"`:`${s}`; };
+      const headers = ['Usuario','Chat','Operación','Modelo','Fecha/Hora','Tokens','Costo Real (USD)','Costo si Sonnet (USD)','Ahorro %'];
+      const data = sessionRows.map(r => [
+        r.user_email, r.thread_title, r.operation, r.model,
+        r.created_at_local.slice(0,19).replace('T',' '),
+        Number(r.total_tokens), Number(r.cost_usd), Number(r.cost_if_sonnet),
+        r.saving_pct === 0 ? 'baseline' : Number(r.saving_pct)+'%'
+      ]);
+      const csvLines = [headers,...data].map(r=>r.map(esc).join(','));
+      const csv = '\uFEFF' + csvLines.join('\n');
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})), download:`tuanimo-sesiones_${appliedFrom}_${appliedUntil}.csv` });
+      a.click(); URL.revokeObjectURL(a.href);
+      return;
+    }
     if (viewMode === 'models') {
       if (modelRows.length === 0) return;
       const esc = (v: string|number) => { const s=String(v); return s.includes(',')||s.includes('"')?`"${s.replace(/"/g,'""')}"`:`${s}`; };
@@ -273,11 +323,18 @@ export function TokenUsagePage() {
             >
               <Zap size={13} /> Modelos
             </button>
+            <button
+              onClick={() => setViewMode('sessions')}
+              title="Sesiones detalladas"
+              className={`flex items-center gap-1.5 h-7 px-3 rounded-[8px] text-xs font-medium transition-colors ${viewMode==='sessions' ? 'bg-sage-strong text-white' : 'text-app-muted hover:text-app-text'}`}
+            >
+              <MessageSquare size={13} /> Sesiones
+            </button>
           </div>
 
           <button
             onClick={handleExport}
-            disabled={(viewMode==='detail' ? rows.length===0 : viewMode==='summary' ? summaryRows.length===0 : modelRows.length===0) || isFetching}
+            disabled={(viewMode==='detail' ? rows.length===0 : viewMode==='summary' ? summaryRows.length===0 : viewMode==='models' ? modelRows.length===0 : sessionRows.length===0) || isFetching}
             title="Exportar a CSV"
             className="mt-0.5 flex items-center gap-2 h-9 px-4 rounded-10 bg-app-surface border border-app-border text-sm font-medium text-app-text hover:border-sage-strong hover:text-sage-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -573,6 +630,101 @@ export function TokenUsagePage() {
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        )}
+
+        {/* ── SESSIONS VIEW ── */}
+        {viewMode === 'sessions' && (
+          <div className="space-y-4">
+            <div className="bg-app-surface border border-app-border rounded-[16px] shadow-app p-5 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-3 items-end">
+                <div>
+                  <label className="text-[11px] font-medium text-app-muted uppercase tracking-wider block mb-1.5">Usuario</label>
+                  <select value={selectedUser} onChange={e=>setSelectedUser(e.target.value)}
+                    className="w-full h-10 px-3 rounded-10 bg-app-bg border border-app-border text-sm text-app-text focus:outline-none focus:border-sage-strong transition-colors">
+                    <option value="">Todos los usuarios</option>
+                    {users.map(u => <option key={u.user_id} value={u.user_id}>{u.user_label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-app-muted uppercase tracking-wider block mb-1.5">Desde</label>
+                  <input type="date" value={dateFrom} max={dateUntil} onChange={e=>setDateFrom(e.target.value)}
+                    className="h-10 px-3 rounded-10 bg-app-bg border border-app-border text-sm text-app-text focus:outline-none focus:border-sage-strong transition-colors" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-app-muted uppercase tracking-wider block mb-1.5">Hasta</label>
+                  <input type="date" value={dateUntil} min={dateFrom} onChange={e=>setDateUntil(e.target.value)}
+                    className="h-10 px-3 rounded-10 bg-app-bg border border-app-border text-sm text-app-text focus:outline-none focus:border-sage-strong transition-colors" />
+                </div>
+                <button onClick={handleApply} disabled={fetchingSessions}
+                  className="h-10 px-5 rounded-10 bg-sage-strong text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center gap-2">
+                  {fetchingSessions ? <RefreshCw size={14} className="animate-spin" /> : null}
+                  Aplicar
+                </button>
+              </div>
+              <button onClick={setLast30} className="text-[11px] font-medium text-app-muted hover:text-sage-strong underline underline-offset-2 transition-colors">
+                Últimos 30 días
+              </button>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-[12px] px-4 py-3 text-xs text-amber-700">
+              💡 El título del chat solo aparece en conversaciones iniciadas después del último deployment. Chats anteriores muestran "—".
+            </div>
+
+            <div className="bg-app-surface border border-app-border rounded-[16px] shadow-app overflow-hidden">
+              {fetchingSessions && sessionRows.length === 0 ? (
+                <div className="flex items-center justify-center h-40 gap-2 text-sm text-app-muted"><RefreshCw size={16} className="animate-spin" /> Cargando...</div>
+              ) : errorSessions ? (
+                <div className="flex items-center justify-center h-40 text-sm text-red-500">Error al cargar sesiones</div>
+              ) : sessionRows.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 gap-2 text-app-muted"><Inbox size={28} strokeWidth={1.5}/><p className="text-sm">Sin datos para el período seleccionado</p></div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-app-border">
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Usuario</th>
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Chat</th>
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Modelo</th>
+                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Fecha/Hora</th>
+                        <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Tokens</th>
+                        <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Costo real</th>
+                        <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Si Sonnet</th>
+                        <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Ahorro</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sessionRows.map(row => {
+                        const meta = MODEL_LABELS[row.model] ?? { label: row.model, color: 'text-app-text' };
+                        const isSonnet = row.model === 'claude-sonnet-4-6';
+                        const savingColor = row.saving_pct < 0 ? 'text-green-600 font-semibold' : row.saving_pct > 0 ? 'text-red-500' : 'text-app-muted';
+                        return (
+                          <tr key={row.usage_id} className="border-b border-app-border last:border-0 hover:bg-app-bg/60">
+                            <td className="px-4 py-3 text-app-text text-xs max-w-[140px] truncate">{row.user_email}</td>
+                            <td className="px-4 py-3 max-w-[180px]">
+                              <p className="text-xs text-app-text truncate">{row.thread_title}</p>
+                              <p className="text-[10px] text-app-muted">{row.operation}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-[11px] font-medium ${meta.color}`}>{meta.label}</span>
+                            </td>
+                            <td className="px-4 py-3 text-[11px] text-app-muted tabular-nums whitespace-nowrap">
+                              {row.created_at_local.slice(0,19).replace('T',' ')}
+                            </td>
+                            <td className="px-4 py-3 text-right text-xs text-app-text tabular-nums">{formatTokens(Number(row.total_tokens))}</td>
+                            <td className="px-4 py-3 text-right text-xs text-sage-strong tabular-nums font-semibold">{formatCost(Number(row.cost_usd))}</td>
+                            <td className="px-4 py-3 text-right text-xs text-app-muted tabular-nums">{formatCost(Number(row.cost_if_sonnet))}</td>
+                            <td className={`px-4 py-3 text-right text-xs tabular-nums ${savingColor}`}>
+                              {isSonnet ? <span className="text-app-muted">—</span> : `${Number(row.saving_pct) > 0 ? '+' : ''}${row.saving_pct}%`}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
