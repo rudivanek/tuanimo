@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { BarChart3, ChevronLeft, ChevronDown, ChevronRight, RefreshCw, AlertCircle, Inbox, Download, Users, List, Zap, MessageSquare } from 'lucide-react';
+import { BarChart3, ChevronLeft, RefreshCw, AlertCircle, Inbox, Download, Users, List, Zap, MessageSquare } from 'lucide-react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
@@ -46,6 +46,14 @@ interface ModelRow {
   cost_usd: number;
 }
 
+// Original baseline config (what was hardcoded before AI settings)
+const BASELINE = {
+  model:            'claude-sonnet-4-6',
+  history_cap:      false,
+  history_messages: 0,
+  max_tokens:       2500,
+};
+
 interface SessionRow {
   usage_id: string;
   user_email: string;
@@ -62,6 +70,10 @@ interface SessionRow {
   cost_usd: number;
   cost_if_sonnet: number;
   saving_pct: number;
+  cfg_model: string;
+  cfg_history_cap: boolean;
+  cfg_history_messages: number;
+  cfg_max_tokens: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -119,16 +131,21 @@ function CycleBar({ used, limit }: { used: number; limit: number }) {
 // ── Sessions view component ──────────────────────────────────────────────────
 
 interface ChatGroup {
-  key: string;           // thread_id or fallback key
+  key: string;
   thread_title: string;
   user_email: string;
-  rows: SessionRow[];
+  calls: number;
   total_tokens: number;
   cost_usd: number;
   cost_if_sonnet: number;
   saving_pct: number;
   models: string[];
   first_at: string;
+  cfg_models: string[];
+  cfg_history_cap: boolean;
+  cfg_history_messages: number;
+  cfg_max_tokens: number[];
+  is_baseline: boolean; // true if config matches original baseline
 }
 
 function buildGroups(rows: SessionRow[]): ChatGroup[] {
@@ -137,26 +154,48 @@ function buildGroups(rows: SessionRow[]): ChatGroup[] {
     const key = row.thread_id ?? `no-thread-${row.user_email}-${row.created_at_local.slice(0,10)}`;
     if (!map.has(key)) {
       map.set(key, {
-        key, thread_title: row.thread_title, user_email: row.user_email,
-        rows: [], total_tokens: 0, cost_usd: 0, cost_if_sonnet: 0,
-        saving_pct: 0, models: [], first_at: row.created_at_local,
+        key,
+        thread_title: row.thread_title,
+        user_email: row.user_email,
+        calls: 0,
+        total_tokens: 0,
+        cost_usd: 0,
+        cost_if_sonnet: 0,
+        saving_pct: 0,
+        models: [],
+        first_at: row.created_at_local,
+        cfg_models: [],
+        cfg_history_cap: false,
+        cfg_history_messages: 0,
+        cfg_max_tokens: [],
+        is_baseline: true,
       });
     }
     const g = map.get(key)!;
-    g.rows.push(row);
-    g.total_tokens    += Number(row.total_tokens);
-    g.cost_usd        += Number(row.cost_usd);
-    g.cost_if_sonnet  += Number(row.cost_if_sonnet);
+    g.calls          += 1;
+    g.total_tokens   += Number(row.total_tokens);
+    g.cost_usd       += Number(row.cost_usd);
+    g.cost_if_sonnet += Number(row.cost_if_sonnet);
     if (!g.models.includes(row.model)) g.models.push(row.model);
     if (row.created_at_local < g.first_at) g.first_at = row.created_at_local;
+    // Config tracking
+    if (row.cfg_model && !g.cfg_models.includes(row.cfg_model)) g.cfg_models.push(row.cfg_model);
+    if (row.cfg_history_cap) g.cfg_history_cap = true;
+    if (row.cfg_history_messages > 0) g.cfg_history_messages = row.cfg_history_messages;
+    if (row.cfg_max_tokens && !g.cfg_max_tokens.includes(row.cfg_max_tokens)) g.cfg_max_tokens.push(row.cfg_max_tokens);
+    // Check if differs from baseline
+    if (row.cfg_model !== BASELINE.model ||
+        row.cfg_history_cap !== BASELINE.history_cap ||
+        row.cfg_max_tokens !== BASELINE.max_tokens) {
+      g.is_baseline = false;
+    }
   }
-  // Compute group saving_pct
   for (const g of map.values()) {
     g.saving_pct = g.cost_if_sonnet > 0
-      ? Math.round((g.cost_usd - g.cost_if_sonnet) / g.cost_if_sonnet * 100 * 10) / 10
+      ? Math.round((g.cost_usd - g.cost_if_sonnet) / g.cost_if_sonnet * 1000) / 10
       : 0;
   }
-  return Array.from(map.values());
+  return Array.from(map.values()).sort((a, b) => b.first_at.localeCompare(a.first_at));
 }
 
 function SessionsView({
@@ -171,16 +210,13 @@ function SessionsView({
   handleApply: () => void; setLast30: () => void;
   users: UserOption[];
 }) {
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const groups = useMemo(() => buildGroups(sessionRows), [sessionRows]);
 
-  function toggleKey(key: string) {
-    setExpandedKeys(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  }
+  const totalReal   = groups.reduce((s, g) => s + g.cost_usd, 0);
+  const totalSonnet = groups.reduce((s, g) => s + g.cost_if_sonnet, 0);
+  const totalSaving = totalSonnet > 0
+    ? Math.round((totalReal - totalSonnet) / totalSonnet * 1000) / 10
+    : 0;
 
   return (
     <div className="space-y-4">
@@ -216,63 +252,99 @@ function SessionsView({
         </button>
       </div>
 
+      {/* Summary cards */}
+      {groups.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-app-surface border border-app-border rounded-[12px] p-4">
+            <p className="text-[11px] font-medium text-app-muted uppercase tracking-wider mb-1">Costo real</p>
+            <p className="text-xl font-semibold text-sage-strong">{formatCost(totalReal)}</p>
+            <p className="text-[11px] text-app-muted mt-0.5">con modelo activo</p>
+          </div>
+          <div className="bg-app-surface border border-app-border rounded-[12px] p-4">
+            <p className="text-[11px] font-medium text-app-muted uppercase tracking-wider mb-1">Si fuera Sonnet</p>
+            <p className="text-xl font-semibold text-app-text">{formatCost(totalSonnet)}</p>
+            <p className="text-[11px] text-app-muted mt-0.5">costo equivalente</p>
+          </div>
+          <div className="bg-app-surface border border-app-border rounded-[12px] p-4">
+            <p className="text-[11px] font-medium text-app-muted uppercase tracking-wider mb-1">Ahorro total</p>
+            <p className={`text-xl font-semibold ${totalSaving < 0 ? 'text-green-600' : totalSaving > 0 ? 'text-red-500' : 'text-app-text'}`}>
+              {totalSaving === 0 ? '—' : `${totalSaving > 0 ? '+' : ''}${totalSaving}%`}
+            </p>
+            <p className="text-[11px] text-app-muted mt-0.5">{formatCost(Math.abs(totalReal - totalSonnet))} {totalReal < totalSonnet ? 'ahorrado' : 'extra'}</p>
+          </div>
+        </div>
+      )}
+
       <div className="bg-amber-50 border border-amber-200 rounded-[12px] px-4 py-3 text-xs text-amber-700">
-        💡 El título aparece solo en chats iniciados después del último deployment. Chats anteriores agrupan por fecha.
+        💡 Título del chat disponible solo en conversaciones iniciadas después del último deployment.
       </div>
 
-      {/* Grouped table */}
+      {/* Flat table — one row per chat */}
       <div className="bg-app-surface border border-app-border rounded-[16px] shadow-app overflow-hidden">
         {fetchingSessions && sessionRows.length === 0 ? (
-          <div className="flex items-center justify-center h-40 gap-2 text-sm text-app-muted"><RefreshCw size={16} className="animate-spin" /> Cargando...</div>
+          <div className="flex items-center justify-center h-40 gap-2 text-sm text-app-muted">
+            <RefreshCw size={16} className="animate-spin" /> Cargando...
+          </div>
         ) : errorSessions ? (
           <div className="flex items-center justify-center h-40 text-sm text-red-500">Error al cargar sesiones</div>
         ) : groups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 gap-2 text-app-muted"><Inbox size={28} strokeWidth={1.5}/><p className="text-sm">Sin datos para el período seleccionado</p></div>
+          <div className="flex flex-col items-center justify-center h-40 gap-2 text-app-muted">
+            <Inbox size={28} strokeWidth={1.5}/>
+            <p className="text-sm">Sin datos para el período seleccionado</p>
+          </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-app-border">
-                <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider w-6"></th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Chat</th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Usuario</th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Modelos</th>
-                <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Llamadas</th>
-                <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Tokens</th>
-                <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Costo real</th>
-                <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Si Sonnet</th>
-                <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Ahorro</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groups.map(g => {
-                const isOpen = expandedKeys.has(g.key);
-                const allSonnet = g.models.every(m => m === 'claude-sonnet-4-6');
-                const savingColor = g.saving_pct < 0 ? 'text-green-600 font-semibold' : g.saving_pct > 0 ? 'text-red-500' : 'text-app-muted';
-                return (
-                  <>
-                    {/* Group summary row */}
-                    <tr
-                      key={`g-${g.key}`}
-                      onClick={() => toggleKey(g.key)}
-                      className="border-b border-app-border cursor-pointer hover:bg-sage-strong/5 transition-colors"
-                    >
-                      <td className="px-4 py-3 text-app-muted">
-                        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-app-border">
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Chat</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Usuario</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Modelo</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Configuración</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Llamadas</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Tokens</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Costo real</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Si Sonnet</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider">Ahorro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groups.map(g => {
+                  const allSonnet = g.models.every(m => m === 'claude-sonnet-4-6');
+                  const savingColor = g.saving_pct < 0 ? 'text-green-600 font-semibold' : g.saving_pct > 0 ? 'text-red-500' : 'text-app-muted';
+                  return (
+                    <tr key={g.key} className="border-b border-app-border last:border-0 hover:bg-app-bg/60">
                       <td className="px-4 py-3 max-w-[200px]">
-                        <p className="text-sm font-semibold text-app-text truncate">{g.thread_title}</p>
+                        <p className="text-sm font-medium text-app-text truncate">{g.thread_title}</p>
                         <p className="text-[10px] text-app-muted">{g.first_at.slice(0,10)}</p>
                       </td>
-                      <td className="px-4 py-3 text-xs text-app-muted truncate max-w-[140px]">{g.user_email}</td>
+                      <td className="px-4 py-3 text-xs text-app-muted max-w-[140px] truncate">{g.user_email}</td>
                       <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-col gap-0.5">
                           {g.models.map(m => {
                             const meta = MODEL_LABELS[m] ?? { label: m, color: 'text-app-text' };
-                            return <span key={m} className={`text-[10px] font-medium ${meta.color}`}>{meta.label}</span>;
+                            return <span key={m} className={`text-[11px] font-medium ${meta.color}`}>{meta.label}</span>;
                           })}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right text-xs text-app-muted tabular-nums">{g.rows.length}</td>
+                      <td className="px-4 py-3">
+                        {g.is_baseline ? (
+                          <span className="text-[10px] text-app-muted">Original</span>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            {g.cfg_history_cap && (
+                              <span className="text-[10px] text-amber-600 font-medium">Cap: {g.cfg_history_messages} msgs</span>
+                            )}
+                            {g.cfg_max_tokens.filter(t => t !== BASELINE.max_tokens).map(t => (
+                              <span key={t} className="text-[10px] text-blue-500 font-medium">Max: {t} tokens</span>
+                            ))}
+                            {g.cfg_models.some(m => m !== BASELINE.model) && (
+                              <span className="text-[10px] text-purple-500 font-medium">Modelo cambiado</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs text-app-muted tabular-nums">{g.calls}</td>
                       <td className="px-4 py-3 text-right text-xs text-app-text tabular-nums font-medium">{formatTokens(g.total_tokens)}</td>
                       <td className="px-4 py-3 text-right text-xs text-sage-strong tabular-nums font-semibold">{formatCost(g.cost_usd)}</td>
                       <td className="px-4 py-3 text-right text-xs text-app-muted tabular-nums">{formatCost(g.cost_if_sonnet)}</td>
@@ -280,43 +352,33 @@ function SessionsView({
                         {allSonnet ? '—' : `${g.saving_pct > 0 ? '+' : ''}${g.saving_pct}%`}
                       </td>
                     </tr>
-
-                    {/* Expanded detail rows */}
-                    {isOpen && g.rows.map(row => {
-                      const meta = MODEL_LABELS[row.model] ?? { label: row.model, color: 'text-app-text' };
-                      const isSonnet = row.model === 'claude-sonnet-4-6';
-                      const sc = Number(row.saving_pct) < 0 ? 'text-green-600' : Number(row.saving_pct) > 0 ? 'text-red-500' : 'text-app-muted';
-                      return (
-                        <tr key={row.usage_id} className="border-b border-app-border last:border-0 bg-app-bg/40">
-                          <td className="px-4 py-2" />
-                          <td className="px-4 py-2" colSpan={2}>
-                            <span className="text-[10px] text-app-muted">{row.operation} · {row.created_at_local}</span>
-                          </td>
-                          <td className="px-4 py-2">
-                            <span className={`text-[10px] font-medium ${meta.color}`}>{meta.label}</span>
-                          </td>
-                          <td className="px-4 py-2 text-right text-[10px] text-app-muted tabular-nums">1</td>
-                          <td className="px-4 py-2 text-right text-[10px] text-app-text tabular-nums">{formatTokens(Number(row.total_tokens))}</td>
-                          <td className="px-4 py-2 text-right text-[10px] text-sage-strong tabular-nums">{formatCost(Number(row.cost_usd))}</td>
-                          <td className="px-4 py-2 text-right text-[10px] text-app-muted tabular-nums">{formatCost(Number(row.cost_if_sonnet))}</td>
-                          <td className={`px-4 py-2 text-right text-[10px] tabular-nums ${sc}`}>
-                            {isSonnet ? '—' : `${Number(row.saving_pct) > 0 ? '+' : ''}${row.saving_pct}%`}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
+                  );
+                })}
+              </tbody>
+              {groups.length > 1 && (
+                <tfoot>
+                  <tr className="bg-app-bg/60 border-t-2 border-app-border">
+                    <td className="px-4 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider" colSpan={5}>Total</td>
+                    <td className="px-4 py-3 text-right font-semibold text-app-text tabular-nums text-xs">
+                      {formatTokens(groups.reduce((s,g)=>s+g.total_tokens,0))}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-sage-strong tabular-nums text-xs">{formatCost(totalReal)}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-app-muted tabular-nums text-xs">{formatCost(totalSonnet)}</td>
+                    <td className={`px-4 py-3 text-right font-semibold tabular-nums text-xs ${totalSaving < 0 ? 'text-green-600' : totalSaving > 0 ? 'text-red-500' : 'text-app-muted'}`}>
+                      {totalSaving === 0 ? '—' : `${totalSaving > 0 ? '+' : ''}${totalSaving}%`}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Main page ─────────────────────────────────────────────────────────────────// ── Main page ─────────────────────────────────────────────────────────────────
 
 type ViewMode = 'detail' | 'summary' | 'models' | 'sessions';
 
