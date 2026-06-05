@@ -127,7 +127,7 @@ export function TokenUsageSection() {
   const [aggregated, setAggregated] = useState<AggregatedOperation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const cycleResetLabel = getNextCycleReset(user?.created_at);
-  const { isAdmin } = useAdmin();
+  const { data: isAdmin } = useAdmin();
 
   useEffect(() => {
     if (!user) return;
