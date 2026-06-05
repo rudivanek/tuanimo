@@ -36,7 +36,11 @@ export function AISettingsPage() {
     const { data, error } = await supabase
       .from('ai_settings')
       .select('key, value');
-    if (error) { setLoading(false); return; }
+    if (error) { 
+      console.error('ai_settings load error:', error);
+      setLoading(false); 
+      return; 
+    }
     const map: Record<string, string> = {};
     (data ?? []).forEach((r: { key: string; value: string }) => { map[r.key] = r.value; });
     const loaded: AiSettings = {
@@ -68,12 +72,7 @@ export function AISettingsPage() {
     setSaving(false);
   }
 
-  const isDirty = original && (
-    settings.chat_model           !== original.chat_model           ||
-    settings.history_cap_enabled  !== original.history_cap_enabled  ||
-    settings.history_cap_messages !== original.history_cap_messages ||
-    settings.max_tokens           !== original.max_tokens
-  );
+  const isDirty = true; // always allow saving
   const capEnabled = settings.history_cap_enabled === 'true';
 
   if (loading) {
