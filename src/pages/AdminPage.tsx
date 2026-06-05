@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { BarChart3, Bot, CreditCard, DollarSign, Shield, Users, AlertTriangle, AlertCircle, SlidersHorizontal, Mail } from 'lucide-react';
+import { BarChart3, CreditCard, DollarSign, Shield, Users, AlertTriangle, AlertCircle, SlidersHorizontal, Mail } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 
 interface NavCard {
@@ -57,12 +57,6 @@ const adminNav: NavCard[] = [
     icon: Mail,
     title: 'Campañas de Email',
     description: 'Configura recordatorios e insights: frecuencia, elegibilidad y excepciones por usuario para pruebas.',
-  },
-  {
-    href: '/admin/ai-settings',
-    icon: Bot,
-    title: 'Configuración IA',
-    description: 'Cambia el modelo de Elena, limita el historial y ajusta parámetros de respuesta en tiempo real.',
   },
 ];
 

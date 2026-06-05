@@ -892,7 +892,7 @@ async function enforceBudget(userId: string): Promise<Response | null> {
   );
 }
 
-async function logTokenUsageAndIncrement(userId: string, operation: string, model: string, usage: TokenUsage | null, threadId?: string) {
+async function logTokenUsageAndIncrement(userId: string, operation: string, model: string, usage: TokenUsage | null) {
   const svc = getServiceClient();
   const safeUsage = {
     prompt_tokens: usage?.prompt_tokens ?? 0,
@@ -903,16 +903,7 @@ async function logTokenUsageAndIncrement(userId: string, operation: string, mode
   };
   const { error: insertError } = await svc.from("token_usage").insert({
     user_id: userId, operation, model, ...safeUsage,
-    ...(threadId ? { thread_id: threadId } : {}),
-    metadata: {
-      ...(usage === null ? { usage_missing: true } : {}),
-      config: {
-        model: model,
-        history_cap_enabled: historyCapEnabled,
-        history_cap_messages: historyCapMessages,
-        max_tokens: maxTokens,
-      },
-    },
+    ...(usage === null ? { metadata: { usage_missing: true } } : {}),
   });
   if (insertError) console.error("TOKEN_USAGE_LOG_FAILED", JSON.stringify(insertError), { userId, operation });
 }
@@ -1211,27 +1202,6 @@ They just indicated they did not complete it, or not fully. Do NOT treat this as
       : '';
 
     // ── NEW EXISTENTIAL SYSTEM PROMPT ─────────────────────────────────────────
-    // ── Read AI settings from DB ──────────────────────────────────────────
-    let chatModel = 'claude-sonnet-4-6';
-    let historyCapEnabled = false;
-    let historyCapMessages = 12;
-    let maxTokens = 1024;
-    try {
-      const { data: settingsData } = await supabase.rpc('get_ai_settings');
-      if (settingsData) {
-        chatModel           = settingsData.chat_model           ?? chatModel;
-        historyCapEnabled   = settingsData.history_cap_enabled  === 'true';
-        historyCapMessages  = parseInt(settingsData.history_cap_messages ?? '12', 10);
-        maxTokens           = parseInt(settingsData.max_tokens            ?? '1024', 10);
-      }
-    } catch (_) { /* use defaults */ }
-
-    // Apply history cap if enabled
-    if (historyCapEnabled && conversationHistory && conversationHistory.length > historyCapMessages) {
-      conversationHistory = conversationHistory.slice(-historyCapMessages);
-    }
-    // ─────────────────────────────────────────────────────────────────────
-
     const systemPrompt = `You are Elena, an emotionally intelligent AI companion inside a mental wellness app called TuAnimo.
 
 Your therapeutic foundation is existential therapy — grounded in the work of Irvin Yalom and Viktor Frankl.
@@ -1718,8 +1688,8 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
 
     function buildAnthropicBody(msgs: Array<{ role: string; content: string }>) {
       return JSON.stringify({
-        model: chatModel,
-        max_tokens: maxTokens,
+        model: "claude-sonnet-4-6",
+        max_tokens: 2500,
         temperature: 0.8,
         system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
         messages: msgs,
@@ -1825,14 +1795,14 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
           console.log("[chat-ai] Retry succeeded");
         } else {
           console.warn("[chat-ai] Retry also empty — using fallback");
-          EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", chatModel, retryUsage, threadId));
+          EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", "claude-sonnet-4-6", retryUsage));
         }
       } else {
         console.warn("[chat-ai] Retry Anthropic call failed");
       }
     }
 
-    EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", chatModel, usage, threadId));
+    EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", "claude-sonnet-4-6", usage));
 
     if (!aiResponse.meta) {
       aiResponse.meta = { state: "E3_EXPAND", emotion: "unknown", intensity: 5, valence: "neutral", stuck: false, crisis: "NO" };
@@ -1856,8 +1826,8 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
       console.warn("[chat-ai] Banned label detected — retrying once", { snippet: aiResponse.reply.slice(0, 120) });
       const guardSystemContent = systemPrompt + "\n\nCRITICAL OVERRIDE: Your previous response contained a banned feeling label or forbidden phrase. Rewrite the COMPLETE response using only experiential, sensory language. Do NOT use: confusión, desorientación, ansiedad, tristeza, angustia, frustración, agotamiento, bloqueo emocional, estado emocional, a veces, es comprensible, es normal, es natural. Every sentence must pass SELF-CHECK before you output.";
       const guardBody = JSON.stringify({
-        model: chatModel,
-        max_tokens: maxTokens,
+        model: "claude-sonnet-4-6",
+        max_tokens: 2500,
         temperature: 0.8,
         system: [{ type: "text", text: guardSystemContent, cache_control: { type: "ephemeral" } }],
         messages: [
@@ -1874,7 +1844,7 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
         if (guardTrimmed.length > 0 && !containsBannedLabel(guardTrimmed)) {
           aiResponse.reply = guardTrimmed;
           aiResponse.meta = guardParsed.meta ?? aiResponse.meta;
-          EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", chatModel, extractUsage(guardData), threadId));
+          EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", "claude-sonnet-4-6", extractUsage(guardData)));
           console.log("[chat-ai] Guard retry produced clean reply");
         } else {
           console.warn("[chat-ai] Guard retry still tainted — using safe fallback");
