@@ -23,6 +23,7 @@ const PlanLimitsPage     = lazy(() => import('./pages/admin/PlanLimitsPage').the
 const AdminEmailPage     = lazy(() => import('./pages/admin/AdminEmailPage').then(m => ({ default: m.AdminEmailPage })));
 const CostPerCyclePage   = lazy(() => import('./pages/admin/CostPerCyclePage').then(m => ({ default: m.CostPerCyclePage })));
 const AISettingsPage     = lazy(() => import('./pages/admin/AISettingsPage').then(m => ({ default: m.AISettingsPage })));
+const ElenaMemoryPage    = lazy(() => import('./pages/ElenaMemoryPage').then(m => ({ default: m.ElenaMemoryPage })));
 
 function LoadingScreen() {
   return (
@@ -73,6 +74,7 @@ const JournalRoute       = () => <ProtectedRoute component={JournalPage} />;
 const InsightsRoute      = () => <ProtectedRoute component={InsightsPage} />;
 const SettingsRoute      = () => <ProtectedRoute component={SettingsPage} />;
 const PracticasRoute     = () => <ProtectedRoute component={PracticasPage} />;
+const ElenaMemoryRoute   = () => <ProtectedRoute component={ElenaMemoryPage} />;
 const AdminPageRoute     = () => <AdminRoute component={AdminPage} />;
 const TokenUsageRoute    = () => <AdminRoute component={TokenUsagePage} />;
 const TokenCostsRoute    = () => <AdminRoute component={TokenCostsPage} />;
@@ -105,6 +107,7 @@ function App() {
         <Route path="/practicas"             component={PracticasRoute} />
         <Route path="/insights"              component={InsightsRoute} />
         <Route path="/settings"              component={SettingsRoute} />
+        <Route path="/memory"               component={ElenaMemoryRoute} />
         <Route path="/admin"                 component={AdminPageRoute} />
         <Route path="/admin/cost-per-cycle"  component={CostPerCycleRoute} />
         <Route path="/admin/token-usage"     component={TokenUsageRoute} />
