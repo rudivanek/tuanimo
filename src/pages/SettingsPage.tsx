@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Volume2, VolumeX, Bell, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
+import { LogOut, Volume2, VolumeX, Bell, RefreshCw, Trash2, AlertTriangle, Brain, ChevronRight } from 'lucide-react';
 import { TokenUsageSection } from '../components/TokenUsageSection';
 import { useSoundSettings } from '../hooks/useSoundSettings';
 import { supabase } from '../lib/supabaseClient';
@@ -228,6 +229,19 @@ export function SettingsPage() {
 
         <TokenUsageSection />
 
+        {/* Memory */}
+        <button
+          onClick={() => navigate('/memory')}
+          className="w-full bg-app-surface rounded-[16px] shadow-app border border-app-border p-5 flex items-center gap-3 hover:bg-app-surface/80 transition-colors text-left"
+        >
+          <Brain size={18} className="text-primary flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-app-text">Memoria de Elena</p>
+            <p className="text-xs text-app-muted mt-0.5">Ve y elimina lo que Elena recuerda de ti</p>
+          </div>
+          <ChevronRight size={16} className="text-app-muted" />
+        </button>
+
         {/* ── Sound settings ── */}
         <div className="bg-app-surface rounded-[16px] shadow-app border border-app-border p-5">
           <div className="flex items-center gap-2 mb-1">
@@ -390,4 +404,5 @@ export function SettingsPage() {
       )}
     </div>
   );
-}
+}  const [, navigate] = useLocation();
+
