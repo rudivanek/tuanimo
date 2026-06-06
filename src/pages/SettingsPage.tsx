@@ -198,6 +198,7 @@ function DeleteAccountDialog({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
+  const [, navigate] = useLocation();
   const { signOut, user } = useAuth();
   const { settings, update: updateSound, isSaving: isSavingSound } = useSoundSettings();
   const { prefs, loading: loadingPrefs, savingField, update: updateEmailPref } = useEmailPrefs();
@@ -212,7 +213,6 @@ export function SettingsPage() {
     setDeleteError(null);
     try {
       await deleteOwnAccount();
-      // deleteOwnAccount signs out — user will be redirected by AuthContext
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Error al eliminar cuenta');
       setDeleteLoading(false);
@@ -229,7 +229,7 @@ export function SettingsPage() {
 
         <TokenUsageSection />
 
-        {/* Memory */}
+        {/* ── Memory ── */}
         <button
           onClick={() => navigate('/memory')}
           className="w-full bg-app-surface rounded-[16px] shadow-app border border-app-border p-5 flex items-center gap-3 hover:bg-app-surface/80 transition-colors text-left"
@@ -404,5 +404,4 @@ export function SettingsPage() {
       )}
     </div>
   );
-}  const [, navigate] = useLocation();
-
+}
