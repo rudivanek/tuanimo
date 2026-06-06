@@ -12,6 +12,7 @@ import { extractLanguageSignals } from '../lib/languageSignals';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { detectTopicRepetition } from '../lib/diaryDraft';
 import { BookOpen, Plus, Sparkles, Calendar, Tag, Trash2, GripVertical, ArrowLeft, Lock, Download, MessageCircle, X, ChevronRight, Check, Star } from 'lucide-react';
+import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { getActiveCommitment, createCommitment, type Commitment } from '../lib/commitments';
 import { useLatestInsightAt } from '../hooks/useLatestInsightAt';
 import { hasNewInsightsSinceLastView } from '../lib/insightVisibility';
@@ -88,6 +89,8 @@ export function JournalPage() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showManagePanel, setShowManagePanel] = useState(false);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState(false);
   const [prompts, setPrompts] = useState<string[]>([]);
   const [isNewEntry, setIsNewEntry] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
@@ -692,9 +695,15 @@ export function JournalPage() {
     return false;
   };
 
-  const deleteEntry = async (entryId: string, e: React.MouseEvent) => {
+  const deleteEntry = (entryId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('¿Eliminar esta entrada del diario?')) return;
+    setEntryToDelete(entryId);
+  };
+
+  const confirmDeleteEntry = async () => {
+    const entryId = entryToDelete;
+    if (!entryId) return;
+    setDeletingEntry(true);
 
     await supabase.from('journal_entries').delete().eq('id', entryId);
 
@@ -717,6 +726,9 @@ export function JournalPage() {
     );
 
     queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+
+    setDeletingEntry(false);
+    setEntryToDelete(null);
   };
 
   const handleDragStart = (e: React.DragEvent, entryId: string) => {
@@ -1973,6 +1985,17 @@ export function JournalPage() {
           content={reflectionContent}
           onClose={handleCloseViewer}
           onUseReflection={handleUseReflectionFromModal}
+        />
+      )}
+
+      {entryToDelete && (
+        <ConfirmDeleteDialog
+          title="Eliminar entrada"
+          message="Se eliminará permanentemente esta entrada del diario. Esta acción no se puede deshacer."
+          confirmLabel="Eliminar"
+          loading={deletingEntry}
+          onCancel={() => { if (!deletingEntry) setEntryToDelete(null); }}
+          onConfirm={confirmDeleteEntry}
         />
       )}
     </div>
