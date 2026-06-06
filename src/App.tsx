@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
 import { Layout } from './components/Layout';
 import { InstallPrompt } from './components/InstallPrompt';
+import { OnboardingTour } from './components/OnboardingTour';
 
 const ResetPasswordPage  = lazy(() => import('./pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })));
 const JournalPage    = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
@@ -125,6 +126,9 @@ function App() {
 
       {/* PWA install prompt — only shows on mobile, only when logged in, only if not already installed */}
       <InstallPrompt />
+
+      {/* Onboarding tour — auto-shows for first-time users, re-openable from Settings */}
+      {user && <OnboardingTour />}
     </>
   );
 }
