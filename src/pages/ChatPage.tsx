@@ -11,6 +11,7 @@ import { loadElenaMemories, type ElenaMemoryNote } from '../lib/elenaMemory';
 import { DevPanel } from '../components/DevPanel';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { Send, MessageCircle, Trash2, GripVertical, ArrowLeft, Plus, Lock, Pencil, Check, X, Download, BookOpen } from 'lucide-react';
+import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { getPreferredGreetingName } from '../lib/welcomeMessages';
 import { getLastUserChatTimestamp, buildContextualGreeting, getInsightSnippetForReturn, buildReturnGreetingWithInsight, getChatSignalForReturn, buildReturnGreetingWithSignal, getFirstSessionTopicEnc, buildReturnGreetingWithMemory } from '../lib/contextualGreeting';
 import { FollowUpBox } from '../components/FollowUpBox';
@@ -123,6 +124,8 @@ export function ChatPage() {
   const commitmentInputRef = useRef<HTMLInputElement>(null);
   const [pendingElenaCommitment, setPendingElenaCommitment] = useState<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [threadToDelete, setThreadToDelete] = useState<string | null>(null);
+  const [deletingThread, setDeletingThread] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [securityError, setSecurityError] = useState(false);
@@ -588,9 +591,15 @@ export function ChatPage() {
     return null;
   };
 
-  const deleteThread = async (threadId: string, e: React.MouseEvent) => {
+  const requestDeleteThread = (threadId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('¿Eliminar esta conversación y todos sus mensajes?')) return;
+    setThreadToDelete(threadId);
+  };
+
+  const confirmDeleteThread = async () => {
+    const threadId = threadToDelete;
+    if (!threadId) return;
+    setDeletingThread(true);
 
     await supabase.from('chat_threads').delete().eq('id', threadId);
 
@@ -609,6 +618,9 @@ export function ChatPage() {
         supabase.from('chat_threads').update({ sort_order: t.sort_order }).eq('id', t.id)
       )
     );
+
+    setDeletingThread(false);
+    setThreadToDelete(null);
   };
 
   const handleDragStart = (e: React.DragEvent, threadId: string) => {
@@ -1649,7 +1661,7 @@ export function ChatPage() {
                         <Pencil size={13} />
                       </button>
                       <button
-                        onClick={(e) => deleteThread(thread.id, e)}
+                        onClick={(e) => requestDeleteThread(thread.id, e)}
                         title="Eliminar conversación"
                         className="p-1.5 rounded-lg hover:bg-red-50 text-app-muted hover:text-danger transition-colors"
                       >
@@ -2147,6 +2159,17 @@ export function ChatPage() {
         onClose={() => setShowConvertModal(false)}
         onConfirm={handleConvertToJournal}
       />
+
+      {threadToDelete && (
+        <ConfirmDeleteDialog
+          title="Eliminar conversación"
+          message="Se eliminarán permanentemente esta conversación y todos sus mensajes. Esta acción no se puede deshacer."
+          confirmLabel="Eliminar"
+          loading={deletingThread}
+          onCancel={() => { if (!deletingThread) setThreadToDelete(null); }}
+          onConfirm={confirmDeleteThread}
+        />
+      )}
 
       {import.meta.env.DEV && <DevPanel />}
     </div>
