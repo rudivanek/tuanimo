@@ -192,6 +192,95 @@ export function formatDiaryExport(
   return { filename, mime, content };
 }
 
+export function formatAllDiariesExport(
+  entries: DiaryExportEntry[],
+  format: ExportFormat,
+): ExportResult {
+  const exportedAt = new Date().toISOString();
+  const dateStr = formatDate(exportedAt);
+  const filename = `tuanimo-diario-completo__${dateStr}.${format}`;
+  const mime = format === 'md' ? 'text/markdown' : 'text/plain';
+  const count = entries.length;
+
+  // Newest first, matching the in-app ordering.
+  const ordered = [...entries].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
+  let content: string;
+
+  if (format === 'md') {
+    const parts: string[] = [
+      `# Diario completo — Tu-Animo`,
+      ``,
+      `- **App:** Tu-Animo.app`,
+      `- **Exportado:** ${exportedAt}`,
+      `- **Total de entradas:** ${count}`,
+      ``,
+      `> Este archivo contiene todas tus entradas del diario sin cifrar. Guárdalo en un lugar seguro.`,
+      ``,
+      `---`,
+      ``,
+    ];
+
+    ordered.forEach((entry, idx) => {
+      const title = entry.title?.trim() || 'Sin título';
+      const tagsStr = entry.tags?.length ? entry.tags.join(', ') : '—';
+      const body = normalizeNewlines(entry.content?.trim() || '(vacío)');
+      parts.push(
+        `## ${idx + 1}. ${title}`,
+        ``,
+        `- **Creado:** ${formatTimestamp(entry.created_at)}`,
+        `- **Etiquetas:** ${tagsStr}`,
+        ``,
+        body,
+      );
+      if (entry.prompt) {
+        parts.push(``, `**Sugerencia de escritura:** ${entry.prompt}`);
+      }
+      parts.push(``, `---`, ``);
+    });
+
+    content = parts.join('\n');
+  } else {
+    const parts: string[] = [
+      `DIARIO COMPLETO — TU-ANIMO`,
+      `==========================================`,
+      `App:      Tu-Animo.app`,
+      `Exportado: ${exportedAt}`,
+      `Entradas: ${count}`,
+      ``,
+      `Este archivo contiene todas tus entradas del diario`,
+      `sin cifrar. Guardalo en un lugar seguro.`,
+      `==========================================`,
+      ``,
+    ];
+
+    ordered.forEach((entry, idx) => {
+      const title = entry.title?.trim() || 'Sin título';
+      const tagsStr = entry.tags?.length ? entry.tags.join(', ') : '—';
+      const body = normalizeNewlines(entry.content?.trim() || '(vacío)');
+      parts.push(
+        `------------------------------------------`,
+        `${idx + 1}. ${title}`,
+        `Creado:    ${formatTimestamp(entry.created_at)}`,
+        `Etiquetas: ${tagsStr}`,
+        `------------------------------------------`,
+        ``,
+        body,
+      );
+      if (entry.prompt) {
+        parts.push(``, `Sugerencia de escritura: ${entry.prompt}`);
+      }
+      parts.push(``, ``);
+    });
+
+    content = parts.join('\n');
+  }
+
+  return { filename, mime, content };
+}
+
 export function downloadContent(filename: string, mime: string, content: string): void {
   const blob = new Blob([content], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);
