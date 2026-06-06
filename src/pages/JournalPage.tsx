@@ -22,7 +22,7 @@ import { JournalStorageBanner } from '../components/JournalStorageBanner';
 import { LargestEntriesPanel } from '../components/LargestEntriesPanel';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { useJournalStorage } from '../hooks/useJournalStorage';
-import { formatDiaryExport } from '../lib/exportUtils';
+import { formatDiaryExport, formatAllDiariesExport } from '../lib/exportUtils';
 import { trackEvent } from '../lib/analytics';
 import type { ExportFormat } from '../lib/exportUtils';
 import { getJournalProgress } from '../lib/journalProgress';
@@ -113,6 +113,7 @@ export function JournalPage() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showExport, setShowExport] = useState(false);
+  const [showExportAll, setShowExportAll] = useState(false);
   const contentEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDraftEntry, setIsDraftEntry] = useState(false);
@@ -1260,6 +1261,19 @@ export function JournalPage() {
       format,
     );
 
+  const getAllDiariesExport = (format: ExportFormat) =>
+    formatAllDiariesExport(
+      savedEntries.map(e => ({
+        id: e.id,
+        title: e.title,
+        content: e.content,
+        prompt: e.prompt,
+        tags: e.tags,
+        created_at: e.created_at,
+      })),
+      format,
+    );
+
   return (
     <div
       className="flex overflow-hidden bg-app-bg"
@@ -1284,6 +1298,15 @@ export function JournalPage() {
       >
         <div className="px-4 border-b border-app-border flex items-center gap-2 flex-shrink-0" style={{ height: '52px' }}>
           <h2 className="flex-1 text-[15px] font-semibold text-app-text truncate">Diario</h2>
+          {savedEntries.length > 0 && (
+            <button
+              onClick={() => setShowExportAll(true)}
+              title="Descargar todas las entradas"
+              className="flex-shrink-0 p-2 rounded-12 hover:bg-app-surface-2 text-app-muted hover:text-app-text transition-colors"
+            >
+              <Download size={17} />
+            </button>
+          )}
           <button
             onClick={handleNewEntry}
             disabled={isTokenExhausted}
@@ -1966,6 +1989,15 @@ export function JournalPage() {
           </div>
         )}
       </div>
+
+      {showExportAll && (
+        <ExportModal
+          title="Descargar todo el diario"
+          warning={`Se descargarán tus ${savedEntries.length} entradas en un solo archivo sin cifrar. Guárdalo en un lugar seguro y evita compartirlo.`}
+          onClose={() => setShowExportAll(false)}
+          getExport={getAllDiariesExport}
+        />
+      )}
 
       {showExport && (
         <ExportModal
