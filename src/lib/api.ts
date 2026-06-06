@@ -137,8 +137,9 @@ export async function sendChatMessage(
   chipMeta?: { id: string; label: string; intentKey: string; signal?: string; insertText?: string } | null,
   isFirstSession?: boolean,
   openingCommitment?: { text: string; outcome: 'done' | 'not_done' } | null,
+  elenaNotebook?: Array<{ type: string; note: string; sensitive: boolean }>,
 ): Promise<ChatResponse> {
-  const reqBody = JSON.stringify({ threadId, message, userMemories, conversationHistory, previousHadChips, uxStance, uxIntensity, boundaryAttempts, devFlags, chipMeta, isFirstSession, openingCommitment });
+  const reqBody = JSON.stringify({ threadId, message, userMemories, conversationHistory, previousHadChips, uxStance, uxIntensity, boundaryAttempts, devFlags, chipMeta, isFirstSession, openingCommitment, elenaNotebook });
   const headers = await getAuthHeaders();
   let response = await fetch(`${FUNCTIONS_URL}/chat-ai`, { method: 'POST', headers, body: reqBody });
 
