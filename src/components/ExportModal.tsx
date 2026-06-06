@@ -7,11 +7,12 @@ interface ExportModalProps {
   onClose: () => void;
   getExport: (format: ExportFormat) => ExportResult;
   title?: string;
+  warning?: string;
 }
 
 type ToastState = { type: 'success' | 'error'; message: string } | null;
 
-export function ExportModal({ onClose, getExport, title = 'Exportar' }: ExportModalProps) {
+export function ExportModal({ onClose, getExport, title = 'Exportar', warning }: ExportModalProps) {
   const [format, setFormat] = useState<ExportFormat>('md');
   const [toast, setToast] = useState<ToastState>(null);
   const [downloading, setDownloading] = useState(false);
@@ -107,6 +108,12 @@ export function ExportModal({ onClose, getExport, title = 'Exportar' }: ExportMo
         </div>
 
         <div className="px-5 py-4">
+          {warning && (
+            <div className="mb-4 flex items-start gap-2.5 px-3.5 py-3 rounded-12 bg-amber-50 border border-amber-200 text-amber-900">
+              <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
+              <p className="text-[12.5px] leading-snug">{warning}</p>
+            </div>
+          )}
           <p className="text-xs font-medium text-app-muted uppercase tracking-wide mb-3">Formato</p>
           <div className="flex gap-2">
             {(['md', 'txt'] as ExportFormat[]).map((f) => (
