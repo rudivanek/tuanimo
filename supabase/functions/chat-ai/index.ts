@@ -32,6 +32,7 @@ interface ChatRequest {
   chipMeta?: { id: string; label: string; intentKey: string; signal?: string } | null;
   isFirstSession?: boolean;
   openingCommitment?: { text: string; outcome: "done" | "not_done" } | null;
+  elenaNotebook?: Array<{ type: string; note: string; sensitive: boolean }>;
 }
 
 const BANNED_LABEL_WORDS: string[] = [
@@ -706,6 +707,49 @@ Usage rules:
 - In BOUNDARY mode or CRISIS mode, ignore this block entirely.`;
 }
 
+function buildElenaNotebookBlock(notebook: Array<{ type: string; note: string; sensitive: boolean }>): string {
+  if (!notebook || notebook.length === 0) return "";
+
+  const TYPE_LABELS: Record<string, string> = {
+    person: "persona",
+    event: "evento",
+    theme: "tema recurrente",
+    helps: "ayuda",
+    commitment: "compromiso",
+    crisis: "crisis",
+  };
+
+  const regular = notebook.filter((n) => !n.sensitive);
+  const sensitive = notebook.filter((n) => n.sensitive);
+
+  const lines: string[] = [];
+
+  if (regular.length > 0) {
+    lines.push("MEMORIA PERSONAL — Lo que Elena conoce sobre esta persona:");
+    lines.push("(Solo contexto interno. No citar textualmente. Mencionar solo si la conversación lo conecta naturalmente. Máximo una referencia por respuesta.)");
+    for (const n of regular) {
+      const label = TYPE_LABELS[n.type] ?? n.type;
+      lines.push(`- [${label}] ${n.note}`);
+    }
+  }
+
+  if (sensitive.length > 0) {
+    lines.push("");
+    lines.push("Notas con sensibilidad especial (NO mencionar directamente ni de forma proactiva; solo reconocer si la persona abre ese tema por sí misma):");
+    for (const n of sensitive) {
+      const label = TYPE_LABELS[n.type] ?? n.type;
+      lines.push(`- [${label}] ${n.note}`);
+    }
+  }
+
+  if (lines.length === 0) return "";
+
+  return `
+
+${lines.join("
+")}`;
+}
+
 function checkRecognitionEligible(priorCtx: PriorContext, lastThreeMetas: Record<string, unknown>[], force = false): boolean {
   if (force) return true;
   if (lastThreeMetas.some(m => m.recognition_used === true)) return false;
@@ -954,6 +998,7 @@ Deno.serve(async (req: Request) => {
 
     const body: ChatRequest = await req.json();
     const { threadId, message } = body;
+    const elenaNotebook = Array.isArray(body.elenaNotebook) ? body.elenaNotebook : [];
     const previousHadChips = body.previousHadChips === true;
     const userMemories = Array.isArray(body.userMemories) ? body.userMemories : [];
     const uxStance: string | undefined = typeof body.uxStance === 'string' ? body.uxStance : undefined;
@@ -1009,6 +1054,7 @@ Deno.serve(async (req: Request) => {
       await maybeSetCooldown(user.id, chipStats.impressions_30d, chipStats.clicks_30d);
     }
 
+    const elenaNotebookBlock = buildElenaNotebookBlock(elenaNotebook);
     const memoryContext = userMemories.length > 0
       ? `\n\nUser Information (may be outdated — treat as soft context, not confirmed facts):\n${userMemories.map(m => `- ${m.key}: ${m.value}`).join('\n')}\n\n${devFlags.forceMemoryMatch ? 'Memory reference instruction (DEV): Include ONE brief natural reference such as "Antes mencionaste algo parecido..." — one sentence maximum.' : 'Memory reference rule: If the user\'s current message clearly relates to a stored memory topic, you may include ONE brief natural reference — one sentence maximum, only when clearly relevant, never forced.'}`
       : devFlags.forceMemoryMatch
@@ -1415,7 +1461,7 @@ Core Traits:
 - Accompanies grief without rushing past it
 - Holds people accountable to their own stated values — gently
 - Adapts: more presence when raw, more honest challenge when stable
-- Responds in Spanish if the user writes in Spanish, English if they write in English${memoryContext}${priorContextBlock}
+- Responds in Spanish if the user writes in Spanish, English if they write in English${elenaNotebookBlock}${memoryContext}${priorContextBlock}
 
 VOICE & RESPONSE STYLE — How Elena writes:
 
