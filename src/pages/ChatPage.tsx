@@ -7,6 +7,7 @@ import { audioManager } from '../lib/audio';
 import { supabase } from '../lib/supabaseClient';
 import { useProfile } from '../hooks/useProfile';
 import { sendChatMessage, getUserMemories, saveUserMemory, TokenLimitError, generateTitle, type DevFlags } from '../lib/api';
+import { loadElenaMemories, type ElenaMemoryNote } from '../lib/elenaMemory';
 import { DevPanel } from '../components/DevPanel';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { Send, MessageCircle, Trash2, GripVertical, ArrowLeft, Plus, Lock, Pencil, Check, X, Download, BookOpen } from 'lucide-react';
@@ -85,6 +86,7 @@ interface Thread {
   sort_order: number;
   welcome_inserted: boolean;
   linked_journal_entry_id?: string | null;
+  memory_extracted_at?: string | null;
 }
 
 const CHAT_CHIP_DISMISS_PREFIX = 'chat_insight_chip_dismissed_at:';
@@ -106,6 +108,7 @@ export function ChatPage() {
   const threadsRef = useRef<Thread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [elenaNotebook, setElenaNotebook] = useState<ElenaMemoryNote[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -552,24 +555,6 @@ export function ChatPage() {
   const createNewThread = async (options?: { skipWelcome?: boolean }): Promise<string | null> => {
     if (!user) return null;
 
-    // Trigger memory extraction for the thread we're leaving
-    if (currentThreadId && profile) {
-      const departingThread = threads.find(t => t.id === currentThreadId);
-      const userMessageCount = messages.filter(m => m.sender === 'user').length;
-      if (userMessageCount >= 4 && !departingThread?.memory_extracted_at) {
-        triggerMemoryExtraction(currentThreadId, elenaNotebook, profile)
-          .then(() => {
-            setThreads(prev =>
-              prev.map(t => t.id === currentThreadId
-                ? { ...t, memory_extracted_at: new Date().toISOString() }
-                : t
-              )
-            );
-          })
-          .catch(() => {/* best-effort */});
-      }
-    }
-
     const shiftedThreads = threads.map((t, i) => ({ ...t, sort_order: i + 1 }));
     await Promise.all(
       shiftedThreads.map(t =>
@@ -988,6 +973,15 @@ export function ChatPage() {
         console.log('Could not load memories, continuing without them:', memError);
       }
 
+      // Load Elena's biographical notebook
+      let currentNotebook = elenaNotebook;
+      try {
+        currentNotebook = await loadElenaMemories(profile);
+        setElenaNotebook(currentNotebook);
+      } catch (notebookError) {
+        console.log('Could not load elena notebook:', notebookError);
+      }
+
       const conversationHistory = messages
         .filter(m => m.content?.trim())
         .slice(-20)
@@ -1036,6 +1030,7 @@ export function ChatPage() {
         chipMetaForMessage,
         isFirstEverMessage,
         commitmentForThisMessage,
+        currentNotebook,
       );
 
       // ── Elena commitment suggestion ──────────────────────────────────────
