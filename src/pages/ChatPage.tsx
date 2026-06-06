@@ -108,6 +108,8 @@ export function ChatPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const threadsRef = useRef<Thread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
+  const currentThreadIdRef = useRef<string | null>(null);
+  const isSendingRef = useRef(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [elenaNotebook, setElenaNotebook] = useState<ElenaMemoryNote[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -339,6 +341,18 @@ export function ChatPage() {
   }, [threads]);
 
   useEffect(() => {
+    currentThreadIdRef.current = currentThreadId;
+  }, [currentThreadId]);
+
+  // On leaving the chat page, discard the current thread if it was never used.
+  useEffect(() => {
+    return () => {
+      const id = currentThreadIdRef.current;
+      if (id && !isSendingRef.current) void discardThreadIfEmpty(id);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (suppressLoadRef.current) { suppressLoadRef.current = false; return; }
     if (currentThreadId && profile) loadMessages(currentThreadId);
   }, [currentThreadId, profile?.id]);
@@ -549,6 +563,8 @@ export function ChatPage() {
   };
 
   const selectThread = (threadId: string) => {
+    const leaving = currentThreadId;
+    if (leaving && leaving !== threadId) void discardThreadIfEmpty(leaving);
     setCurrentThreadId(threadId);
     setPendingChip(null);
     setShowSidebar(false);
@@ -558,7 +574,14 @@ export function ChatPage() {
   const createNewThread = async (options?: { skipWelcome?: boolean }): Promise<string | null> => {
     if (!user) return null;
 
-    const shiftedThreads = threads.map((t, i) => ({ ...t, sort_order: i + 1 }));
+    // If the user is leaving an unused thread, discard it instead of stacking empties.
+    const leaving = currentThreadId;
+    let discardedId: string | null = null;
+    if (leaving) discardedId = await discardThreadIfEmpty(leaving, false);
+
+    const shiftedThreads = threads
+      .filter(t => t.id !== discardedId)
+      .map((t, i) => ({ ...t, sort_order: i + 1 }));
     await Promise.all(
       shiftedThreads.map(t =>
         supabase.from('chat_threads').update({ sort_order: t.sort_order }).eq('id', t.id)
@@ -589,6 +612,37 @@ export function ChatPage() {
       return data.id;
     }
     return null;
+  };
+
+  // Delete a thread the user is leaving if it never received a user message.
+  // Welcome-only ("Nueva conversación") threads are treated as empty/discardable.
+  // Returns the discarded thread id (or null). When pruneState is true, also
+  // removes it from local thread state; callers that rebuild thread state
+  // themselves pass false to avoid a redundant/racy update.
+  const discardThreadIfEmpty = async (
+    threadId: string | null,
+    pruneState = true,
+  ): Promise<string | null> => {
+    if (!threadId) return null;
+    if (isSendingRef.current) return null; // a message is in flight — keep the thread
+
+    const { count, error } = await supabase
+      .from('chat_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('thread_id', threadId)
+      .eq('sender', 'user');
+
+    if (error || (count ?? 0) > 0) return null; // has a real message, or check failed — keep it
+
+    await supabase.from('chat_messages').delete().eq('thread_id', threadId);
+    await supabase.from('chat_threads').delete().eq('id', threadId);
+
+    if (pruneState) {
+      setThreads(prev =>
+        prev.filter(t => t.id !== threadId).map((t, i) => ({ ...t, sort_order: i }))
+      );
+    }
+    return threadId;
   };
 
   const requestDeleteThread = (threadId: string, e: React.MouseEvent) => {
@@ -910,6 +964,7 @@ export function ChatPage() {
     const isFirstEverMessage = isFirstTimeUser === true;
     if (isFirstTimeUser) setIsFirstTimeUser(false);
     setIsSending(true);
+    isSendingRef.current = true;
     if (!overrideMessage) {
       setInputMessage('');
       if (chatInputRef.current) {
@@ -1276,6 +1331,7 @@ export function ChatPage() {
       }
     } finally {
       setIsSending(false);
+      isSendingRef.current = false;
     }
   };
 
