@@ -62,7 +62,7 @@ export async function loadElenaMemories(
     rows.map(async (row) => ({
       id: row.id,
       type: row.type as ElenaMemoryType,
-      note: await decryptForUser(row.note_enc, profile),
+      note: await decryptForUser(row.note_enc, profile).catch(() => row.note_enc),
       sensitive: row.sensitive,
       active: row.active,
       last_referenced_at: row.last_referenced_at,
