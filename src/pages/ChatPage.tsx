@@ -13,7 +13,7 @@ import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { Send, MessageCircle, Trash2, GripVertical, ArrowLeft, Plus, Lock, Pencil, Check, X, Download, BookOpen } from 'lucide-react';
 import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { getPreferredGreetingName } from '../lib/welcomeMessages';
-import { getLastUserChatTimestamp, buildContextualGreeting, getInsightSnippetForReturn, buildReturnGreetingWithInsight, getChatSignalForReturn, buildReturnGreetingWithSignal, getFirstSessionTopicEnc, buildReturnGreetingWithMemory } from '../lib/contextualGreeting';
+import { getLastUserChatTimestamp, buildContextualGreeting, getInsightSnippetForReturn, buildReturnGreetingWithInsight, getChatSignalForReturn, buildReturnGreetingWithSignal, getFirstSessionTopicEnc, buildReturnGreetingWithMemory, buildDynamicMemoryGreeting } from '../lib/contextualGreeting';
 import { FollowUpBox } from '../components/FollowUpBox';
 import { PracticasConfirmModal } from '../components/PracticasConfirmModal';
 import { DiaryDraftSuggestion } from '../components/DiaryDraftSuggestion';
@@ -447,37 +447,60 @@ export function ChatPage() {
         // First-time user — use new calibrating greetings
         text = buildContextualGreeting(lastChatAt, name);
       } else {
-        // Returning user — try memory-aware greeting first
-        let usedMemoryGreeting = false;
-        try {
-          const topicEnc = await getFirstSessionTopicEnc(user.id);
-          if (topicEnc) {
-            const topic = await decryptForUser(topicEnc, profile);
-            if (topic && topic.length > 5) {
-              text = buildReturnGreetingWithMemory(name, topic);
-              usedMemoryGreeting = true;
-            }
+        // Returning user — recency-aware priority:
+        //   1. recent chat signal (7-day)
+        //   2. recent weekly insight (14-day)
+        //   3. dynamic elena_memories theme/event (rotated, 7-day reuse floor)
+        //   4. frozen first_session_topic — last resort, new users w/ no extracted memories
+        //   5. time-based generic fallback
+        let resolved = false;
+
+        // 1. Signal (only meaningful within the past week)
+        if (forceInsightGreeting || hoursAbsent <= 168) {
+          const signalData = await getChatSignalForReturn();
+          if (signalData) {
+            text = buildReturnGreetingWithSignal(name, signalData.type);
+            resolved = true;
           }
-        } catch (memErr) {
-          console.log('[greeting] Could not load first session topic:', memErr);
         }
 
-        if (!usedMemoryGreeting) {
-          if (forceInsightGreeting || hoursAbsent >= 48) {
-            const insightSnippet = await getInsightSnippetForReturn();
-            if (insightSnippet) {
-              text = buildReturnGreetingWithInsight(name, insightSnippet);
-            } else if (hoursAbsent <= 168) {
-              const signalData = await getChatSignalForReturn();
-              text = signalData
-                ? buildReturnGreetingWithSignal(name, signalData.type)
-                : buildContextualGreeting(lastChatAt, name);
-            } else {
-              text = buildContextualGreeting(lastChatAt, name);
-            }
-          } else {
-            text = buildContextualGreeting(lastChatAt, name);
+        // 2. Insight
+        if (!resolved && (forceInsightGreeting || hoursAbsent >= 48)) {
+          const insightSnippet = await getInsightSnippetForReturn();
+          if (insightSnippet) {
+            text = buildReturnGreetingWithInsight(name, insightSnippet);
+            resolved = true;
           }
+        }
+
+        // 3. Dynamic memory theme/event
+        if (!resolved) {
+          const memoryGreeting = await buildDynamicMemoryGreeting(name, profile);
+          if (memoryGreeting) {
+            text = memoryGreeting;
+            resolved = true;
+          }
+        }
+
+        // 4. Frozen first-session topic — last resort (typically new users)
+        if (!resolved) {
+          try {
+            const topicEnc = await getFirstSessionTopicEnc(user.id);
+            if (topicEnc) {
+              const topic = await decryptForUser(topicEnc, profile);
+              if (topic && topic.length > 5) {
+                text = buildReturnGreetingWithMemory(name, topic);
+                resolved = true;
+              }
+            }
+          } catch (memErr) {
+            console.log('[greeting] Could not load first session topic:', memErr);
+          }
+        }
+
+        // 5. Time-based generic fallback
+        if (!resolved) {
+          text = buildContextualGreeting(lastChatAt, name);
         }
       }
       const encryptedText = await encryptForUser(text, profile);

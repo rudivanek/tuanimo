@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient';
+import { loadElenaMemories } from './elenaMemory';
+import type { ProfileForEncryption } from './encryption';
 
 const FIRST_TIME: string[] = [
   'Hola {name}, soy Elena 🌷',
@@ -101,6 +103,67 @@ export function buildReturnGreetingWithMemory(
   const template = pickRandom(RETURN_WITH_MEMORY);
   const withName = applyName(template, name);
   return withName.replace('{topic}', topic);
+}
+
+// ── Dynamic elena_memories greeting ───────────────────────────────────────────
+// Picks the least-recently-referenced, non-sensitive theme/event from the
+// user's Elena memory notebook and slots it into a RETURN_WITH_MEMORY template.
+// Bumps last_referenced_at so the same note isn't reused soon (7-day floor).
+// Returns null if nothing eligible — caller should fall through.
+
+const MEMORY_REUSE_FLOOR_DAYS = 7;
+const ELIGIBLE_MEMORY_TYPES = ['theme', 'event'];
+
+export async function buildDynamicMemoryGreeting(
+  name: string | null,
+  profile: ProfileForEncryption,
+): Promise<string | null> {
+  try {
+    const notes = await loadElenaMemories(profile);
+    if (!notes.length) return null;
+
+    const floorMs = MEMORY_REUSE_FLOOR_DAYS * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // Eligible: active, non-sensitive, non-crisis, theme/event, plaintext present.
+    const eligible = notes.filter(
+      (n) =>
+        n.active &&
+        !n.sensitive &&
+        n.type !== 'crisis' &&
+        ELIGIBLE_MEMORY_TYPES.includes(n.type) &&
+        n.note &&
+        n.note.length > 5,
+    );
+    if (!eligible.length) return null;
+
+    // Prefer those not referenced within the floor window; if all are recent,
+    // fall through (return null) rather than force a stale repeat.
+    const stale = eligible.filter(
+      (n) => now - new Date(n.last_referenced_at).getTime() >= floorMs,
+    );
+    const pool = stale.length ? stale : [];
+    if (!pool.length) return null;
+
+    // Pick the least-recently-referenced (oldest last_referenced_at).
+    pool.sort(
+      (a, b) =>
+        new Date(a.last_referenced_at).getTime() -
+        new Date(b.last_referenced_at).getTime(),
+    );
+    const chosen = pool[0];
+
+    // Bump last_referenced_at so it rotates out next time.
+    await supabase
+      .from('elena_memories')
+      .update({ last_referenced_at: new Date().toISOString() })
+      .eq('id', chosen.id);
+
+    return buildReturnGreetingWithMemory(name, chosen.note);
+  } catch (err) {
+    console.warn('[greeting] dynamic memory greeting failed:', err);
+    return null;
+  }
 }
 
 // ── Insight return bridge ─────────────────────────────────────────────────────
