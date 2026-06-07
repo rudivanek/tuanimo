@@ -536,6 +536,11 @@ function isHeavyTopic(lastUserContent: string): boolean {
 }
 
 export function resolveChipMode({ messages, isCrisis, followUpSignal }: ChipTimingOptions): ChipTimingMode {
+  // Suggestion chips disabled: they misfired on topic and worked against
+  // Elena's stance of letting the person find their own words. Logic below
+  // is kept intact so chips can be re-enabled later by removing this return.
+  return 'none';
+
   if (isCrisis) return 'none';
 
   const counselorCount = messages.filter(m => m.sender === 'counselor').length;
