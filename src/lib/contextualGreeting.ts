@@ -111,7 +111,7 @@ export function buildReturnGreetingWithMemory(
 // Bumps last_referenced_at so the same note isn't reused soon (7-day floor).
 // Returns null if nothing eligible — caller should fall through.
 
-const MEMORY_REUSE_FLOOR_DAYS = 0;
+const MEMORY_REUSE_FLOOR_DAYS = 7;
 const ELIGIBLE_MEMORY_TYPES = ['theme', 'event'];
 
 export async function buildDynamicMemoryGreeting(
