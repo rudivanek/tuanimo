@@ -10,7 +10,6 @@ import { useTokenStatus } from '../hooks/useTokenStatus';
 import { getJournalPrompts, TokenLimitError, generateAIReflectionPrompt, generateTitle } from '../lib/api';
 import { extractLanguageSignals } from '../lib/languageSignals';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
-import { detectTopicRepetition } from '../lib/diaryDraft';
 import { BookOpen, Plus, Sparkles, Calendar, Tag, Trash2, GripVertical, ArrowLeft, Lock, Download, MessageCircle, X, ChevronRight, Check, Star } from 'lucide-react';
 import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { getActiveCommitment, createCommitment, type Commitment } from '../lib/commitments';
@@ -124,8 +123,6 @@ export function JournalPage() {
   const autoSavedDraftIdRef = useRef<string | null>(null);  // tracks the DB id of the in-progress draft row
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [showChatSuggestion, setShowChatSuggestion] = useState(false);
-  const [_chatSuggestionKeyword, setChatSuggestionKeyword] = useState('');
   const [progress, setProgress] = useState<JournalProgress>({
     saved7d: 0,
     saved30d: 0,
@@ -500,17 +497,6 @@ export function JournalPage() {
       setTimeout(() => setContent(prefill + '\n\n'), 0);
     } catch {}
   }, []);
-
-  useEffect(() => {
-    if (entries.length < 3) return;
-    // Only show when the user is viewing an existing saved entry
-    if (!selectedEntry || selectedEntry.is_draft || isNewEntry) return;
-    const result = detectTopicRepetition(entries);
-    if (result.detected) {
-      setShowChatSuggestion(true);
-      setChatSuggestionKeyword(result.keyword);
-    }
-  }, [entries.length, selectedEntry?.id, isNewEntry]);
 
   useEffect(() => {
     if (storageState === 'warning' || storageState === 'critical') {
@@ -1616,8 +1602,13 @@ export function JournalPage() {
               )}
             </div>
 
-            {/* Elena reflection chip — appears after saving */}
-            {showElenaChip && (
+            {/* Elena reflection chip — appears after saving a new entry, and
+                stays available whenever you're reading a substantial saved entry */}
+            {(showElenaChip ||
+              (!!selectedEntry &&
+                !selectedEntry.is_draft &&
+                !isNewEntry &&
+                content.trim().length >= 200)) && (
               <div className="px-4 py-2 flex-shrink-0">
                 <button
                   onClick={() => {
@@ -1738,32 +1729,8 @@ export function JournalPage() {
               </div>
             )}
 
-            {/* Repeated-topic chat suggestion */}
-            {showChatSuggestion && (
-              <div className="flex items-start justify-between gap-3 px-4 py-3 bg-[#FAEEDA] border-b border-[#EF9F27]/30 flex-shrink-0">
-                <div className="flex items-start gap-2.5">
-                  <MessageCircle size={14} className="text-[#854F0B] mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-[12.5px] text-app-text leading-snug">
-                      Este tema aparece varias veces en tu diario. ¿Te gustaría hablarlo con Elena?
-                    </p>
-                    <button
-                      onClick={() => setLocation('/app/chat')}
-                      className="mt-1.5 text-[12px] font-medium text-[#633806] hover:underline"
-                    >
-                      Ir al chat
-                    </button>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowChatSuggestion(false)}
-                  className="flex-shrink-0 text-app-muted hover:text-app-text transition-colors mt-0.5"
-                  aria-label="Descartar"
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            )}
+            {/* Repeated-topic chat suggestion — retired in favor of the
+                entry-anchored "Elena puede reflexionar sobre esto" chip. */}
 
             {/* Storage limit error */}
             {storageLimitError && (
