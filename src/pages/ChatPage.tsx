@@ -448,10 +448,16 @@ export function ChatPage() {
               .select('id, title, created_at, sort_order, welcome_inserted, linked_journal_entry_id')
               .single();
             if (reflectionThread) {
-              setThreads([
+              const newThreadsList = [
                 { ...reflectionThread, sort_order: 0, welcome_inserted: true },
                 ...shifted,
-              ]);
+              ];
+              setThreads(newThreadsList);
+              // Manually sync threadsRef NOW so the [currentThreadId] linkedEntry
+              // effect reads the correct linked_journal_entry_id on this same
+              // render cycle (the [threads] effect that syncs threadsRef runs after
+              // the [currentThreadId] effect, so without this it would be stale).
+              threadsRef.current = newThreadsList;
               setCurrentThreadId(reflectionThread.id);
               setMessages([]);
               setPendingReflection({
