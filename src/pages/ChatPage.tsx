@@ -124,6 +124,9 @@ export function ChatPage() {
   // of a freshly-created reflection thread. Keyed by threadId so it can never
   // attach to a different conversation if the user switches threads first.
   const [pendingReflection, setPendingReflection] = useState<{ threadId: string; title: string | null; content: string } | null>(null);
+  // Tracks the source diary entry for a reflection thread so that if the user
+  // converts this chat to a diary, they're redirected to the original entry.
+  const [reflectionSourceEntryId, setReflectionSourceEntryId] = useState<{ threadId: string; entryId: string } | null>(null);
   const [showCommitmentInput, setShowCommitmentInput] = useState(false);
   const [commitmentDraft, setCommitmentDraft] = useState('');
   const [savingCommitment, setSavingCommitment] = useState(false);
@@ -448,16 +451,10 @@ export function ChatPage() {
               .select('id, title, created_at, sort_order, welcome_inserted, linked_journal_entry_id')
               .single();
             if (reflectionThread) {
-              const newThreadsList = [
+              setThreads([
                 { ...reflectionThread, sort_order: 0, welcome_inserted: true },
                 ...shifted,
-              ];
-              setThreads(newThreadsList);
-              // Manually sync threadsRef NOW so the [currentThreadId] linkedEntry
-              // effect reads the correct linked_journal_entry_id on this same
-              // render cycle (the [threads] effect that syncs threadsRef runs after
-              // the [currentThreadId] effect, so without this it would be stale).
-              threadsRef.current = newThreadsList;
+              ]);
               setCurrentThreadId(reflectionThread.id);
               setMessages([]);
               setPendingReflection({
@@ -465,6 +462,9 @@ export function ChatPage() {
                 title: parsed.title?.trim() || null,
                 content: parsed.content,
               });
+              if (entryId) {
+                setReflectionSourceEntryId({ threadId: reflectionThread.id, entryId });
+              }
               setInputMessage('Quiero hablar contigo sobre lo que acabo de escribir.');
               return; // handled — skip the default thread auto-select below
             }
@@ -1678,7 +1678,12 @@ export function ChatPage() {
     try {
       const entryId = await convertChatToJournal(currentThreadId, msgList, user.id, profile, chatTitle, timezone);
       if (!entryId) throw new Error('No se recibió el ID de la entrada');
-      sessionStorage.setItem('diaryAutoOpen', entryId);
+      // If this is a reflection chat (started from a diary entry), bring the user
+      // back to the original entry to keep writing — not to the newly created one.
+      const redirectId = reflectionSourceEntryId?.threadId === currentThreadId
+        ? reflectionSourceEntryId.entryId
+        : entryId;
+      sessionStorage.setItem('diaryAutoOpen', redirectId);
       setShowConvertModal(false);
       setLocation('/journal');
     } catch (err) {
