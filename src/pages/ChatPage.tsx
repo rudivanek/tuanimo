@@ -179,6 +179,9 @@ export function ChatPage() {
   const frPrevShowDiaryHintRef = useRef(false);
   const frPrevShowActivationRef = useRef(false);
   const frPageOpenedRef = useRef(false);
+  // Guards the journal→Elena reflection handoff against a re-entrant loadThreads
+  // (React StrictMode invokes mount effects twice). Resets naturally on remount.
+  const reflectionInProgressRef = useRef(false);
 
   const continuationHintFiredRef = useRef(false);
   const [showContinuationHint, setShowContinuationHint] = useState(false);
@@ -395,6 +398,21 @@ export function ChatPage() {
   };
 
   const loadThreads = async () => {
+    // ── Journal → Elena reflection handoff: claim synchronously ─────────────
+    // Read + claim the pending reflection BEFORE any await, so a re-entrant
+    // loadThreads (React StrictMode double-invokes mount effects) cannot also
+    // pass this check. Exactly one invocation handles it; the other bails out
+    // instead of falling through and selecting an existing thread.
+    const reflectionRaw = sessionStorage.getItem('journalReflectionEntry');
+    const handlingReflection = !!reflectionRaw && !!user && !reflectionInProgressRef.current;
+    if (handlingReflection) {
+      reflectionInProgressRef.current = true;
+      sessionStorage.removeItem('journalReflectionEntry');
+    } else if (reflectionInProgressRef.current) {
+      // Another invocation this mount is already creating the reflection thread.
+      return;
+    }
+
     const { data, error } = await supabase
       .from('chat_threads')
       .select('id, title, created_at, sort_order, welcome_inserted, linked_journal_entry_id')
@@ -410,15 +428,10 @@ export function ChatPage() {
       }));
       setThreads(normalized);
 
-      // ── Journal → Elena reflection handoff (one-shot) ───────────────────────
-      // Set by the "Elena puede reflexionar sobre esto" chip in JournalPage after
-      // the user saves a new, hand-written entry. We open a fresh thread, hand
-      // Elena the entry as hidden context (pendingReflection), and prefill a short
-      // editable opener the user sends themselves — they stay in control and no
-      // tokens are spent until they actually engage.
-      const reflectionRaw = sessionStorage.getItem('journalReflectionEntry');
-      if (reflectionRaw && user) {
-        sessionStorage.removeItem('journalReflectionEntry');
+      // Always open a FRESH thread for a reflection, hand Elena the entry as
+      // hidden context (pendingReflection), and prefill an editable opener the
+      // user sends themselves — they stay in control, no tokens until they engage.
+      if (handlingReflection && reflectionRaw && user) {
         try {
           const parsed = JSON.parse(reflectionRaw) as { title?: string | null; content?: string };
           if (parsed?.content?.trim()) {
@@ -449,7 +462,9 @@ export function ChatPage() {
               return; // handled — skip the default thread auto-select below
             }
           }
+          reflectionInProgressRef.current = false; // creation failed/empty — allow normal flow
         } catch {
+          reflectionInProgressRef.current = false;
           // Malformed payload — fall through to normal thread selection.
         }
       }
