@@ -2164,7 +2164,7 @@ export function ChatPage() {
                 <Plus size={11} />
                 Agregar compromiso
               </button>
-              {linkedEntry && (
+              {linkedEntry ? (
                 <button
                   onClick={() => {
                     sessionStorage.setItem('diaryAutoOpen', linkedEntry.id);
@@ -2174,6 +2174,14 @@ export function ChatPage() {
                 >
                   <BookOpen size={11} />
                   Reflexión guardada
+                </button>
+              ) : messages.length > 0 && (
+                <button
+                  onClick={() => setShowConvertModal(true)}
+                  className="flex items-center gap-1 text-[11px] text-app-muted hover:text-sage-strong hover:bg-sage-strong/8 px-2 py-0.5 rounded-full transition-colors"
+                >
+                  <BookOpen size={11} />
+                  Convertir a diario
                 </button>
               )}
             </div>
