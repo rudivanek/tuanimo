@@ -1272,10 +1272,7 @@ export function ChatPage() {
         sender: 'counselor',
         content: replyText,
         created_at: effectiveAiMessage.created_at,
-        followUp: aiResponse.followUp ??
-          (aiResponse.suggested_practicas
-            ? { text: 'Ver mis prácticas de hoy', kind: 'action' as const, actionType: 'practicas' as const, payload: {} }
-            : undefined),
+        followUp: aiResponse.followUp ?? undefined,
         followUpUsed: false,
         meta: aiResponse.meta,
         chips: finalChips,
