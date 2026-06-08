@@ -1624,7 +1624,7 @@ export function JournalPage() {
                     try {
                       sessionStorage.setItem(
                         'journalReflectionEntry',
-                        JSON.stringify({ title: title.trim() || null, content }),
+                        JSON.stringify({ id: selectedEntry?.id || null, title: title.trim() || null, content }),
                       );
                     } catch {}
                     setLocation('/chat');
