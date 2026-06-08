@@ -433,8 +433,9 @@ export function ChatPage() {
       // user sends themselves — they stay in control, no tokens until they engage.
       if (handlingReflection && reflectionRaw && user) {
         try {
-          const parsed = JSON.parse(reflectionRaw) as { title?: string | null; content?: string };
+          const parsed = JSON.parse(reflectionRaw) as { id?: string | null; title?: string | null; content?: string };
           if (parsed?.content?.trim()) {
+            const entryId = parsed.id || null;
             const shifted = normalized.map((t, i) => ({ ...t, sort_order: i + 1 }));
             await Promise.all(
               shifted.map(t =>
@@ -443,12 +444,12 @@ export function ChatPage() {
             );
             const { data: reflectionThread } = await supabase
               .from('chat_threads')
-              .insert({ user_id: user.id, title: 'Reflexión de diario', sort_order: 0, welcome_inserted: true })
+              .insert({ user_id: user.id, title: parsed.title?.trim() || 'Reflexión de diario', sort_order: 0, welcome_inserted: true, linked_journal_entry_id: entryId })
               .select('id, title, created_at, sort_order, welcome_inserted, linked_journal_entry_id')
               .single();
             if (reflectionThread) {
               setThreads([
-                { ...reflectionThread, sort_order: 0, welcome_inserted: true, linked_journal_entry_id: null },
+                { ...reflectionThread, sort_order: 0, welcome_inserted: true },
                 ...shifted,
               ]);
               setCurrentThreadId(reflectionThread.id);
