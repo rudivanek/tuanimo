@@ -120,6 +120,10 @@ export function ChatPage() {
   const [showCrisisModal, setShowCrisisModal] = useState(false);
   const [activeCommitment, setActiveCommitment] = useState<Commitment | null>(null);
   const [pendingCommitment, setPendingCommitment] = useState<{ text: string; outcome: 'done' | 'not_done' } | null>(null);
+  // Journal → Elena handoff: full entry passed as hidden context for the first turn
+  // of a freshly-created reflection thread. Keyed by threadId so it can never
+  // attach to a different conversation if the user switches threads first.
+  const [pendingReflection, setPendingReflection] = useState<{ threadId: string; title: string | null; content: string } | null>(null);
   const [showCommitmentInput, setShowCommitmentInput] = useState(false);
   const [commitmentDraft, setCommitmentDraft] = useState('');
   const [savingCommitment, setSavingCommitment] = useState(false);
@@ -405,6 +409,51 @@ export function ChatPage() {
         linked_journal_entry_id: (t as { linked_journal_entry_id?: string | null }).linked_journal_entry_id ?? null,
       }));
       setThreads(normalized);
+
+      // ── Journal → Elena reflection handoff (one-shot) ───────────────────────
+      // Set by the "Elena puede reflexionar sobre esto" chip in JournalPage after
+      // the user saves a new, hand-written entry. We open a fresh thread, hand
+      // Elena the entry as hidden context (pendingReflection), and prefill a short
+      // editable opener the user sends themselves — they stay in control and no
+      // tokens are spent until they actually engage.
+      const reflectionRaw = sessionStorage.getItem('journalReflectionEntry');
+      if (reflectionRaw && user) {
+        sessionStorage.removeItem('journalReflectionEntry');
+        try {
+          const parsed = JSON.parse(reflectionRaw) as { title?: string | null; content?: string };
+          if (parsed?.content?.trim()) {
+            const shifted = normalized.map((t, i) => ({ ...t, sort_order: i + 1 }));
+            await Promise.all(
+              shifted.map(t =>
+                supabase.from('chat_threads').update({ sort_order: t.sort_order }).eq('id', t.id)
+              )
+            );
+            const { data: reflectionThread } = await supabase
+              .from('chat_threads')
+              .insert({ user_id: user.id, title: 'Reflexión de diario', sort_order: 0, welcome_inserted: true })
+              .select('id, title, created_at, sort_order, welcome_inserted, linked_journal_entry_id')
+              .single();
+            if (reflectionThread) {
+              setThreads([
+                { ...reflectionThread, sort_order: 0, welcome_inserted: true, linked_journal_entry_id: null },
+                ...shifted,
+              ]);
+              setCurrentThreadId(reflectionThread.id);
+              setMessages([]);
+              setPendingReflection({
+                threadId: reflectionThread.id,
+                title: parsed.title?.trim() || null,
+                content: parsed.content,
+              });
+              setInputMessage('Quiero hablar contigo sobre lo que acabo de escribir.');
+              return; // handled — skip the default thread auto-select below
+            }
+          }
+        } catch {
+          // Malformed payload — fall through to normal thread selection.
+        }
+      }
+
       const pendingOpen = sessionStorage.getItem('openChatThread');
       if (pendingOpen) {
         sessionStorage.removeItem('openChatThread');
@@ -1107,6 +1156,14 @@ export function ChatPage() {
       const commitmentForThisMessage = pendingCommitment;
       if (pendingCommitment) setPendingCommitment(null);
 
+      // Only attach the journal entry context if this is the reflection thread it
+      // was created for — guards against the user switching threads before sending.
+      const reflectionForThisMessage =
+        pendingReflection && pendingReflection.threadId === threadId
+          ? { title: pendingReflection.title, content: pendingReflection.content }
+          : null;
+      if (reflectionForThisMessage) setPendingReflection(null);
+
       const aiResponse = await sendChatMessage(
         threadId,
         messageToSend,
@@ -1121,6 +1178,7 @@ export function ChatPage() {
         isFirstEverMessage,
         commitmentForThisMessage,
         currentNotebook,
+        reflectionForThisMessage,
       );
 
       // ── Elena commitment suggestion ──────────────────────────────────────
