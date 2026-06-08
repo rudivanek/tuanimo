@@ -1622,7 +1622,10 @@ export function JournalPage() {
                 <button
                   onClick={() => {
                     try {
-                      sessionStorage.setItem('journalReflectionEntry', content);
+                      sessionStorage.setItem(
+                        'journalReflectionEntry',
+                        JSON.stringify({ title: title.trim() || null, content }),
+                      );
                     } catch {}
                     setLocation('/chat');
                   }}
