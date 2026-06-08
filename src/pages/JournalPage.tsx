@@ -1698,7 +1698,7 @@ export function JournalPage() {
             )}
 
             {/* Insights bridge banner */}
-            {insightsBridgeActive && !dismissedBridgeBanner && (
+            {insightsBridgeActive && !dismissedBridgeBanner && !isNewEntry && (
               <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-sage-soft border-b border-sage flex-shrink-0">
                 <div className="flex items-center gap-2 min-w-0">
                   <Sparkles size={13} className="text-sage-strong flex-shrink-0" />
@@ -1934,7 +1934,7 @@ export function JournalPage() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center">
-            {insightsBridgeActive && !dismissedBridgeBanner && (
+            {insightsBridgeActive && !dismissedBridgeBanner && !isNewEntry && (
               <div className="w-full max-w-md mx-4 mb-4 flex items-center justify-between gap-3 px-4 py-3 bg-sage-soft border border-sage rounded-14">
                 <div className="flex items-center gap-2 min-w-0">
                   <Sparkles size={13} className="text-sage-strong flex-shrink-0" />
