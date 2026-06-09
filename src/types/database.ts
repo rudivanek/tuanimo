@@ -165,6 +165,7 @@ export type Database = {
           emotion_score_at_creation: number | null;
           saved_at: string | null;
           source_chat_id: string | null;
+          linked_chat_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -184,6 +185,7 @@ export type Database = {
           emotion_score_at_creation?: number | null;
           saved_at?: string | null;
           source_chat_id?: string | null;
+          linked_chat_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -203,6 +205,7 @@ export type Database = {
           emotion_score_at_creation?: number | null;
           saved_at?: string | null;
           source_chat_id?: string | null;
+          linked_chat_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
