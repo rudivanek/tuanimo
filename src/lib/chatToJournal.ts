@@ -77,6 +77,32 @@ export async function insertJournalDraft(
   console.log('[Chat→Journal] chatTitle:', chatTitle);
   console.log('[Chat→Journal] computedJournalTitle:', title);
 
+  // 1:1 guard — a chat maps to at most ONE diary entry. If one already exists
+  // for this chat, reuse it instead of inserting a duplicate Borrador. This makes
+  // conversion idempotent against double-clicks, re-conversions, and the brief
+  // window before the thread's linked_journal_entry_id is set.
+  const { data: existing } = await supabase
+    .from('journal_entries')
+    .select('id, is_draft')
+    .eq('origin', 'chat')
+    .eq('source_chat_id', chatId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.id) {
+    // Refresh content only while it is still an unsaved draft; never clobber a
+    // saved entry. Either way, return the existing id — no second entry.
+    if (existing.is_draft) {
+      const { error: updErr } = await supabase
+        .from('journal_entries')
+        .update({ title, content_enc: encryptedContent, enc_version: 2, tags: draft.tags ?? [] })
+        .eq('id', existing.id);
+      if (updErr) console.error('insertJournalDraft refresh error', updErr);
+    }
+    return existing.id;
+  }
+
   const { data, error } = await supabase
     .from('journal_entries')
     .insert({
