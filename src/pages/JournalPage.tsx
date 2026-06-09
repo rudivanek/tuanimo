@@ -122,6 +122,7 @@ export function JournalPage() {
   // Auto-save draft state
   const autoSaveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSavedDraftIdRef = useRef<string | null>(null);  // tracks the DB id of the in-progress draft row
+  const savingRef = useRef(false);  // synchronous re-entry guard for handleSave (isSaving state is async)
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [progress, setProgress] = useState<JournalProgress>({
@@ -1076,6 +1077,11 @@ export function JournalPage() {
       setReadOnlyWarning(true);
       return;
     }
+    // Synchronous re-entry guard: isSaving is React state (async), so a fast
+    // second click — or one during the awaited auto-title generation — could
+    // slip through and INSERT a duplicate new entry. The ref blocks that.
+    if (savingRef.current) return;
+    savingRef.current = true;
 
     setIsSaving(true);
     setStorageLimitError(null);
@@ -1224,6 +1230,7 @@ export function JournalPage() {
       console.error('Error saving entry:', error);
     } finally {
       setIsSaving(false);
+      savingRef.current = false;
     }
   };
 
