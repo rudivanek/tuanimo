@@ -464,6 +464,17 @@ export function ChatPage() {
               });
               if (entryId) {
                 setReflectionSourceEntryId({ threadId: reflectionThread.id, entryId });
+                // Backlink the diary entry to this thread so the entry remembers
+                // its chat: next visit shows "Continuar con Elena" instead of
+                // spawning a second thread. ON DELETE SET NULL keeps this clean
+                // if the thread is later deleted.
+                supabase
+                  .from('journal_entries')
+                  .update({ linked_chat_id: reflectionThread.id })
+                  .eq('id', entryId)
+                  .then(({ error: linkErr }) => {
+                    if (linkErr) console.error('journal_linked_chat_update_failed', linkErr);
+                  });
               }
               setInputMessage('Quiero hablar contigo sobre lo que acabo de escribir.');
               return; // handled — skip the default thread auto-select below
