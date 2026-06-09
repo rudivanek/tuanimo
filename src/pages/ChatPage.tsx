@@ -1693,6 +1693,19 @@ export function ChatPage() {
 
   const handleConvertToJournal = async () => {
     if (!user || !profile || !currentThreadId) return;
+    // 1:1 guard: if this thread is ALREADY linked to a diary entry — e.g. a
+    // reflection chat born from the diary (thread.linked_journal_entry_id), or
+    // a previous conversion — open that entry instead of minting a second one.
+    const alreadyLinkedId =
+      threadsRef.current.find(t => t.id === currentThreadId)?.linked_journal_entry_id
+      ?? linkedEntry?.id
+      ?? null;
+    if (alreadyLinkedId) {
+      sessionStorage.setItem('diaryAutoOpen', alreadyLinkedId);
+      setShowConvertModal(false);
+      setLocation('/journal');
+      return;
+    }
     const msgList = messages
       .filter(m => m.content?.trim())
       .map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.content }));
