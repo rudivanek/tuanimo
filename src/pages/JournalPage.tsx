@@ -64,6 +64,7 @@ interface JournalEntry {
   is_draft: boolean;
   origin?: string;
   source_chat_id?: string | null;
+  linked_chat_id?: string | null;
   trigger_reason?: string | null;
   emotion_score_at_creation?: number | null;
   saved_at?: string | null;
@@ -560,6 +561,7 @@ export function JournalPage() {
             is_draft: (entry as { is_draft?: boolean }).is_draft ?? false,
             origin: (entry as { origin?: string }).origin ?? 'manual',
             source_chat_id: (entry as { source_chat_id?: string | null }).source_chat_id ?? null,
+            linked_chat_id: (entry as { linked_chat_id?: string | null }).linked_chat_id ?? null,
             saved_at: (entry as { saved_at?: string | null }).saved_at ?? null,
           };
         })
@@ -674,6 +676,7 @@ export function JournalPage() {
         is_draft: (data as { is_draft?: boolean }).is_draft ?? false,
         origin: (data as { origin?: string }).origin ?? 'manual',
         source_chat_id: (data as { source_chat_id?: string | null }).source_chat_id ?? null,
+        linked_chat_id: (data as { linked_chat_id?: string | null }).linked_chat_id ?? null,
         saved_at: (data as { saved_at?: string | null }).saved_at ?? null,
       };
       handleSelectEntry(entry);
@@ -1608,23 +1611,38 @@ export function JournalPage() {
               (!!selectedEntry &&
                 !selectedEntry.is_draft &&
                 !isNewEntry &&
-                content.trim().length >= 200)) && (
+                (!!selectedEntry.linked_chat_id || content.trim().length >= 200))) && (
               <div className="px-4 py-2 flex-shrink-0">
-                <button
-                  onClick={() => {
-                    try {
-                      sessionStorage.setItem(
-                        'journalReflectionEntry',
-                        JSON.stringify({ id: selectedEntry?.id || null, title: title.trim() || null, content }),
-                      );
-                    } catch {}
-                    setLocation('/chat');
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-[12px] bg-[#FAEEDA] border border-[#EF9F27]/40 text-[#854F0B] text-[13px] font-medium hover:bg-[#EF9F27]/20 transition-colors w-full"
-                >
-                  <MessageCircle size={14} className="flex-shrink-0" />
-                  <span>Elena puede reflexionar sobre esto →</span>
-                </button>
+                {selectedEntry?.linked_chat_id ? (
+                  <button
+                    onClick={() => {
+                      try {
+                        sessionStorage.setItem('openChatThread', selectedEntry.linked_chat_id!);
+                      } catch {}
+                      setLocation('/chat');
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-[12px] bg-[#FAEEDA] border border-[#EF9F27]/40 text-[#854F0B] text-[13px] font-medium hover:bg-[#EF9F27]/20 transition-colors w-full"
+                  >
+                    <MessageCircle size={14} className="flex-shrink-0" />
+                    <span>Continuar con Elena →</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      try {
+                        sessionStorage.setItem(
+                          'journalReflectionEntry',
+                          JSON.stringify({ id: selectedEntry?.id || null, title: title.trim() || null, content }),
+                        );
+                      } catch {}
+                      setLocation('/chat');
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-[12px] bg-[#FAEEDA] border border-[#EF9F27]/40 text-[#854F0B] text-[13px] font-medium hover:bg-[#EF9F27]/20 transition-colors w-full"
+                  >
+                    <MessageCircle size={14} className="flex-shrink-0" />
+                    <span>Elena puede reflexionar sobre esto →</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -1683,7 +1701,7 @@ export function JournalPage() {
                 isDraft={selectedEntry.is_draft}
                 onNavigate={() => {
                   sessionStorage.setItem('openChatThread', selectedEntry.source_chat_id!);
-                  setLocation('/app/chat');
+                  setLocation('/chat');
                 }}
               />
             )}
