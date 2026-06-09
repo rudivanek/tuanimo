@@ -437,8 +437,20 @@ export function ChatPage() {
       if (handlingReflection && reflectionRaw && user) {
         try {
           const parsed = JSON.parse(reflectionRaw) as { id?: string | null; title?: string | null; content?: string };
-          if (parsed?.content?.trim()) {
+         f (parsed?.content?.trim()) {
             const entryId = parsed.id || null;
+            // 1:1 guard: if a thread is already linked to this diary entry, open
+            // that one instead of creating a second (covers a stale diary banner,
+            // double-clicks, or a backlink that didn't round-trip). One diary ->
+            // one chat, always.
+            const existingForEntry = entryId
+              ? normalized.find(t => t.linked_journal_entry_id === entryId)
+              : null;
+            if (existingForEntry) {
+              setCurrentThreadId(existingForEntry.id);
+              setReflectionSourceEntryId({ threadId: existingForEntry.id, entryId: entryId! });
+              return; // handled — reuse the existing thread
+            }
             const shifted = normalized.map((t, i) => ({ ...t, sort_order: i + 1 }));
             await Promise.all(
               shifted.map(t =>
