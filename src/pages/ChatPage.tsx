@@ -437,7 +437,7 @@ export function ChatPage() {
       if (handlingReflection && reflectionRaw && user) {
         try {
           const parsed = JSON.parse(reflectionRaw) as { id?: string | null; title?: string | null; content?: string };
-         f (parsed?.content?.trim()) {
+         if (parsed?.content?.trim()) {
             const entryId = parsed.id || null;
             // 1:1 guard: if a thread is already linked to this diary entry, open
             // that one instead of creating a second (covers a stale diary banner,
