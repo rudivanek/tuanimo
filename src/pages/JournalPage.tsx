@@ -1606,8 +1606,12 @@ export function JournalPage() {
             </div>
 
             {/* Elena reflection chip — appears after saving a new entry, and
-                stays available whenever you're reading a substantial saved entry */}
-            {(showElenaChip ||
+                stays available whenever you're reading a substantial saved entry.
+                Chat-born entries are excluded: they already have exactly one chat
+                (source_chat_id) and return to it via the chat-origin banner, so
+                they must never offer the "create a chat" path (1:1 diary↔chat). */}
+            {!(selectedEntry?.origin === 'chat' && !!selectedEntry?.source_chat_id) &&
+              (showElenaChip ||
               (!!selectedEntry &&
                 !selectedEntry.is_draft &&
                 !isNewEntry &&
