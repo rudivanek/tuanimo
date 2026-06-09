@@ -1612,48 +1612,32 @@ export function JournalPage() {
               )}
             </div>
 
-            {/* Elena reflection chip — appears after saving a new entry, and
-                stays available whenever you're reading a substantial saved entry.
-                Chat-born entries are excluded: they already have exactly one chat
-                (source_chat_id) and return to it via the chat-origin banner, so
-                they must never offer the "create a chat" path (1:1 diary↔chat). */}
+            {/* Elena bridge — a soft, one-directional link. Opens a chat seeded
+                with this entry's text. No backlink, no memory, no 1:1 enforcement;
+                one button, one behavior. Chat-born entries are excluded — they use
+                the "Volver al chat" origin banner below to return to their chat. */}
             {!(selectedEntry?.origin === 'chat' && !!selectedEntry?.source_chat_id) &&
               (showElenaChip ||
               (!!selectedEntry &&
                 !selectedEntry.is_draft &&
                 !isNewEntry &&
-                (!!selectedEntry.linked_chat_id || content.trim().length >= 200))) && (
+                content.trim().length >= 200)) && (
               <div className="px-4 py-2 flex-shrink-0">
-                {selectedEntry?.linked_chat_id ? (
-                  <button
-                    onClick={() => {
-                      try {
-                        sessionStorage.setItem('openChatThread', selectedEntry.linked_chat_id!);
-                      } catch {}
-                      setLocation('/chat');
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 rounded-[12px] bg-[#FAEEDA] border border-[#EF9F27]/40 text-[#854F0B] text-[13px] font-medium hover:bg-[#EF9F27]/20 transition-colors w-full"
-                  >
-                    <MessageCircle size={14} className="flex-shrink-0" />
-                    <span>Continuar con Elena →</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      try {
-                        sessionStorage.setItem(
-                          'journalReflectionEntry',
-                          JSON.stringify({ id: selectedEntry?.id || null, title: title.trim() || null, content }),
-                        );
-                      } catch {}
-                      setLocation('/chat');
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 rounded-[12px] bg-[#FAEEDA] border border-[#EF9F27]/40 text-[#854F0B] text-[13px] font-medium hover:bg-[#EF9F27]/20 transition-colors w-full"
-                  >
-                    <MessageCircle size={14} className="flex-shrink-0" />
-                    <span>Elena puede reflexionar sobre esto →</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem(
+                        'journalReflectionEntry',
+                        JSON.stringify({ id: selectedEntry?.id || null, title: title.trim() || null, content }),
+                      );
+                    } catch {}
+                    setLocation('/chat');
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-[12px] bg-[#FAEEDA] border border-[#EF9F27]/40 text-[#854F0B] text-[13px] font-medium hover:bg-[#EF9F27]/20 transition-colors w-full"
+                >
+                  <MessageCircle size={14} className="flex-shrink-0" />
+                  <span>Hablar con Elena sobre esto →</span>
+                </button>
               </div>
             )}
 
@@ -1759,7 +1743,7 @@ export function JournalPage() {
             )}
 
             {/* Repeated-topic chat suggestion — retired in favor of the
-                entry-anchored "Elena puede reflexionar sobre esto" chip. */}
+                entry-anchored "Hablar con Elena sobre esto" bridge. */}
 
             {/* Storage limit error */}
             {storageLimitError && (
