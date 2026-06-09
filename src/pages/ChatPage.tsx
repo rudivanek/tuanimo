@@ -1465,6 +1465,13 @@ export function ChatPage() {
   };
 
   const currentThread = threads.find(t => t.id === currentThreadId);
+  // Reliable, synchronous "this chat already has a diary entry" check. Reads the
+  // thread's linked_journal_entry_id directly (set when the chat is born from a
+  // diary, or after a convert) and falls back to the async-resolved linkedEntry.
+  // Gating the convert button on this — not on linkedEntry alone — is what stops
+  // a diary-born chat from offering "Convertir a diario" and spawning a duplicate.
+  const linkedJournalId = currentThread?.linked_journal_entry_id ?? linkedEntry?.id ?? null;
+  const hasLinkedEntry = !!linkedJournalId;
 
   const latestCounselorMsg =
     messages.findLast?.(m => m.sender === 'counselor') ??
@@ -1941,7 +1948,7 @@ export function ChatPage() {
           </div>
           {messages.length > 0 && currentThread && !editingInHeader && (
             <>
-              {!linkedEntry && (
+              {!hasLinkedEntry && (
                 <button
                   type="button"
                   onClick={() => setShowConvertModal(true)}
@@ -2288,16 +2295,16 @@ export function ChatPage() {
                 <Plus size={11} />
                 Agregar compromiso
               </button>
-              {linkedEntry ? (
+              {hasLinkedEntry ? (
                 <button
                   onClick={() => {
-                    sessionStorage.setItem('diaryAutoOpen', linkedEntry.id);
+                    if (linkedJournalId) sessionStorage.setItem('diaryAutoOpen', linkedJournalId);
                     setLocation('/journal');
                   }}
                   className="flex items-center gap-1 text-[11px] text-sage-strong hover:opacity-75 transition-opacity bg-sage-strong/8 px-2 py-0.5 rounded-full"
                 >
                   <BookOpen size={11} />
-                  Reflexión guardada
+                  Volver al diario →
                 </button>
               ) : messages.length > 0 && (
                 <button
