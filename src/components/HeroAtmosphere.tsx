@@ -22,7 +22,7 @@ export function HeroAtmosphere() {
   }, []);
 
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+    <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
       <style>{`
         @keyframes hero-rise {
           0%   { transform: translate3d(0,0,0); opacity: 0; }
