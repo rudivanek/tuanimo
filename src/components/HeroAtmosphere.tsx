@@ -9,14 +9,14 @@ const TONES = [
 export function HeroAtmosphere() {
   const particles = useMemo(() => {
     const rand = (a: number, b: number) => a + Math.random() * (b - a);
-    return Array.from({ length: 22 }, (_, i) => ({
+    return Array.from({ length: 42 }, (_, i) => ({
       left: rand(2, 98),
       size: rand(8, 86),
       blur: rand(1, 12),
-      dur: rand(16, 34),
-      delay: -rand(0, 34),
+      dur: rand(7, 16),
+      delay: -rand(0, 16),
       drift: rand(-70, 70),
-      maxO: rand(0.2, 0.55),
+      maxO: rand(0.25, 0.6),
       tone: i % 3,
     }));
   }, []);
@@ -26,9 +26,9 @@ export function HeroAtmosphere() {
       <style>{`
         @keyframes hero-rise {
           0%   { transform: translate3d(0,0,0); opacity: 0; }
-          12%  { opacity: var(--max-o, .5); }
-          82%  { opacity: var(--max-o, .5); }
-          100% { transform: translate3d(var(--drift,0px),-110vh,0); opacity: 0; }
+          6%   { opacity: var(--max-o, .5); }
+          88%  { opacity: var(--max-o, .5); }
+          100% { transform: translate3d(var(--drift,0px),-115vh,0); opacity: 0; }
         }
         @keyframes hero-breathe {
           0%,100% { transform: translate(-50%,-50%) scale(1);    opacity: .55; }
