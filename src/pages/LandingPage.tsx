@@ -36,7 +36,7 @@ export function LandingPage() {
 
         <section className="pt-20 pb-20 text-center">
           <h1 className="text-[2.25rem] sm:text-[2.75rem] font-semibold tracking-tight text-app-text leading-[1.15] mb-5">
-            Un lugar para lo que sientes
+            Elena escucha lo que no le dices a nadie.
           </h1>
           <p className="text-[1.05rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-10">
             Elena ya está esperándote.
