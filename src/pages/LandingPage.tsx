@@ -4,9 +4,18 @@ import { HeroAtmosphere } from '../components/HeroAtmosphere';
 
 export function LandingPage() {
   return (
-    <div className="min-h-screen bg-app-bg font-sans">
+    <div
+      className="min-h-screen font-sans"
+      style={{
+        position: 'relative',
+        background: 'radial-gradient(1000px 560px at 72% 4%, rgba(122,171,138,.22), transparent 62%), radial-gradient(820px 480px at 14% 28%, rgba(234,242,237,.95), transparent 60%), radial-gradient(700px 420px at 88% 78%, rgba(237,233,226,.8), transparent 62%), linear-gradient(180deg, #edf3ef 0%, #f7f4ef 78%)',
+      }}
+    >
+      <HeroAtmosphere />
 
-      <header className="sticky top-0 z-50 bg-app-bg/95 backdrop-blur-sm border-b border-app-border">
+      <div style={{ position: 'relative', zIndex: 1 }}>
+
+      <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-md border-b border-app-border">
         <div className="max-w-2xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-sage-soft rounded-full flex items-center justify-center">
@@ -29,16 +38,8 @@ export function LandingPage() {
 
       <main>
 
-        <section
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-            background: 'radial-gradient(1000px 560px at 72% 4%, rgba(122,171,138,.22), transparent 62%), radial-gradient(820px 480px at 14% 28%, rgba(234,242,237,.95), transparent 60%), radial-gradient(700px 420px at 88% 78%, rgba(237,233,226,.8), transparent 62%), linear-gradient(180deg, #edf3ef 0%, #f7f4ef 78%)',
-          }}
-          className="pt-20 pb-20 text-center"
-        >
-          <HeroAtmosphere />
-          <div style={{ position: 'relative', zIndex: 1 }} className="max-w-2xl mx-auto px-6">
+        <section className="pt-20 pb-20 text-center">
+          <div className="max-w-2xl mx-auto px-6">
             <h1 className="text-[2.25rem] sm:text-[2.75rem] font-semibold tracking-tight text-gray-900 leading-[1.15] mb-5">
               Elena escucha lo que{" "}
               <span className="italic font-light text-[#1e6040]">no le dices</span>
@@ -188,6 +189,8 @@ export function LandingPage() {
           </p>
         </div>
       </footer>
+
+      </div>
 
     </div>
   );
