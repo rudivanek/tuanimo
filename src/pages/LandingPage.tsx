@@ -12,7 +12,7 @@ export function LandingPage() {
               <Leaf className="w-3.5 h-3.5 text-sage-strong" />
             </div>
             <span className="text-[15px] font-semibold tracking-tight text-app-text">
-              Tu Ánimo
+              TuAnimo
             </span>
           </div>
           <nav className="flex items-center gap-1.5">
@@ -39,7 +39,7 @@ export function LandingPage() {
             Un lugar para lo que sientes
           </h1>
           <p className="text-[1.05rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-10">
-            Escribe lo que llevas dentro. Habla con Elena cuando lo necesites. Sin prisa, sin juicios.
+            Elena ya está esperándote.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
@@ -135,7 +135,7 @@ export function LandingPage() {
             {[
               {
                 icon: Lock,
-                text: 'Lo que escribes es tuyo. Cifrado, privado, sin acceso de terceros.',
+                text: 'Lo que le dices a Elena, solo lo saben tú y Elena · Disponible 24/7',
               },
               {
                 icon: Moon,
