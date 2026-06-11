@@ -17,12 +17,6 @@ export function LandingPage() {
           </div>
           <nav className="flex items-center gap-1.5">
             <Link
-              href="/app"
-              className="px-4 py-2 text-sm font-medium text-app-muted hover:text-app-text transition-colors rounded-12"
-            >
-              Abrir app
-            </Link>
-            <Link
               href="/login"
               className="px-4 py-2 text-sm font-semibold text-white bg-sage-strong hover:bg-[#4e7260] rounded-12 transition-colors"
             >
@@ -53,12 +47,6 @@ export function LandingPage() {
               className="w-full sm:w-auto px-7 py-3.5 text-sm font-semibold text-white bg-sage-strong hover:bg-[#4e7260] rounded-12 transition-colors"
             >
               Iniciar sesión
-            </Link>
-            <Link
-              href="/app"
-              className="w-full sm:w-auto px-7 py-3.5 text-sm font-semibold text-app-muted hover:text-app-text border border-app-border bg-app-surface hover:border-sage-strong/50 rounded-12 transition-colors"
-            >
-              Abrir app
             </Link>
           </div>
         </section>
@@ -170,12 +158,6 @@ export function LandingPage() {
               className="w-full sm:w-auto px-7 py-3.5 text-sm font-semibold text-white bg-sage-strong hover:bg-[#4e7260] rounded-12 transition-colors"
             >
               Iniciar sesión
-            </Link>
-            <Link
-              href="/app"
-              className="w-full sm:w-auto px-7 py-3.5 text-sm font-semibold text-app-muted hover:text-app-text border border-app-border bg-app-surface hover:border-sage-strong/50 rounded-12 transition-colors"
-            >
-              Abrir app
             </Link>
           </div>
         </section>
