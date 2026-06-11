@@ -43,7 +43,7 @@ export function LandingPage() {
           </p>
 
 
-<h1 className="text-[2.25rem] sm:text-[2.75rem] font-extrabold tracking-tight text-gray-900 leading-[1.15] mb-5">
+<h1 className="text-[2.25rem] sm:text-[2.75rem] font-semibold tracking-tight text-gray-900 leading-[1.15] mb-5">
   Elena escucha lo que{" "}
   <span className="italic font-light text-[#1e6040]">no le dices</span>
   {" "}a nadie.
