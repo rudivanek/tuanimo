@@ -1,5 +1,6 @@
 import { Link } from 'wouter';
 import { Leaf, MessageCircle, BookOpen, TrendingUp, Heart, Lock, Moon } from 'lucide-react';
+import { HeroAtmosphere } from '../components/HeroAtmosphere';
 
 export function LandingPage() {
   return (
@@ -26,30 +27,38 @@ export function LandingPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6">
+      <main>
 
-        <section className="pt-20 pb-20 text-center">
-         <h1 className="text-[2.25rem] sm:text-[2.75rem] font-semibold tracking-tight text-gray-900 leading-[1.15] mb-5">
-  Elena escucha lo que{" "}
-  <span className="italic font-light text-[#1e6040]">no le dices</span>
-  {" "}a nadie.
-</h1>
-          <p className="text-[1.05rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-10">
-            Elena ya está esperándote.
-          </p>
-
-
-
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/login"
-              className="w-full sm:w-auto px-7 py-3.5 text-sm font-semibold text-white bg-sage-strong hover:bg-[#4e7260] rounded-12 transition-colors"
-            >
-              Iniciar sesión
-            </Link>
+        <section
+          style={{
+            position: 'relative',
+            overflow: 'hidden',
+            background: 'radial-gradient(1000px 560px at 72% 4%, rgba(122,171,138,.22), transparent 62%), radial-gradient(820px 480px at 14% 28%, rgba(234,242,237,.95), transparent 60%), radial-gradient(700px 420px at 88% 78%, rgba(237,233,226,.8), transparent 62%), linear-gradient(180deg, #edf3ef 0%, #f7f4ef 78%)',
+          }}
+          className="pt-20 pb-20 text-center"
+        >
+          <HeroAtmosphere />
+          <div style={{ position: 'relative', zIndex: 1 }} className="max-w-2xl mx-auto px-6">
+            <h1 className="text-[2.25rem] sm:text-[2.75rem] font-semibold tracking-tight text-gray-900 leading-[1.15] mb-5">
+              Elena escucha lo que{" "}
+              <span className="italic font-light text-[#1e6040]">no le dices</span>
+              {" "}a nadie.
+            </h1>
+            <p className="text-[1.05rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-10">
+              Elena ya está esperándote.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                href="/login"
+                className="w-full sm:w-auto px-7 py-3.5 text-sm font-semibold text-white bg-sage-strong hover:bg-[#4e7260] rounded-12 transition-colors"
+              >
+                Iniciar sesión
+              </Link>
+            </div>
           </div>
         </section>
+
+        <div className="max-w-2xl mx-auto px-6">
 
         <section className="pb-20">
           <div className="border-t border-app-border">
@@ -161,6 +170,8 @@ export function LandingPage() {
             </Link>
           </div>
         </section>
+
+        </div>
 
       </main>
 
