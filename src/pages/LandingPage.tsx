@@ -45,8 +45,6 @@ export function LandingPage() {
 
 
 
-          <h1 data-dc-tpl="50" data-reveal="0.08" style="margin: 26px 0px 0px; font-size: clamp(29px, 8vw, 61px); font-weight: 600; line-height: 1.12; letter-spacing: -0.03em; color: rgb(28, 43, 34); opacity: 1; transform: translateY(0px); transition: opacity 800ms 0.08s, transform 800ms cubic-bezier(0.2, 0.7, 0.3, 1) 0.08s;"><span data-dc-tpl="51" style="white-space: nowrap;">Elena escucha lo que</span><br data-dc-tpl="52"><span data-dc-tpl="53" style="white-space: nowrap;"><em data-dc-tpl="54" style="font-style: italic; font-weight: 400; color: rgb(74, 124, 89);">no le dices</em> a nadie.</span></h1>
-            
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/login"
