@@ -1,7 +1,7 @@
 # Elena (Tu-Animo.app) — Feature Documentation
 
 Version: 3.2
-Last Updated: 2026-06-11T00:00:00Z
+Last Updated: 2026-03-20T13:00:00Z
 
 ---
 
@@ -26,12 +26,6 @@ The landing page includes:
 The existing login form (previously served at `/`) has been moved to `/login`. Authenticated users who visit `/login` are automatically redirected to `/app/chat`.
 
 **File:** `src/pages/LoginPage.tsx`
-
-**Login page copy (as of 2026-06-11):**
-- App name displayed: **TuAnimo** (single word, no separator or domain suffix)
-- Tagline: **Elena ya está esperándote.**
-- Password field placeholder: **Tu conversación es solo tuya.**
-- Legal footer: **Lo que escribes aquí es tuyo. Nadie más puede leerlo. Al continuar aceptas nuestros términos y política de privacidad.**
 
 ### 1.3 App Routes under `/app`
 

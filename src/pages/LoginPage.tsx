@@ -72,10 +72,11 @@ export function LoginPage() {
         </div>
 
         <div className="text-center mb-2">
-          <span className="text-[20px] font-semibold tracking-tight text-app-text">TuAnimo</span>
+          <span className="text-[20px] font-semibold tracking-tight text-app-text">Tu-Animo</span>
+          <span className="text-[20px] font-semibold tracking-tight text-sage-strong">.app</span>
         </div>
         <p className="text-center text-app-muted text-sm mb-7">
-          Elena ya está esperándote.
+          Tu espacio seguro para el bienestar emocional
         </p>
 
         {/* Mode toggle */}
@@ -181,7 +182,7 @@ export function LoginPage() {
                 style={{ boxShadow: 'none' }}
                 onFocus={(e) => (e.currentTarget.style.boxShadow = focusStyle)}
                 onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
-                placeholder="Tu conversación es solo tuya."
+                placeholder="Mínimo 6 caracteres"
               />
               <button
                 type="button"
@@ -232,7 +233,7 @@ export function LoginPage() {
         )}
 
         <p className="mt-4 text-xs text-center text-app-muted leading-relaxed">
-          Lo que escribes aquí es tuyo. Nadie más puede leerlo. Al continuar aceptas nuestros términos y política de privacidad.
+          Al continuar, aceptas nuestros términos de servicio y política de privacidad
         </p>
       </div>
     </div>
