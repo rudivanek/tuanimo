@@ -62,7 +62,10 @@ export function LandingPage() {
         <div className="max-w-2xl mx-auto px-6">
 
         <section className="pb-20">
-          <div className="border-t border-app-border">
+          <div
+            className="rounded-[20px] border border-white/60 overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.68)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' }}
+          >
             {[
               {
                 icon: BookOpen,
@@ -79,8 +82,8 @@ export function LandingPage() {
                 heading: 'Entiéndete con el tiempo',
                 body: 'Poco a poco emergen patrones. Ver cómo estás evolucionando puede ser revelador.',
               },
-            ].map(({ icon: Icon, heading, body }) => (
-              <div key={heading} className="flex items-start gap-5 py-7 border-b border-app-border">
+            ].map(({ icon: Icon, heading, body }, i, arr) => (
+              <div key={heading} className={`flex items-start gap-5 px-6 py-7 ${i < arr.length - 1 ? 'border-b border-white/40' : ''}`}>
                 <div className="w-9 h-9 bg-sage-soft rounded-12 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Icon size={16} className="text-sage-strong" />
                 </div>
@@ -122,7 +125,8 @@ export function LandingPage() {
             ].map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
-                className="bg-app-surface border border-app-border rounded-[16px] p-5"
+                className="border border-white/60 rounded-[16px] p-5"
+                style={{ background: 'rgba(255,255,255,0.68)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' }}
               >
                 <div className="flex items-center gap-2.5 mb-2">
                   <Icon size={15} className="text-sage-strong flex-shrink-0" />
@@ -135,7 +139,10 @@ export function LandingPage() {
         </section>
 
         <section className="pb-20">
-          <div className="bg-app-surface border border-app-border rounded-[16px] px-6 py-7 space-y-5">
+          <div
+            className="border border-white/60 rounded-[16px] px-6 py-7 space-y-5"
+            style={{ background: 'rgba(255,255,255,0.68)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' }}
+          >
             {[
               {
                 icon: Lock,
@@ -176,7 +183,10 @@ export function LandingPage() {
 
       </main>
 
-      <footer className="border-t border-app-border">
+      <footer
+        className="border-t border-white/40"
+        style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
+      >
         <div className="max-w-2xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 bg-sage-soft rounded-full flex items-center justify-center">
