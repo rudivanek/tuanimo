@@ -43,12 +43,10 @@ export function LandingPage() {
           </p>
 
 
-<h1 className="text-[2.25rem] sm:text-[2.75rem] font-bold tracking-tight text-app-text leading-[1.15] mb-5">
+<h1 className="text-[2.25rem] sm:text-[2.75rem] font-extrabold tracking-tight text-gray-900 leading-[1.15] mb-5">
   Elena escucha lo que{" "}
-  <em className="not-italic font-bold text-[#1a5c3a] italic">
-    no le dices
-  </em>{" "}
-  a nadie.
+  <span className="italic font-light text-[#1e6040]">no le dices</span>
+  {" "}a nadie.
 </h1>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
