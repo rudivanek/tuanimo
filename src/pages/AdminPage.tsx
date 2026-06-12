@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { BarChart3, Bot, CreditCard, DollarSign, Shield, Users, AlertTriangle, AlertCircle, SlidersHorizontal, Mail } from 'lucide-react';
+import { BarChart2, BarChart3, Bot, CreditCard, DollarSign, Shield, Users, AlertTriangle, AlertCircle, SlidersHorizontal, Mail } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 
 interface NavCard {
@@ -63,6 +63,12 @@ const adminNav: NavCard[] = [
     icon: Bot,
     title: 'Configuración IA',
     description: 'Cambia el modelo de Elena, limita el historial y ajusta parámetros de respuesta en tiempo real.',
+  },
+  {
+    href: '/admin/analytics',
+    icon: BarChart2,
+    title: 'Analytics & Export',
+    description: 'Filtra eventos raw o agregados diarios por fecha, usuario, operación y modelo — exporta a CSV.',
   },
 ];
 
