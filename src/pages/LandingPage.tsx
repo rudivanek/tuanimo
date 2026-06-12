@@ -115,17 +115,17 @@ export function LandingPage() {
               {
                 icon: MessageCircle,
                 title: 'Chat de apoyo',
-                desc: 'Habla con Elena cuando algo te pesa. Disponible siempre.',
+                desc: 'Cuando necesitas decirlo en voz alta — sin miedo a ser juzgado/a. Disponible siempre.',
               },
               {
                 icon: TrendingUp,
                 title: 'Seguimiento emocional',
-                desc: 'Una mirada semanal a cómo has estado.',
+                desc: 'Una vez a la semana, Elena te muestra el hilo de lo que has vivido.',
               },
               {
                 icon: Heart,
                 title: 'Patrones personales',
-                desc: 'Con el tiempo, comienzas a entenderte mejor.',
+                desc: 'Lo que repites, lo que evitas, lo que te mueve — empieza a tener sentido.',
               },
             ].map(({ icon: Icon, title, desc }) => (
               <div
