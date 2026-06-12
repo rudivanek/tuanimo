@@ -43,7 +43,7 @@ export function LandingPage() {
             <h1 className="text-[2.25rem] sm:text-[2.75rem] font-semibold tracking-tight text-gray-900 leading-[1.15] mb-5">
               Elena no solo escucha{" "}
               <span className="italic font-light text-[#1e6040]">sino te ayuda a entender</span>
-              {" "}lo que estás viviendo.
+              {" "} lo que estás viviendo.
             </h1>
 
             <h2 className="text-[1.35rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-6">
