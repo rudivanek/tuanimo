@@ -20,7 +20,16 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { getFreshAccessToken } from '../lib/api';
+// getToken — tries cached helper first, falls back to direct session (works in Bolt preview)
+async function getToken(): Promise<string | null> {
+  try {
+    const mod = await import('../lib/api');
+    const t = await mod.getFreshAccessToken();
+    if (t) return t;
+  } catch { /* ignore */ }
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
 
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
@@ -106,7 +115,7 @@ export function OnboardingConversation({ onComplete }: Props) {
     setLoading(true);
 
     try {
-      const token = await getFreshAccessToken();
+      const token = await getToken();
       if (!token) throw new Error('No active session');
       const res = await fetch(`${FUNCTIONS_URL}/onboarding-chat`, {
         method: 'POST',
@@ -151,7 +160,7 @@ export function OnboardingConversation({ onComplete }: Props) {
     if (finishing) return;
     setFinishing(true);
     try {
-      const token = await getFreshAccessToken();
+      const token = await getToken();
       if (!token) throw new Error('No active session');
       const transcript = messages
         .map((m) => `${m.role === 'elena' ? 'Elena' : 'Usuario'}: ${m.text}`)
