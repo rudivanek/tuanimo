@@ -41,9 +41,9 @@ export function LandingPage() {
         <section className="pt-20 pb-20 text-center">
           <div className="max-w-2xl mx-auto px-6">
             <h1 className="text-[2.25rem] sm:text-[2.75rem] font-semibold tracking-tight text-gray-900 leading-[1.15] mb-5">
-              Elena escucha lo que{" "}
-              <span className="italic font-light text-[#1e6040]">no le dices</span>
-              {" "}a nadie.
+              Elena no solo escucha{" "}
+              <span className="italic font-light text-[#1e6040]">Te ayuda a entender</span>
+              {" "}lo que estás viviendo.
             </h1>
             <p className="text-[1.05rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-10">
               Elena ya está esperándote.
