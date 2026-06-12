@@ -7,7 +7,7 @@ import { useSoundSettings } from '../hooks/useSoundSettings';
 import { supabase } from '../lib/supabaseClient';
 import { HelpGuideButton } from '../components/HelpGuide';
 import { useTour } from '../components/OnboardingTour';
-import { useOnboarding } from '../components/OnboardingConversation';
+import { useOnboarding, ElenaEditPresentacion } from '../components/OnboardingConversation';
 import { useAdmin } from '../hooks/useAdmin';
 import { deleteOwnAccount } from '../lib/adminUsers';
 import { APP_VERSION } from '../lib/appVersion';
@@ -209,6 +209,7 @@ export function SettingsPage() {
   const { resetOnboarding } = useOnboarding();
   const { data: isAdmin } = useAdmin();
 
+  const [showEditPresentation, setShowEditPresentation] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -400,6 +401,23 @@ export function SettingsPage() {
           </button>
         </div>
 
+        {/* ── Tu presentación con Elena ── */}
+        <div className="bg-app-surface rounded-[16px] shadow-app border border-app-border p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[15px]">🌷</span>
+            <h2 className="text-[15px] font-semibold text-app-text">Tu presentación con Elena</h2>
+          </div>
+          <p className="text-[12.5px] text-app-muted mb-4 leading-snug">
+            Cuéntale a Elena algo nuevo sobre ti, corrige algo, o actualiza lo que quieres que tenga presente.
+          </p>
+          <button
+            onClick={() => setShowEditPresentation(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-12 border border-app-border text-app-text text-sm font-medium hover:bg-app-surface-2 transition-colors"
+          >
+            ✏️ Actualizar mi presentación
+          </button>
+        </div>
+
         {/* ── Admin: reset Elena onboarding (only visible to admins) ── */}
         {isAdmin && (
           <div className="bg-app-surface rounded-[16px] shadow-app border border-amber-200 p-5">
@@ -423,6 +441,11 @@ export function SettingsPage() {
         )}
 
       </div>
+
+      {/* ── Edit presentation modal ── */}
+      {showEditPresentation && (
+        <ElenaEditPresentacion onClose={() => setShowEditPresentation(false)} />
+      )}
 
       {/* ── Delete confirmation modal ── */}
       {showDeleteDialog && (
