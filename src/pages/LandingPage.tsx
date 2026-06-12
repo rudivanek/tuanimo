@@ -80,12 +80,12 @@ export function LandingPage() {
               {
                 icon: MessageCircle,
                 heading: 'Habla cuando tu mente está cargada',
-                body: 'Elena escucha con calma. No da consejos vacíos. Solo acompaña.',
+                body: 'Elena no te dice lo que quieres oír. Te hace las preguntas que nadie más te hace..',
               },
               {
                 icon: TrendingUp,
                 heading: 'Entiéndete con el tiempo',
-                body: 'Poco a poco emergen patrones. Ver cómo estás evolucionando puede ser revelador.',
+                body: 'Con el tiempo empiezas a verte con más claridad. No como te ven los demás — como realmente eres.',
               },
             ].map(({ icon: Icon, heading, body }, i, arr) => (
               <div key={heading} className={`flex items-start gap-5 px-6 py-7 ${i < arr.length - 1 ? 'border-b border-white/40' : ''}`}>
@@ -110,7 +110,7 @@ export function LandingPage() {
               {
                 icon: BookOpen,
                 title: 'Diario guiado',
-                desc: 'Sugerencias suaves para cuando no sabes por dónde empezar.',
+                desc: 'Para los días en que no sabes ni cómo empezar a explicar lo que sientes.',
               },
               {
                 icon: MessageCircle,
