@@ -172,7 +172,7 @@ export function LandingPage() {
 
         <section className="pb-24 text-center">
           <p className="text-[15px] text-app-muted mb-7 leading-relaxed">
-            No tienes que tener todo claro para empezar.  <br>Solo necesitas querer entenderte un poco mejor. </br>
+            No tienes que tener todo claro para empezar. Solo necesitas querer entenderte un poco mejor.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
