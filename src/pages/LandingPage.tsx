@@ -151,7 +151,7 @@ export function LandingPage() {
             {[
               {
                 icon: Lock,
-                text: 'Lo que le dices a Elena, solo lo saben tú y Elena · Disponible 24/7',
+                text: 'Lo que le dices a Elena es tuyo. Solo tuyo. · Disponible 24/7',
               },
               {
                 icon: Moon,
@@ -172,7 +172,7 @@ export function LandingPage() {
 
         <section className="pb-24 text-center">
           <p className="text-[15px] text-app-muted mb-7 leading-relaxed">
-            Cuando estés listo, aquí está tu espacio.
+            No tienes que tener todo claro para empezar.  Solo necesitas querer entenderte un poco mejor..
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
