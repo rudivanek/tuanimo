@@ -46,7 +46,7 @@ export function LandingPage() {
               {" "}lo que estás viviendo.
             </h1>
 
-            <h2 className="text-[1.05rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-10">
+            <h2 className="text-[1.35rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-10">
             Tu espacio de reflexión emocional, disponible cuando lo necesitas.
             </h2>
             
