@@ -22,6 +22,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Loader2, X } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { saveElenaMemory, type ElenaMemoryType } from '../lib/elenaMemory';
+import { useProfile } from '../hooks/useProfile';
 
 // ─── Auth token helper ────────────────────────────────────────────────────────
 
@@ -72,22 +74,46 @@ export function useOnboarding() {
 
 // ─── Shared: extract memories ─────────────────────────────────────────────────
 
-async function extractMemories(messages: Message[], source: string) {
+async function extractMemories(
+  messages: Message[],
+  source: string,
+  profile: Parameters<typeof saveElenaMemory>[3]
+) {
   try {
     const token = await getToken();
     if (!token) { console.warn('[extractMemories] no token'); return; }
+
     const transcript = messages
       .map((m) => `${m.role === 'elena' ? 'Elena' : 'Usuario'}: ${m.text}`)
       .join('\n');
-    console.log('[extractMemories] calling edge function, source:', source, 'turns:', messages.length);
-    const res = await fetch(`${FUNCTIONS_URL}/extract-memories`, {
+
+    console.log('[extractMemories] calling onboarding-chat/extract, source:', source, 'turns:', messages.length);
+
+    const res = await fetch(`${FUNCTIONS_URL}/onboarding-chat`, {
       method: 'POST',
       headers: buildHeaders(token),
-      body: JSON.stringify({ transcript, source }),
+      body: JSON.stringify({ mode: 'extract', transcript }),
     });
+
     console.log('[extractMemories] response status:', res.status);
-    const body = await res.json().catch(() => ({}));
-    console.log('[extractMemories] response body:', body);
+    const data = await res.json().catch(() => ({}));
+    console.log('[extractMemories] response body:', data);
+
+    const memories: Array<{ type: string; note: string; sensitive: boolean }> =
+      Array.isArray(data.memories) ? data.memories : [];
+
+    if (memories.length === 0) {
+      console.log('[extractMemories] no memories to save');
+      return;
+    }
+
+    // Encrypt and save each memory client-side (same pattern as triggerMemoryExtraction)
+    await Promise.allSettled(
+      memories.map((m) =>
+        saveElenaMemory(m.note, m.type as ElenaMemoryType, m.sensitive, profile)
+      )
+    );
+    console.log(`[extractMemories] saved ${memories.length} note(s) from ${source}`);
   } catch (err) {
     console.error('[extractMemories] error:', err);
   }
@@ -315,33 +341,60 @@ interface OnboardingProps {
 
 export function OnboardingConversation({ onComplete }: OnboardingProps) {
   const { user } = useAuth();
+  const { data: profile } = useProfile();
+  const [showSkipModal, setShowSkipModal] = useState(false);
   const {
     messages, input, setInput, loading, isComplete, finishing, setFinishing,
     sendMessage, handleKeyDown, bottomRef, inputRef,
   } = useChatLogic('onboarding-chat', ONBOARDING_OPENING);
 
   const handleSkip = useCallback(async () => {
-    if (!user) return;
+    if (!user || !profile) return;
     // Save whatever was shared before skipping — even partial answers are useful
     if (messages.length > 1) {
-      await extractMemories(messages, 'onboarding_skipped');
+      await extractMemories(messages, 'onboarding_skipped', profile);
     }
     await supabase
       .from('profiles')
       .update({ onboarding_v2_completed: true })
       .eq('id', user.id);
-    onComplete();
-  }, [user, onComplete, messages]);
+    setShowSkipModal(true);
+  }, [user, profile, messages]);
 
   const handleBegin = async () => {
-    if (finishing) return;
+    if (finishing || !profile) return;
     setFinishing(true);
-    await extractMemories(messages, 'onboarding');
+    await extractMemories(messages, 'onboarding', profile);
     onComplete();
   };
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col bg-app-bg">
+      {/* Skip confirmation modal */}
+      {showSkipModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
+          <div className="bg-app-surface rounded-[20px] shadow-app border border-app-border w-full max-w-sm p-6 text-center">
+            <p className="text-2xl mb-3">🌷</p>
+            <h2 className="text-[16px] font-semibold text-app-text mb-2">
+              Sin problema
+            </h2>
+            <p className="text-[13.5px] text-app-muted leading-relaxed mb-6">
+              Cuando quieras presentarte con Elena, puedes hacerlo desde{' '}
+              <span className="font-medium text-app-text">
+                Configuración → Tu presentación con Elena
+              </span>
+              .
+            </p>
+            <button
+              onClick={onComplete}
+              className="w-full py-3 bg-sage-strong text-white rounded-full text-[15px] font-semibold active:scale-95 transition-transform"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div
         className="flex-none px-5 pb-4 border-b border-app-border bg-app-surface"
@@ -392,6 +445,7 @@ interface EditProps {
 }
 
 export function ElenaEditPresentacion({ onClose }: EditProps) {
+  const { data: profile } = useProfile();
   const {
     messages, input, setInput, loading, finishing, setFinishing,
     sendMessage, handleKeyDown, bottomRef, inputRef,
@@ -401,9 +455,9 @@ export function ElenaEditPresentacion({ onClose }: EditProps) {
   const [saved, setSaved] = useState(false);
 
   const handleListo = async () => {
-    if (finishing) return;
+    if (finishing || !profile) return;
     setFinishing(true);
-    await extractMemories(messages, 'edit_presentacion');
+    await extractMemories(messages, 'edit_presentacion', profile);
     setSaved(true);
     setTimeout(() => onClose(), 1200);
   };
