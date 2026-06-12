@@ -180,7 +180,7 @@ export function LandingPage() {
               href="/login"
               className="w-full sm:w-auto px-7 py-3.5 text-sm font-semibold text-white bg-sage-strong hover:bg-[#4e7260] rounded-12 transition-colors"
             >
-              Iniciar sesión
+              Comenzar con Elena
             </Link>
           </div>
         </section>
