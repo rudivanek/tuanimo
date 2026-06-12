@@ -58,7 +58,7 @@ export function Layout({ children }: LayoutProps) {
           <span className="text-[18px] font-semibold tracking-tight text-app-text">Tu-Animo</span>
           <span className="text-[18px] font-semibold tracking-tight text-sage-strong">.app</span>
           <span className="text-xs text-app-muted ml-2 hidden sm:inline">
-            Tu consejera de IA<span className="ml-1 text-sage-strong/70 font-medium">{APP_VERSION}</span>
+            Tu compañera emocional<span className="ml-1 text-sage-strong/70 font-medium">{APP_VERSION}</span>
           </span>
         </div>
         <div className="ml-auto flex items-center gap-1 pr-1">
