@@ -45,6 +45,10 @@ export function LandingPage() {
               <span className="italic font-light text-[#1e6040]">sino te ayuda a entender</span>
               {" "}lo que estás viviendo.
             </h1>
+
+            <h2>
+            Tu espacio de reflexión emocional, disponible cuando lo necesitas.
+            </h2>
             <p className="text-[1.05rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-10">
               Elena ya está esperándote.
             </p>
