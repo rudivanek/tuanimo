@@ -24,6 +24,7 @@ const PlanLimitsPage     = lazy(() => import('./pages/admin/PlanLimitsPage').the
 const AdminEmailPage     = lazy(() => import('./pages/admin/AdminEmailPage').then(m => ({ default: m.AdminEmailPage })));
 const CostPerCyclePage   = lazy(() => import('./pages/admin/CostPerCyclePage').then(m => ({ default: m.CostPerCyclePage })));
 const AISettingsPage     = lazy(() => import('./pages/admin/AISettingsPage').then(m => ({ default: m.AISettingsPage })));
+const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage').then(m => ({ default: m.AdminAnalyticsPage })));
 const ElenaMemoryPage    = lazy(() => import('./pages/ElenaMemoryPage').then(m => ({ default: m.ElenaMemoryPage })));
 
 function LoadingScreen() {
@@ -85,6 +86,7 @@ const CrisisResourcesRoute = () => <AdminRoute component={CrisisResourcesPage} /
 const PlanLimitsRoute    = () => <AdminRoute component={PlanLimitsPage} />;
 const AdminEmailRoute    = () => <AdminRoute component={AdminEmailPage} />;
 const CostPerCycleRoute  = () => <AdminRoute component={CostPerCyclePage} />;
+const AdminAnalyticsRoute = () => <AdminRoute component={AdminAnalyticsPage} />;
 
 function HomeRoute() {
   const { user, loading } = useAuth();
@@ -108,7 +110,7 @@ function App() {
         <Route path="/practicas"             component={PracticasRoute} />
         <Route path="/insights"              component={InsightsRoute} />
         <Route path="/settings"              component={SettingsRoute} />
-        <Route path="/memory"               component={ElenaMemoryRoute} />
+        <Route path="/memory"                component={ElenaMemoryRoute} />
         <Route path="/admin"                 component={AdminPageRoute} />
         <Route path="/admin/cost-per-cycle"  component={CostPerCycleRoute} />
         <Route path="/admin/token-usage"     component={TokenUsageRoute} />
@@ -118,6 +120,7 @@ function App() {
         <Route path="/admin/crisis-resources"  component={CrisisResourcesRoute} />
         <Route path="/admin/plan-limits"     component={PlanLimitsRoute} />
         <Route path="/admin/email-campaigns" component={AdminEmailRoute} />
+        <Route path="/admin/analytics"       component={AdminAnalyticsRoute} />
         <Route path="/admin/ai-settings"     component={() => <Suspense fallback={<LoadingScreen />}><AISettingsPage /></Suspense>} />
         <Route>
           {user ? <Redirect to="/chat" /> : <Redirect to="/" />}
