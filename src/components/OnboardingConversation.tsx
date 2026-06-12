@@ -366,7 +366,7 @@ export function OnboardingConversation({ onComplete }: OnboardingProps) {
             <p className="text-[13.5px] text-app-muted leading-relaxed mb-6">
               Cuando quieras presentarte con Elena, puedes hacerlo desde{' '}
               <span className="font-medium text-app-text">
-                Configuración → Tu presentación con Elena
+                Configuración → Bienvenida con Elena
               </span>
               .
             </p>
