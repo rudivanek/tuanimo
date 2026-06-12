@@ -75,17 +75,21 @@ export function useOnboarding() {
 async function extractMemories(messages: Message[], source: string) {
   try {
     const token = await getToken();
-    if (!token) return;
+    if (!token) { console.warn('[extractMemories] no token'); return; }
     const transcript = messages
       .map((m) => `${m.role === 'elena' ? 'Elena' : 'Usuario'}: ${m.text}`)
       .join('\n');
-    await fetch(`${FUNCTIONS_URL}/extract-memories`, {
+    console.log('[extractMemories] calling edge function, source:', source, 'turns:', messages.length);
+    const res = await fetch(`${FUNCTIONS_URL}/extract-memories`, {
       method: 'POST',
       headers: buildHeaders(token),
       body: JSON.stringify({ transcript, source }),
     });
-  } catch {
-    // Non-fatal
+    console.log('[extractMemories] response status:', res.status);
+    const body = await res.json().catch(() => ({}));
+    console.log('[extractMemories] response body:', body);
+  } catch (err) {
+    console.error('[extractMemories] error:', err);
   }
 }
 
@@ -318,12 +322,16 @@ export function OnboardingConversation({ onComplete }: OnboardingProps) {
 
   const handleSkip = useCallback(async () => {
     if (!user) return;
+    // Save whatever was shared before skipping — even partial answers are useful
+    if (messages.length > 1) {
+      await extractMemories(messages, 'onboarding_skipped');
+    }
     await supabase
       .from('profiles')
       .update({ onboarding_v2_completed: true })
       .eq('id', user.id);
     onComplete();
-  }, [user, onComplete]);
+  }, [user, onComplete, messages]);
 
   const handleBegin = async () => {
     if (finishing) return;
