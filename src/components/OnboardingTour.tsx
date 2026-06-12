@@ -51,7 +51,7 @@ const STEPS = [
     iconColor: 'text-sage-strong',
     iconBg: 'bg-sage-strong/10',
     subtitle: 'Hola, soy Elena',
-    title: 'Tu consejera de IA',
+    title: 'Tu compañera emocional',
     body: 'Cuéntame lo que sientes, lo que te preocupa o simplemente lo que tienes en mente. No tengo prisa — estoy aquí cuando me necesites.',
     isFinal: false,
   },
