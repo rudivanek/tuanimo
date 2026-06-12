@@ -75,7 +75,7 @@ export function LandingPage() {
               {
                 icon: BookOpen,
                 heading: 'Escribe lo que sientes',
-                body: 'A veces poner las cosas en palabras ya ayuda. Tu diario está aquí para eso.',
+                body: 'Escribir lo que sientes no lo resuelve todo — pero a veces es el primer paso para entenderlo..',
               },
               {
                 icon: MessageCircle,
