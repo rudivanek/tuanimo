@@ -77,7 +77,7 @@ export function useOnboarding() {
 async function extractMemories(
   messages: Message[],
   source: string,
-  profile: Parameters<typeof saveElenaMemory>[3]
+  _profile: Parameters<typeof saveElenaMemory>[3]  // kept for signature compat
 ) {
   try {
     const token = await getToken();
@@ -98,22 +98,7 @@ async function extractMemories(
     console.log('[extractMemories] response status:', res.status);
     const data = await res.json().catch(() => ({}));
     console.log('[extractMemories] response body:', data);
-
-    const memories: Array<{ type: string; note: string; sensitive: boolean }> =
-      Array.isArray(data.memories) ? data.memories : [];
-
-    if (memories.length === 0) {
-      console.log('[extractMemories] no memories to save');
-      return;
-    }
-
-    // Encrypt and save each memory client-side (same pattern as triggerMemoryExtraction)
-    await Promise.allSettled(
-      memories.map((m) =>
-        saveElenaMemory(m.note, m.type as ElenaMemoryType, m.sensitive, profile)
-      )
-    );
-    console.log(`[extractMemories] saved ${memories.length} note(s) from ${source}`);
+    console.log(`[extractMemories] saved ${data.saved ?? 0} note(s) from ${source}`);
   } catch (err) {
     console.error('[extractMemories] error:', err);
   }
