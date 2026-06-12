@@ -22,6 +22,16 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { getFreshAccessToken } from '../lib/api';
 
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+function buildHeaders(token: string) {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+    'apikey': SUPABASE_ANON_KEY,
+  };
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Message {
@@ -97,12 +107,10 @@ export function OnboardingConversation({ onComplete }: Props) {
 
     try {
       const token = await getFreshAccessToken();
+      if (!token) throw new Error('No active session');
       const res = await fetch(`${FUNCTIONS_URL}/onboarding-chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildHeaders(token),
         body: JSON.stringify({ messages: buildApiMessages(newMessages) }),
       });
 
@@ -144,15 +152,13 @@ export function OnboardingConversation({ onComplete }: Props) {
     setFinishing(true);
     try {
       const token = await getFreshAccessToken();
+      if (!token) throw new Error('No active session');
       const transcript = messages
         .map((m) => `${m.role === 'elena' ? 'Elena' : 'Usuario'}: ${m.text}`)
         .join('\n');
       await fetch(`${FUNCTIONS_URL}/extract-memories`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildHeaders(token),
         body: JSON.stringify({ transcript, source: 'onboarding' }),
       });
     } catch {
