@@ -56,6 +56,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Prevent iOS Safari auto-zoom on focused inputs */
+input, textarea, select {
+  font-size: max(16px, 1em) !important;
+}
+
 @layer utilities {
   .h-dvh {
     height: 100dvh;
