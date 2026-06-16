@@ -54,16 +54,7 @@ const sections: Section[] = [
       },
       {
         q: '¿Elena recuerda lo que le cuento?',
-        a: 'Sí. Elena guarda notas entre conversaciones — tu nombre, personas importantes en tu vida, temas recurrentes, y lo que te ha traído a este espacio. Cuanto más la uses, mejor te conoce. Puedes ver y eliminar lo que recuerda desde Configuración → Memoria de Elena.',
-      },
-      {
-        q: '¿Cómo se presenta Elena a mí al principio?',
-        a: (
-          <>
-            La primera vez que abres la app, Elena te da la bienvenida con una conversación breve y cálida. Te pregunta tu nombre, un poco sobre tu vida, y qué te trajo aquí. Esto le ayuda a conocerte desde el primer momento. Si prefieres saltarlo, puedes hacerlo — y retomarlo cuando quieras desde{' '}
-            <strong>Configuración → Bienvenida con Elena</strong>.
-          </>
-        ),
+        a: 'Elena retiene el hilo de la conversación activa. También puede ver las entradas de tu Diario que hayas guardado, y las usa para darte respuestas más contextualizadas. Entre sesiones distintas, Elena puede retomar temas importantes que surgieron antes.',
       },
       {
         q: '¿Elena puede ayudarme en una crisis?',
@@ -273,7 +264,7 @@ const sections: Section[] = [
       },
       {
         q: '¿Puedo eliminar mi cuenta y mis datos?',
-        a: 'Sí. En Configuración → Cuenta encontrarás la opción para eliminar tu cuenta de forma permanente. Se borrarán todos tus datos: chats, diario, insights y perfil.',
+        a: 'Sí. Si deseas eliminar tu cuenta y todos tus datos, puedes solicitarlo escribiéndonos desde la dirección de correo con la que te registraste.',
       },
     ],
   },
@@ -351,7 +342,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-app-border flex-shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-sage-strong" />
-            <h2 className="text-[16px] font-semibold text-app-text">Cómo funciona Elena</h2>
+            <h2 className="text-[16px] font-semibold text-app-text">Cómo funciona TuAnimo</h2>
           </div>
           <button
             onClick={onClose}
@@ -364,7 +355,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         {/* Intro */}
         <div className="px-5 py-3 flex-shrink-0">
           <p className="text-[12.5px] text-app-muted leading-relaxed">
-            Elena es tu acompañante emocional. Aquí encontrarás todo lo que necesitas saber sobre cómo funciona, qué puedes esperar, y cómo sacarle más provecho.
+            TuAnimo es un espacio de reflexión guiado por Elena. Aquí encontrarás todo lo que necesitas saber sobre cómo funciona la app, qué puedes esperar, y cómo sacarle más provecho.
           </p>
         </div>
 

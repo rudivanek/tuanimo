@@ -40,19 +40,14 @@ export function LandingPage() {
 
         <section className="pt-20 pb-20 text-center">
           <div className="max-w-2xl mx-auto px-6">
-            
-
-
             <h1 className="text-[2.25rem] sm:text-[2.75rem] font-semibold tracking-tight text-gray-900 leading-[1.15] mb-5">
-  Elena no solo escucha<br />
-  <span className="italic font-light text-[#1e6040]">sino te ayuda a entender</span><br />
-  lo que estás viviendo.
-</h1>
-
-            <h2 className="text-[1.35rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-6">
-            Tu espacio de reflexión emocional, disponible cuando lo necesitas.
-            </h2>
-            
+              Elena escucha lo que{" "}
+              <span className="italic font-light text-[#1e6040]">no le dices</span>
+              {" "}a nadie.
+            </h1>
+            <p className="text-[1.05rem] text-app-muted leading-relaxed max-w-sm mx-auto mb-10">
+              Elena ya está esperándote.
+            </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href="/login"
@@ -75,17 +70,17 @@ export function LandingPage() {
               {
                 icon: BookOpen,
                 heading: 'Escribe lo que sientes',
-                body: 'Escribir lo que sientes no lo resuelve todo — pero a veces es el primer paso para entenderlo..',
+                body: 'A veces poner las cosas en palabras ya ayuda. Tu diario está aquí para eso.',
               },
               {
                 icon: MessageCircle,
                 heading: 'Habla cuando tu mente está cargada',
-                body: 'Elena no te dice lo que quieres oír. Te hace las preguntas que nadie más te hace..',
+                body: 'Elena escucha con calma. No da consejos vacíos. Solo acompaña.',
               },
               {
                 icon: TrendingUp,
                 heading: 'Entiéndete con el tiempo',
-                body: 'Con el tiempo empiezas a verte con más claridad. No como te ven los demás — como realmente eres.',
+                body: 'Poco a poco emergen patrones. Ver cómo estás evolucionando puede ser revelador.',
               },
             ].map(({ icon: Icon, heading, body }, i, arr) => (
               <div key={heading} className={`flex items-start gap-5 px-6 py-7 ${i < arr.length - 1 ? 'border-b border-white/40' : ''}`}>
@@ -110,22 +105,22 @@ export function LandingPage() {
               {
                 icon: BookOpen,
                 title: 'Diario guiado',
-                desc: 'Para los días en que no sabes ni cómo empezar a explicar lo que sientes.',
+                desc: 'Sugerencias suaves para cuando no sabes por dónde empezar.',
               },
               {
                 icon: MessageCircle,
                 title: 'Chat de apoyo',
-                desc: 'Cuando necesitas decirlo en voz alta — sin miedo a ser juzgado/a. Disponible siempre.',
+                desc: 'Habla con Elena cuando algo te pesa. Disponible siempre.',
               },
               {
                 icon: TrendingUp,
                 title: 'Seguimiento emocional',
-                desc: 'Una vez a la semana, Elena te muestra el hilo de lo que has vivido.',
+                desc: 'Una mirada semanal a cómo has estado.',
               },
               {
                 icon: Heart,
                 title: 'Patrones personales',
-                desc: 'Lo que repites, lo que evitas, lo que te mueve — empieza a tener sentido.',
+                desc: 'Con el tiempo, comienzas a entenderte mejor.',
               },
             ].map(({ icon: Icon, title, desc }) => (
               <div
@@ -151,7 +146,7 @@ export function LandingPage() {
             {[
               {
                 icon: Lock,
-                text: 'Lo que le dices a Elena es tuyo. Solo tuyo. · Disponible 24/7',
+                text: 'Lo que le dices a Elena, solo lo saben tú y Elena · Disponible 24/7',
               },
               {
                 icon: Moon,
@@ -172,15 +167,14 @@ export function LandingPage() {
 
         <section className="pb-24 text-center">
           <p className="text-[15px] text-app-muted mb-7 leading-relaxed">
-  No tienes que tener todo claro para empezar.<br />
-  Solo necesitas querer entenderte un poco mejor.
-</p>
+            Cuando estés listo, aquí está tu espacio.
+          </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/login"
               className="w-full sm:w-auto px-7 py-3.5 text-sm font-semibold text-white bg-sage-strong hover:bg-[#4e7260] rounded-12 transition-colors"
             >
-              Comenzar con Elena
+              Iniciar sesión
             </Link>
           </div>
         </section>

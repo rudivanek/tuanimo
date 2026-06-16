@@ -8,8 +8,6 @@ import { ChatPage } from './pages/ChatPage';
 import { Layout } from './components/Layout';
 import { InstallPrompt } from './components/InstallPrompt';
 import { OnboardingTour } from './components/OnboardingTour';
-import { OnboardingConversation } from './components/OnboardingConversation';
-import { useOnboardingGate } from './hooks/useOnboardingGate';
 
 const ResetPasswordPage  = lazy(() => import('./pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })));
 const JournalPage    = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
@@ -99,14 +97,7 @@ function HomeRoute() {
 
 function App() {
   const { user, loading } = useAuth();
-  const { needsOnboarding, markComplete } = useOnboardingGate(user?.id ?? null, loading);
-
   if (loading) return <LoadingScreen />;
-
-  // Show Elena onboarding overlay before anything else (new users + existing beta users)
-  if (user && needsOnboarding) {
-    return <OnboardingConversation onComplete={markComplete} />;
-  }
 
   return (
     <>

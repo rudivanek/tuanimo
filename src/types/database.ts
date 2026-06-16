@@ -24,7 +24,6 @@ export type Database = {
           sound_journal_suggestion_enabled: boolean;
           sound_journal_saved_enabled: boolean;
           flight_recorder_enabled: boolean;
-          onboarding_v2_completed: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -50,7 +49,6 @@ export type Database = {
           sound_journal_suggestion_enabled?: boolean;
           sound_journal_saved_enabled?: boolean;
           flight_recorder_enabled?: boolean;
-          onboarding_v2_completed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -76,7 +74,6 @@ export type Database = {
           sound_journal_suggestion_enabled?: boolean;
           sound_journal_saved_enabled?: boolean;
           flight_recorder_enabled?: boolean;
-          onboarding_v2_completed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
