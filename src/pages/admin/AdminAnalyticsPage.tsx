@@ -241,7 +241,7 @@ export function AdminAnalyticsPage() {
     if (!rows.length) return;
     const csv = rowsToCsv(rows as unknown as Record<string, unknown>[]);
     const ts  = new Date().toISOString().slice(0, 10);
-    downloadCsv(csv, `tuanimo_${tab}_${ts}.csv`);
+    downloadCsv(csv, 'ELENA_token_export.csv');
   };
 
   // ── KPIs ─────────────────────────────────────────────────────────────────
