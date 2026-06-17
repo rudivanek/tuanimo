@@ -744,10 +744,7 @@ function buildElenaNotebookBlock(notebook: Array<{ type: string; note: string; s
 
   if (lines.length === 0) return "";
 
-  return `
-
-${lines.join("
-")}`;
+  return `\n\n${lines.join("\n")}`;
 }
 
 function checkRecognitionEligible(priorCtx: PriorContext, lastThreeMetas: Record<string, unknown>[], force = false): boolean {
@@ -1869,7 +1866,7 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
     }
 
     if (containsBannedLabel(aiResponse.reply)) {
-      console.warn("[chat-ai] Banned label detected — retrying once", { snippet: aiResponse.reply.slice(0, 120) });
+      console.warn("[chat-ai] Banned label detected — retrying once", { replyLength: aiResponse.reply.length });
       const guardSystemContent = systemPrompt + "\n\nCRITICAL OVERRIDE: Your previous response contained a banned feeling label or forbidden phrase. Rewrite the COMPLETE response using only experiential, sensory language. Do NOT use: confusión, desorientación, ansiedad, tristeza, angustia, frustración, agotamiento, bloqueo emocional, estado emocional, a veces, es comprensible, es normal, es natural. Every sentence must pass SELF-CHECK before you output.";
       const guardBody = JSON.stringify({
         model: "claude-sonnet-4-6",

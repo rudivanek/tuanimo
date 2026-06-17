@@ -180,8 +180,6 @@ export async function setFlightRecorderForUser(
 
 // ============================================================
 // Export as plain text — QA timeline format
-// QA_TEMP: fullText fields in payloads are temporary QA-only data.
-//          Remove QA_TEMP payload fields from recordFlightEvent call sites before GA.
 // ============================================================
 
 function fmtTime(iso: string): string {
@@ -200,22 +198,19 @@ function renderTimelineEntry(e: FlightEvent): string[] {
   switch (e.event_name) {
     case 'USER_SENT_MESSAGE':
       lines.push(`${t} — User said:`);
-      if (p?.fullText) lines.push(`"${p.fullText}"`);
-      else lines.push(`[${p?.length ?? '?'} chars]`);
+      lines.push(`[${p?.length ?? '?'} chars]`);
       break;
 
     case 'ELENA_RESPONSE_RENDERED':
       lines.push(`${t} — Elena replied:`);
-      if (p?.fullText) lines.push(`"${p.fullText}"`);
-      else lines.push(`[${p?.length ?? '?'} chars]`);
+      lines.push(`[${p?.length ?? '?'} chars]`);
       break;
 
     case 'JOURNAL_ENTRY_SAVED': {
       const kind = p?.isUpdate ? 'updated' : 'saved (new)';
       const src = p?.source ? ` [source: ${p.source}]` : '';
       lines.push(`${t} — Journal entry ${kind}${src}:`);
-      if (p?.fullText) lines.push(`"${p.fullText}"`);
-      else lines.push(`[${p?.entryLength ?? '?'} chars]`);
+      lines.push(`[${p?.entryLength ?? '?'} chars]`);
       break;
     }
 
@@ -347,7 +342,6 @@ export async function exportFlightEventsAsText(
     `Generated : ${new Date().toISOString()}`,
     `User      : ${userId ?? 'unknown'}`,
     `Events    : ${chronological.length}`,
-    `Note      : fullText fields are QA_TEMP — remove before GA`,
     '═══════════════════════════════════════════════════',
     '',
     '── TIMELINE ─────────────────────────────────────',

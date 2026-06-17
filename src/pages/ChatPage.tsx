@@ -1076,8 +1076,7 @@ export function ChatPage() {
       lastMoodUpdateAtRef.current,
     );
 
-    // QA_TEMP: fullText included for temporary QA observability — remove before GA
-    recordFlightEvent(user?.id, 'USER_SENT_MESSAGE', { fullText: messageToSend, length: messageToSend.length });
+    recordFlightEvent(user?.id, 'USER_SENT_MESSAGE', { length: messageToSend.length });
     const isFirstEverMessage = isFirstTimeUser === true;
     if (isFirstTimeUser) setIsFirstTimeUser(false);
     setIsSending(true);
@@ -1389,8 +1388,7 @@ export function ChatPage() {
         uxStance,
         uxIntensity,
       }]);
-      // QA_TEMP: fullText included for temporary QA observability — remove before GA
-      recordFlightEvent(user?.id, 'ELENA_RESPONSE_RENDERED', { fullText: replyText, length: replyText.length });
+      recordFlightEvent(user?.id, 'ELENA_RESPONSE_RENDERED', { length: replyText.length });
 
       if (canPlay('response')) {
         audioManager.play('response');

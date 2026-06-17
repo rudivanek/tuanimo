@@ -1141,9 +1141,8 @@ export function JournalPage() {
           await loadEntries();
           queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
           if (canPlay('journal-saved')) audioManager.play('journal-saved');
-          // QA_TEMP: fullText included for temporary QA observability — remove before GA
           const saveSourceUpdate = selectedEntry.origin === 'chat' ? 'converted_from_chat' : selectedPrompt ? 'prompted' : 'manual';
-          recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { fullText: content, entryLength: content.length, isDraft: false, isUpdate: true, source: saveSourceUpdate });
+          recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { entryLength: content.length, isDraft: false, isUpdate: true, source: saveSourceUpdate });
           triggerJustSaved(false);
           if (detectCrisisInContent(content + " " + resolvedTitle)) setShowSaveCrisisBanner(true);
         }
@@ -1219,9 +1218,8 @@ export function JournalPage() {
           await loadEntries();
           queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
           if (canPlay('journal-saved')) audioManager.play('journal-saved');
-          // QA_TEMP: fullText included for temporary QA observability — remove before GA
           const saveSourceNew = selectedPrompt ? 'prompted' : 'manual';
-          recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { fullText: content, entryLength: content.length, isDraft: false, isUpdate: false, source: saveSourceNew });
+          recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { entryLength: content.length, isDraft: false, isUpdate: false, source: saveSourceNew });
           triggerJustSaved(content.trim().length >= 200);
           if (detectCrisisInContent(content + " " + resolvedTitle)) setShowSaveCrisisBanner(true);
         }
