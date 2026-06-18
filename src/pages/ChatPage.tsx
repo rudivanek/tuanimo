@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useProfile } from '../hooks/useProfile';
 import { sendChatMessage, getUserMemories, saveUserMemory, TokenLimitError, generateTitle, type DevFlags } from '../lib/api';
 import { loadElenaMemories, type ElenaMemoryNote } from '../lib/elenaMemory';
+import { loadIntentions } from '../lib/intentions';
 import { DevPanel } from '../components/DevPanel';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { Send, MessageCircle, Trash2, GripVertical, ArrowLeft, Plus, Lock, Pencil, Check, X, Download, BookOpen } from 'lucide-react';
