@@ -1165,6 +1165,15 @@ export function ChatPage() {
       } catch (notebookError) {
         console.log('Could not load elena notebook:', notebookError);
       }
+ 
+      // Load the user's active declared intentions (plaintext, for context only)
+      let currentIntentions: string[] = [];
+      try {
+        const activeIntentions = await loadIntentions(profile);
+        currentIntentions = activeIntentions.map(i => i.text);
+      } catch (intentionsError) {
+        console.log('Could not load intentions:', intentionsError);
+      }
 
       const conversationHistory = messages
         .filter(m => m.content?.trim())
