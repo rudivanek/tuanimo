@@ -141,7 +141,7 @@ export async function sendChatMessage(
   openingReflection?: { title?: string | null; content: string } | null,
   intentions?: string[],
 ): Promise<ChatResponse> {
-  const reqBody = JSON.stringify({ threadId, message, userMemories, conversationHistory, previousHadChips, uxStance, uxIntensity, boundaryAttempts, devFlags, chipMeta, isFirstSession, openingCommitment, elenaNotebook, openingReflection });
+  const reqBody = JSON.stringify({ threadId, message, userMemories, conversationHistory, previousHadChips, uxStance, uxIntensity, boundaryAttempts, devFlags, chipMeta, isFirstSession, openingCommitment, elenaNotebook, openingReflection, intentions });
   const headers = await getAuthHeaders();
   let response = await fetch(`${FUNCTIONS_URL}/chat-ai`, { method: 'POST', headers, body: reqBody });
 
