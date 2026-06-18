@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { Brain, Trash2, ChevronLeft, Users, Calendar, Repeat2, Heart, Target, AlertCircle, RefreshCw } from 'lucide-react';
+import { Brain, Trash2, ChevronLeft, Users, Calendar, Repeat2, Heart, Target, AlertCircle, RefreshCw, Compass, Plus, Check, Archive, Sparkles, X } from 'lucide-react';
 import { useProfile } from '../hooks/useProfile';
 import { loadElenaMemories, deleteElenaMemory, deleteAllElenaMemories, type ElenaMemoryNote, type ElenaMemoryType } from '../lib/elenaMemory';
+import {
+  loadIntentions,
+  createIntention,
+  setIntentionStatus,
+  deleteIntention,
+  reflectOnIntentions,
+  type Intention,
+} from '../lib/intentions';
 
 // ── Type metadata ──────────────────────────────────────────────────────────────
 
@@ -29,6 +37,15 @@ export function ElenaMemoryPage() {
   const [clearingAll, setClearingAll] = useState(false);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
 
+  // ── Intentions state ──────────────────────────────────────────────────────
+  const [intentions, setIntentions] = useState<Intention[]>([]);
+  const [intentionsLoading, setIntentionsLoading] = useState(true);
+  const [newIntention, setNewIntention] = useState('');
+  const [savingIntention, setSavingIntention] = useState(false);
+  const [intentionBusyId, setIntentionBusyId] = useState<string | null>(null);
+  const [reflecting, setReflecting] = useState(false);
+  const [reflection, setReflection] = useState<string | null>(null);
+
   // Load on mount
   useEffect(() => {
     if (!profile) return;
@@ -38,6 +55,70 @@ export function ElenaMemoryPage() {
       .catch(() => setNotes([]))
       .finally(() => setLoading(false));
   }, [profile]);
+
+  // Load intentions on mount
+  useEffect(() => {
+    if (!profile) return;
+    setIntentionsLoading(true);
+    loadIntentions(profile)
+      .then(setIntentions)
+      .catch(() => setIntentions([]))
+      .finally(() => setIntentionsLoading(false));
+  }, [profile]);
+
+  const handleAddIntention = async () => {
+    const text = newIntention.trim();
+    if (!text || !profile) return;
+    setSavingIntention(true);
+    try {
+      await createIntention(text, profile, 'user');
+      const refreshed = await loadIntentions(profile);
+      setIntentions(refreshed);
+      setNewIntention('');
+    } catch {
+      // silent
+    } finally {
+      setSavingIntention(false);
+    }
+  };
+
+  const handleIntentionStatus = async (id: string, status: 'cumplida' | 'retirada') => {
+    setIntentionBusyId(id);
+    try {
+      await setIntentionStatus(id, status);
+      setIntentions(prev => prev.filter(i => i.id !== id));
+    } catch {
+      // silent
+    } finally {
+      setIntentionBusyId(null);
+    }
+  };
+
+  const handleDeleteIntention = async (id: string) => {
+    setIntentionBusyId(id);
+    try {
+      await deleteIntention(id);
+      setIntentions(prev => prev.filter(i => i.id !== id));
+    } catch {
+      // silent
+    } finally {
+      setIntentionBusyId(null);
+    }
+  };
+
+  const handleReflect = async () => {
+    if (intentions.length === 0) return;
+    setReflecting(true);
+    setReflection(null);
+    try {
+      const result = await reflectOnIntentions(intentions.map(i => i.text));
+      setReflection(result);
+    } catch {
+      setReflection(null);
+    } finally {
+      setReflecting(false);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -101,6 +182,133 @@ export function ElenaMemoryPage() {
           Elena guarda algunas notas entre conversaciones para acompañarte mejor con el tiempo.
           Puedes eliminar cualquier nota cuando quieras.
         </p>
+      </div>
+
+      {/* ── Intentions block (declared by the person) ─────────────────────── */}
+      <div className="bg-app-surface rounded-[16px] border border-app-border overflow-hidden">
+        {/* Section header */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-app-border">
+          <Compass size={15} className="text-primary" />
+          <span className="text-[13px] font-semibold text-app-text">Lo que estoy eligiendo</span>
+          {intentions.length > 0 && (
+            <span className="ml-auto text-xs text-app-muted">{intentions.length}</span>
+          )}
+        </div>
+
+        {/* Intro */}
+        <div className="px-4 py-3 border-b border-app-border">
+          <p className="text-xs text-app-muted leading-relaxed">
+            Metas y cosas que quieres cultivar. No son una lista de pendientes: son posibilidades
+            que eliges tener a la vista. Puedes soltarlas o cambiarlas cuando quieras.
+          </p>
+        </div>
+
+        {/* Add new */}
+        <div className="px-4 py-3 border-b border-app-border">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={newIntention}
+              onChange={(e) => setNewIntention(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddIntention(); }}
+              placeholder="Escribe una intención…"
+              maxLength={280}
+              className="flex-1 bg-app-bg border border-app-border rounded-[12px] px-3 py-2 text-sm text-app-text placeholder:text-app-muted/60 focus:outline-none focus:border-primary/50"
+            />
+            <button
+              onClick={handleAddIntention}
+              disabled={savingIntention || !newIntention.trim()}
+              className="flex-shrink-0 p-2 rounded-[12px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-40"
+              aria-label="Agregar intención"
+            >
+              {savingIntention ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Loading */}
+        {intentionsLoading && (
+          <div className="flex items-center justify-center py-6 text-app-muted">
+            <RefreshCw size={16} className="animate-spin mr-2" />
+            <span className="text-sm">Cargando…</span>
+          </div>
+        )}
+
+        {/* Empty */}
+        {!intentionsLoading && intentions.length === 0 && (
+          <div className="px-4 py-6 text-center text-app-muted">
+            <p className="text-sm">Aún no has elegido ninguna intención.</p>
+          </div>
+        )}
+
+        {/* List */}
+        {!intentionsLoading && intentions.length > 0 && (
+          <ul className="divide-y divide-app-border">
+            {intentions.map((it) => (
+              <li key={it.id} className="flex items-start gap-2 px-4 py-3">
+                <p className="flex-1 text-sm text-app-text leading-relaxed">{it.text}</p>
+                <div className="flex-shrink-0 flex items-center gap-1">
+                  <button
+                    onClick={() => handleIntentionStatus(it.id, 'cumplida')}
+                    disabled={intentionBusyId === it.id}
+                    className="p-1.5 rounded-full text-app-muted hover:text-emerald-600 hover:bg-emerald-500/10 transition-colors disabled:opacity-40"
+                    aria-label="Marcar como cumplida"
+                    title="La integré"
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleIntentionStatus(it.id, 'retirada')}
+                    disabled={intentionBusyId === it.id}
+                    className="p-1.5 rounded-full text-app-muted hover:text-app-text hover:bg-app-bg transition-colors disabled:opacity-40"
+                    aria-label="Soltar intención"
+                    title="Soltar"
+                  >
+                    <Archive size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteIntention(it.id)}
+                    disabled={intentionBusyId === it.id}
+                    className="p-1.5 rounded-full text-app-muted hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-40"
+                    aria-label="Eliminar intención"
+                    title="Eliminar"
+                  >
+                    {intentionBusyId === it.id ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Reflect */}
+        {!intentionsLoading && intentions.length > 0 && (
+          <div className="px-4 py-3 border-t border-app-border">
+            <button
+              onClick={handleReflect}
+              disabled={reflecting}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[12px] border border-primary/30 bg-primary/5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+            >
+              {reflecting
+                ? <><RefreshCw size={15} className="animate-spin" /> Elena está pensando…</>
+                : <><Sparkles size={15} /> Reflexiona conmigo</>
+              }
+            </button>
+
+            {reflection && (
+              <div className="mt-3 relative bg-app-bg border border-app-border rounded-[12px] p-3">
+                <button
+                  onClick={() => setReflection(null)}
+                  className="absolute top-2 right-2 p-1 rounded-full text-app-muted hover:text-app-text transition-colors"
+                  aria-label="Cerrar reflexión"
+                >
+                  <X size={13} />
+                </button>
+                <p className="text-sm text-app-text leading-relaxed pr-5 whitespace-pre-line">{reflection}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Loading */}
