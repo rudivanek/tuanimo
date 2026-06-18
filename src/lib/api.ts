@@ -139,6 +139,7 @@ export async function sendChatMessage(
   openingCommitment?: { text: string; outcome: 'done' | 'not_done' } | null,
   elenaNotebook?: Array<{ type: string; note: string; sensitive: boolean }>,
   openingReflection?: { title?: string | null; content: string } | null,
+  intentions?: string[],
 ): Promise<ChatResponse> {
   const reqBody = JSON.stringify({ threadId, message, userMemories, conversationHistory, previousHadChips, uxStance, uxIntensity, boundaryAttempts, devFlags, chipMeta, isFirstSession, openingCommitment, elenaNotebook, openingReflection });
   const headers = await getAuthHeaders();
