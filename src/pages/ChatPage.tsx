@@ -1233,6 +1233,7 @@ export function ChatPage() {
         commitmentForThisMessage,
         currentNotebook,
         reflectionForThisMessage,
+        currentIntentions,
       );
 
       // ── Elena commitment suggestion ──────────────────────────────────────
