@@ -2311,16 +2311,16 @@ export function ChatPage() {
                 <Plus size={11} />
                 Agregar compromiso
               </button>
-              {hasLinkedEntry ? (
+{hasLinkedEntry ? (
                 <button
                   onClick={() => {
                     if (linkedJournalId) sessionStorage.setItem('diaryAutoOpen', linkedJournalId);
                     setLocation('/journal');
                   }}
-                  className="flex items-center gap-1 text-[11px] text-sage-strong hover:opacity-75 transition-opacity bg-sage-strong/8 px-2 py-0.5 rounded-full"
+                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-sage-strong/10 text-sage-strong text-[12px] font-medium rounded-[10px] border border-sage-strong/30 hover:bg-sage-strong/20 transition-colors whitespace-nowrap"
                 >
                   <BookOpen size={11} />
-                  Volver al diario →
+                  Volver al diario
                 </button>
               ) : messages.length > 0 && (
                 <button
