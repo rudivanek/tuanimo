@@ -1971,7 +1971,7 @@ export function ChatPage() {
                     if (linkedJournalId) sessionStorage.setItem('diaryAutoOpen', linkedJournalId);
                     setLocation('/journal');
                   }}
-                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAEEDA] text-[#854F0B] text-[12px] font-medium rounded-[10px] border border-[#EF9F27]/40 hover:bg-[#EF9F27]/20 hover:text-[#633806] transition-colors whitespace-nowrap"
+                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAEEDA] text-[#854F0B] text-[12px] font-medium rounded-xl border border-[#EF9F27]/40 hover:bg-[#EF9F27]/20 hover:text-[#633806] transition-colors whitespace-nowrap"
                 >
                   <BookOpen size={11} />
                   Volver al diario
