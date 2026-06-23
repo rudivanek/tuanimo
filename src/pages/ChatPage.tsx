@@ -500,9 +500,16 @@ export function ChatPage() {
         }
       }
 
-      const pendingOpen = sessionStorage.getItem('openChatThread');
+      // Read from URL param first (survives mobile full-page reloads), fall back to sessionStorage
+      const urlParams = new URLSearchParams(window.location.search);
+      const pendingOpen = urlParams.get('openThread') || sessionStorage.getItem('openChatThread');
       if (pendingOpen) {
         sessionStorage.removeItem('openChatThread');
+        if (urlParams.has('openThread')) {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('openThread');
+          window.history.replaceState({}, '', cleanUrl.toString());
+        }
         const target = normalized.find(t => t.id === pendingOpen);
         if (target) {
           setCurrentThreadId(target.id);
