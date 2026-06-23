@@ -1,25 +1,41 @@
 import { useState, useEffect } from 'react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import { APP_VERSION } from '../lib/appVersion';
 
 export function UpdateBanner() {
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [visible, setVisible] = useState(false);
 
-  const {
-    needRefresh: [needRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onRegistered(r) {
-      // Check for updates every 60 seconds while the app is open
-      if (r) {
-        setInterval(() => r.update(), 60 * 1000);
-      }
-    },
-  });
-
   useEffect(() => {
-    if (needRefresh) setVisible(true);
-  }, [needRefresh]);
+    if (!('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.ready.then((reg) => {
+      setRegistration(reg);
+
+      // Check if there's already a waiting worker on load
+      if (reg.waiting) setVisible(true);
+
+      // Listen for a new service worker installing
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            setVisible(true);
+          }
+        });
+      });
+
+      // Poll for updates every 60 seconds
+      const interval = setInterval(() => reg.update(), 60 * 1000);
+      return () => clearInterval(interval);
+    });
+  }, []);
+
+  const handleUpdate = () => {
+    if (!registration?.waiting) return;
+    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    window.location.reload();
+  };
 
   if (!visible) return null;
 
@@ -36,7 +52,7 @@ export function UpdateBanner() {
           Después
         </button>
         <button
-          onClick={() => updateServiceWorker(true)}
+          onClick={handleUpdate}
           className="bg-white text-sage-medium text-sm font-semibold px-4 py-1.5 rounded-full hover:bg-white/90 transition-colors"
         >
           Actualizar
