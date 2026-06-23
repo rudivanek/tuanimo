@@ -2,51 +2,65 @@ import { useState, useEffect } from 'react';
 import { APP_VERSION } from '../lib/appVersion';
 
 export function UpdateBanner() {
-  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
+    const checkForWaiting = (reg: ServiceWorkerRegistration) => {
+      if (reg.waiting) {
+        setWaiting(reg.waiting);
+        setVisible(true);
+      }
+    };
+
     navigator.serviceWorker.ready.then((reg) => {
-      setRegistration(reg);
+      // Already waiting on load?
+      checkForWaiting(reg);
 
-      // Check if there's already a waiting worker on load
-      if (reg.waiting) setVisible(true);
-
-      // Listen for a new service worker installing
+      // New worker found while app is open
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         if (!newWorker) return;
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            setWaiting(newWorker);
             setVisible(true);
           }
         });
       });
 
-      // Poll for updates every 60 seconds
+      // Poll every 60s
       const interval = setInterval(() => reg.update(), 60 * 1000);
       return () => clearInterval(interval);
+    });
+
+    // When the new SW takes control, do a clean reload
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
     });
   }, []);
 
   const handleUpdate = () => {
-    if (!registration?.waiting) return;
-    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-    window.location.reload();
+    if (!waiting) {
+      window.location.reload();
+      return;
+    }
+    // Tell the waiting SW to skip waiting → triggers controllerchange → reload
+    waiting.postMessage({ type: 'SKIP_WAITING' });
   };
 
   if (!visible) return null;
 
   return (
-   <div
-  className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between gap-3 px-4 py-3 text-white shadow-lg"
-  style={{ 
-    backgroundColor: '#5F8672',
-    paddingTop: 'max(12px, env(safe-area-inset-top))'
-  }}
->
+    <div
+      className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between gap-3 px-4 py-3 text-white shadow-lg"
+      style={{
+        backgroundColor: '#5F8672',
+        paddingTop: 'max(12px, env(safe-area-inset-top))',
+      }}
+    >
       <span className="text-sm font-medium">
         ✨ Nueva versión disponible (v{APP_VERSION})
       </span>
@@ -59,7 +73,8 @@ export function UpdateBanner() {
         </button>
         <button
           onClick={handleUpdate}
-          className="bg-white text-sage-medium text-sm font-semibold px-4 py-1.5 rounded-full hover:bg-white/90 transition-colors"
+          className="text-sm font-semibold px-4 py-1.5 rounded-full transition-colors"
+          style={{ backgroundColor: 'white', color: '#5F8672' }}
         >
           Actualizar
         </button>
