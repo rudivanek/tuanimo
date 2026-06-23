@@ -1964,7 +1964,19 @@ export function ChatPage() {
           </div>
           {messages.length > 0 && currentThread && !editingInHeader && (
             <>
-              {!hasLinkedEntry && (
+              {hasLinkedEntry ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (linkedJournalId) sessionStorage.setItem('diaryAutoOpen', linkedJournalId);
+                    setLocation('/journal');
+                  }}
+                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAEEDA] text-[#854F0B] text-[12px] font-medium rounded-[10px] border border-[#EF9F27]/40 hover:bg-[#EF9F27]/20 hover:text-[#633806] transition-colors whitespace-nowrap"
+                >
+                  <BookOpen size={11} />
+                  Volver al diario
+                </button>
+              ) : (
                 <button
                   type="button"
                   onClick={() => setShowConvertModal(true)}
@@ -2311,26 +2323,7 @@ export function ChatPage() {
                 <Plus size={11} />
                 Agregar compromiso
               </button>
-{hasLinkedEntry ? (
-                <button
-                  onClick={() => {
-                    if (linkedJournalId) sessionStorage.setItem('diaryAutoOpen', linkedJournalId);
-                    setLocation('/journal');
-                  }}
-                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-sage-strong/10 text-sage-strong text-[12px] font-medium rounded-[10px] border border-sage-strong/30 hover:bg-sage-strong/20 transition-colors whitespace-nowrap"
-                >
-                  <BookOpen size={11} />
-                  Volver al diario
-                </button>
-              ) : messages.length > 0 && (
-                <button
-                  onClick={() => setShowConvertModal(true)}
-                  className="flex items-center gap-1 text-[11px] text-app-muted hover:text-sage-strong hover:bg-sage-strong/8 px-2 py-0.5 rounded-full transition-colors"
-                >
-                  <BookOpen size={11} />
-                  Convertir a diario
-                </button>
-              )}
+
             </div>
           )}
           <div className="flex gap-2 items-end">
