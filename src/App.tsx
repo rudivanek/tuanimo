@@ -9,11 +9,12 @@ import { Layout } from './components/Layout';
 import { InstallPrompt } from './components/InstallPrompt';
 import { OnboardingTour } from './components/OnboardingTour';
 import { OnboardingConversation } from './components/OnboardingConversation';
+import { UpdateBanner } from './components/UpdateBanner';
 import { useOnboardingGate } from './hooks/useOnboardingGate';
 
 const ResetPasswordPage  = lazy(() => import('./pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })));
 const JournalPage    = lazy(() => import('./pages/JournalPage').then(m => ({ default: m.JournalPage })));
-const InsightsPage   = lazy(() => import('./pages/InsightsPage').then(m => ({ default: m.InsightsPage })));
+const InsightsPage   = lazy(() => import('./pages/InsightsPage').then(m => ({ default: m.InsightsPage })));;
 const SettingsPage   = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const PracticasPage  = lazy(() => import('./pages/PracticasPage').then(m => ({ default: m.PracticasPage })));
 const AdminPage      = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
@@ -110,6 +111,9 @@ function App() {
 
   return (
     <>
+      {/* Update banner — appears at top when a new deploy is detected */}
+      <UpdateBanner />
+
       <Switch>
         <Route path="/"                      component={HomeRoute} />
         <Route path="/login"                 component={LoginPage} />
