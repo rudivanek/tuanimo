@@ -1693,8 +1693,7 @@ export function JournalPage() {
                 sourceChatId={selectedEntry.source_chat_id}
                 isDraft={selectedEntry.is_draft}
                 onNavigate={() => {
-                  sessionStorage.setItem('openChatThread', selectedEntry.source_chat_id!);
-                  setLocation('/chat');
+                  setLocation(`/chat?openThread=${selectedEntry.source_chat_id!}`);
                 }}
               />
             )}
