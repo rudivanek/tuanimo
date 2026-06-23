@@ -40,7 +40,10 @@ export function UpdateBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between gap-3 px-4 py-3 bg-sage-medium text-white shadow-lg">
+    <div
+  className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-between gap-3 px-4 py-3 bg-sage-medium text-white shadow-lg"
+  style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
+>
       <span className="text-sm font-medium">
         ✨ Nueva versión disponible (v{APP_VERSION})
       </span>
