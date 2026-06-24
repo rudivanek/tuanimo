@@ -37,7 +37,7 @@ import { useChipCooldown } from '../hooks/useChipCooldown';
 import { convertChatToJournal } from '../lib/chatToJournal';
 import { ConvertToJournalModal } from '../components/ConvertToJournalModal';
 import { extractChatSignals, summarizeChatSignals } from '../lib/chatSignals';
-import { writeChatSignalAgg, alreadyWroteThisSession, markWroteThisSession } from '../lib/chatSignalWriter';
+// chatSignalWriter removed — signals now written by chat-ai edge function
 import { buildInsightSignal } from '../lib/insightSignals';
 import { useLatestInsightAt } from '../hooks/useLatestInsightAt';
 import { hasNewInsightsSinceLastView } from '../lib/insightVisibility';
@@ -1524,56 +1524,7 @@ export function ChatPage() {
   // No InsightsContext exists yet; integration point will be determined in Stage 3E.
   void chatInsightSignal;
 
-  // Stage 4L — Write chat signal aggregates from ChatPage so they are captured
-  // even when the user never opens InsightsPage.
-  const chatAggSignalDate = useMemo(() => {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  }, []);
-
-  const chatAggShouldWrite = useMemo(() => {
-    const totalScore =
-      chatSignals.positive + chatSignals.stress + chatSignals.anxiety + chatSignals.gratitude;
-    return messages.length >= 3 && totalScore >= 2;
-  }, [messages.length, chatSignals]);
-
-  useEffect(() => {
-    if (!chatAggShouldWrite) return;
-    // Session-scoped flag: tab-local, resets on page reload.
-    // Unlike localStorage this cannot be cleared by the user and is never
-    // shared across tabs.  The DB upsert uses GREATEST semantics, so a
-    // concurrent write from another tab with a lower score is harmless.
-    if (alreadyWroteThisSession(chatAggSignalDate)) return;
-
-    let cancelled = false;
-
-    async function run() {
-      try {
-        await writeChatSignalAgg({
-          chatSignals,
-          messageCount: messages.length,
-          signalDate: chatAggSignalDate,
-          supabase,
-        });
-        if (!cancelled) {
-          markWroteThisSession(chatAggSignalDate);
-        }
-      } catch (err) {
-        if (import.meta.env.DEV) {
-          console.warn('[ChatPage] upsert_chat_signal_daily_agg failed', err);
-        }
-      }
-    }
-
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [chatAggShouldWrite, chatAggSignalDate, chatSignals, messages.length]);
+  // Chat signals now written server-side by chat-ai edge function (per turn, correct date).
 
   const showFirstTimeWelcome =
     isFirstTimeUser === true &&
