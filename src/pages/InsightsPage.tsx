@@ -30,7 +30,7 @@ import { JournalProgressSection } from '../components/insights/JournalProgressSe
 import { WeeklyInsightPanel } from '../components/insights/WeeklyInsightPanel';
 import { InsightMemoryCard } from '../components/insights/InsightMemoryCard';
 import WeeklyInsightCard from '../components/insights/WeeklyInsightCard';
-import { writeChatSignalAgg, alreadyWroteToday, markWroteToday, CHAT_AGG_WRITE_KEY } from '../lib/chatSignalWriter';
+// chatSignalWriter removed — signals now written by chat-ai edge function
 import { detectInsightPatterns, type InsightPattern } from '../lib/insightPatterns';
 import InsightPatternCard from '../components/insights/InsightPatternCard';
 import { getInsightSourceLabel } from '../lib/insightSource';
@@ -1069,43 +1069,7 @@ export function InsightsPage() {
     return `${yyyy}-${mm}-${dd}`;
   }, []);
 
-  const shouldWriteAgg = useMemo(() => {
-    const totalScore =
-      chatSignals.positive + chatSignals.stress + chatSignals.anxiety + chatSignals.gratitude;
-    return recentChatMessages.length >= 3 && totalScore >= 2;
-  }, [recentChatMessages.length, chatSignals]);
-
-  useEffect(() => {
-    if (!shouldWriteAgg) return;
-    if (alreadyWroteToday(CHAT_AGG_WRITE_KEY, signalDate)) return;
-
-    let cancelled = false;
-
-    async function run() {
-      try {
-        await writeChatSignalAgg({
-          chatSignals,
-          messageCount: recentChatMessages.length,
-          signalDate,
-          supabase,
-        });
-
-        if (!cancelled) {
-          markWroteToday(CHAT_AGG_WRITE_KEY, signalDate);
-        }
-      } catch (err) {
-        if (import.meta.env.DEV) {
-          console.warn('[Insights] upsert_chat_signal_daily_agg failed', err);
-        }
-      }
-    }
-
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [shouldWriteAgg, signalDate, chatSignals, recentChatMessages.length]);
+  // Chat signal writes removed — now handled server-side by chat-ai edge function.
 
   const debugInsights =
     (import.meta as any)?.env?.DEV &&
