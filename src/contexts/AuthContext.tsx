@@ -100,13 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      // Session may already be invalid server-side; clear local state anyway
-      setSession(null);
-      setUser(null);
-    }
+    await supabase.auth.signOut();
+    // Always clear local state regardless of server response (handles stale/invalid sessions)
+    setSession(null);
+    setUser(null);
   };
 
   const value = {
