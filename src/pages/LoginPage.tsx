@@ -233,7 +233,10 @@ export function LoginPage() {
         )}
 
         <p className="mt-4 text-xs text-center text-app-muted leading-relaxed">
-          Al continuar, aceptas nuestros términos de servicio y política de privacidad
+          Al continuar, aceptas nuestros{' '}
+          <a href="https://tuanimo.app/terminos-condiciones/" target="_blank" rel="noopener noreferrer" className="underline hover:text-app-text transition-colors">términos de servicio</a>
+          {' '}y{' '}
+          <a href="https://tuanimo.app/terminos-condiciones/" target="_blank" rel="noopener noreferrer" className="underline hover:text-app-text transition-colors">política de privacidad</a>
         </p>
       </div>
     </div>
