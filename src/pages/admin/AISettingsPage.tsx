@@ -11,7 +11,8 @@ interface AiSettings {
 }
 
 const MODELS = [
-  { value: 'claude-sonnet-4-6',         label: 'Claude Sonnet 4.6',        note: 'Recomendado · mejor calidad' },
+  { value: 'claude-sonnet-5',            label: 'Claude Sonnet 5',          note: 'Nueva generación · más agentic' },
+  { value: 'claude-sonnet-4-6',          label: 'Claude Sonnet 4.6',        note: 'Generación anterior · calidad probada' },
   { value: 'claude-haiku-4-5-20251001',  label: 'Claude Haiku 4.5',         note: '4x más barato · calidad menor' },
   { value: 'claude-opus-4-6',            label: 'Claude Opus 4.6',          note: 'Máxima calidad · más caro' },
 ];
