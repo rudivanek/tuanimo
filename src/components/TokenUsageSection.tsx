@@ -6,19 +6,6 @@ import { useTokenStatus } from '../hooks/useTokenStatus';
 import { useAdmin } from '../hooks/useAdmin';
 import { Zap, DollarSign, TrendingUp, Calendar, Clock } from 'lucide-react';
 
-const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  // Anthropic
-  'claude-sonnet-4-6':          { input: 3.00,  output: 15.00 },
-  'claude-opus-4-6':            { input: 15.00, output: 75.00 },
-  'claude-haiku-4-5-20251001':  { input: 0.80,  output: 4.00  },
-  'claude-haiku-4-5':           { input: 0.80,  output: 4.00  },
-  // OpenAI
-  'gpt-4o-mini':    { input: 0.15,  output: 0.60  },
-  'gpt-4o':         { input: 2.50,  output: 10.00 },
-  'gpt-4':          { input: 30.00, output: 60.00 },
-  'gpt-3.5-turbo':  { input: 0.50,  output: 1.50  },
-};
-
 const OPERATION_LABELS: Record<string, string> = {
   chat:                  'Chat con Elena',
   journal_prompts:       'Sugerencias de escritura',
@@ -35,26 +22,25 @@ const PLAN_LABELS: Record<string, string> = {
   power: 'Power',
 };
 
-interface UsageRow {
+interface BreakdownItem {
   operation: string;
   model: string;
+  total_tokens: number;
   prompt_tokens: number;
   completion_tokens: number;
-  total_tokens: number;
+  cost: number;
 }
 
-interface AggregatedOperation {
-  operation: string;
-  model: string;
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-  estimatedCost: number;
-}
-
-function calcCost(model: string, promptTokens: number, completionTokens: number): number {
-  const pricing = MODEL_PRICING[model] ?? MODEL_PRICING['gpt-4o-mini'];
-  return (promptTokens / 1_000_000) * pricing.input + (completionTokens / 1_000_000) * pricing.output;
+interface UsageSummary {
+  daily_used: number;
+  daily_limit: number;
+  daily_cost: number;
+  cycle_used: number;
+  cycle_limit: number;
+  cycle_cost: number;
+  cycle_start: string;
+  plan_key: string;
+  breakdown: BreakdownItem[];
 }
 
 function formatCost(usd: number): string {
@@ -124,7 +110,8 @@ export function TokenUsageSection() {
   const { user } = useAuth();
   const { data: profile } = useProfile();
   const budget = useTokenStatus();
-  const [aggregated, setAggregated] = useState<AggregatedOperation[]>([]);
+  const [breakdown, setBreakdown] = useState<BreakdownItem[]>([]);
+  const [totalCost, setTotalCost] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const cycleResetLabel = getNextCycleReset(user?.created_at);
   const { data: isAdmin } = useAdmin();
@@ -136,40 +123,15 @@ export function TokenUsageSection() {
 
   const loadUsage = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('token_usage')
-      .select('operation, model, prompt_tokens, completion_tokens, total_tokens')
-      .eq('user_id', user!.id);
-
+    const { data, error } = await supabase.rpc('get_my_usage_summary');
     if (!error && data) {
-      const map = new Map<string, AggregatedOperation>();
-
-      (data as UsageRow[]).forEach((row) => {
-        const key = row.operation;
-        const existing = map.get(key);
-        if (existing) {
-          existing.promptTokens += row.prompt_tokens;
-          existing.completionTokens += row.completion_tokens;
-          existing.totalTokens += row.total_tokens;
-          existing.estimatedCost = calcCost(existing.model, existing.promptTokens, existing.completionTokens);
-        } else {
-          map.set(key, {
-            operation: row.operation,
-            model: row.model,
-            promptTokens: row.prompt_tokens,
-            completionTokens: row.completion_tokens,
-            totalTokens: row.total_tokens,
-            estimatedCost: calcCost(row.model, row.prompt_tokens, row.completion_tokens),
-          });
-        }
-      });
-
-      setAggregated(Array.from(map.values()).sort((a, b) => b.totalTokens - a.totalTokens));
+      const summary = data as UsageSummary;
+      const sorted = [...(summary.breakdown ?? [])].sort((a, b) => b.total_tokens - a.total_tokens);
+      setBreakdown(sorted);
+      setTotalCost(summary.cycle_cost ?? 0);
     }
     setIsLoading(false);
   };
-
-  const totalCost = aggregated.reduce((sum, op) => sum + op.estimatedCost, 0);
   const planLabel = PLAN_LABELS[profile?.plan_key ?? 'starter'] ?? 'Starter';
 
   return (
@@ -217,7 +179,7 @@ export function TokenUsageSection() {
         )}
       </div>
 
-      {!isLoading && aggregated.length > 0 && (
+      {!isLoading && breakdown.length > 0 && (
         <div className="bg-app-surface rounded-[16px] shadow-app border border-app-border p-5">
           <h2 className="text-[15px] font-semibold text-app-text mb-4 flex items-center gap-2">
             <TrendingUp size={17} className="text-sage-strong" />
@@ -225,7 +187,7 @@ export function TokenUsageSection() {
           </h2>
 
           <div className="space-y-3">
-            {aggregated.map((op) => (
+            {breakdown.map((op) => (
               <div
                 key={op.operation}
                 className="p-3.5 bg-app-bg rounded-14 border border-app-border"
@@ -238,19 +200,19 @@ export function TokenUsageSection() {
                     <div className="text-[11px] text-app-muted mt-0.5">{op.model}</div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-sm font-semibold text-app-text">{formatCost(op.estimatedCost)}</div>
-                    <div className="text-[11px] text-app-muted mt-0.5">{op.totalTokens.toLocaleString()} tokens</div>
+                    <div className="text-sm font-semibold text-app-text">{formatCost(op.cost)}</div>
+                    <div className="text-[11px] text-app-muted mt-0.5">{op.total_tokens.toLocaleString()} tokens</div>
                   </div>
                 </div>
 
                 <div className="flex gap-3 text-[11px] text-app-muted">
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-sage inline-block" />
-                    Entrada: {op.promptTokens.toLocaleString()}
+                    Entrada: {op.prompt_tokens.toLocaleString()}
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-sage-strong inline-block" />
-                    Salida: {op.completionTokens.toLocaleString()}
+                    Salida: {op.completion_tokens.toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -258,12 +220,12 @@ export function TokenUsageSection() {
           </div>
 
           <p className="text-[11px] text-app-muted mt-3 leading-relaxed">
-            Precios de referencia: Claude Sonnet $3.00/1M entrada · $15.00/1M salida · GPT-4o-mini $0.15/1M entrada · $0.60/1M salida
+            Los costos mostrados son exactos e incluyen descuentos por caché de contexto.
           </p>
         </div>
       )}
 
-      {!isLoading && aggregated.length === 0 && (
+      {!isLoading && breakdown.length === 0 && (
         <div className="bg-app-surface rounded-[16px] shadow-app border border-app-border p-5 text-center">
           <p className="text-sm text-app-muted">Aún no hay datos de uso de tokens.</p>
         </div>
