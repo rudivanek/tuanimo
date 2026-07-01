@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { APP_VERSION } from '../lib/appVersion';
+
 
 export function UpdateBanner() {
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
