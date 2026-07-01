@@ -62,7 +62,7 @@ export function UpdateBanner() {
       }}
     >
       <span className="text-sm font-medium">
-        ✨ Nueva versión disponible (v{APP_VERSION})
+        ✨ Nueva versión disponible
       </span>
       <div className="flex items-center gap-2">
         <button
