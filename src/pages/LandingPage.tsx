@@ -21,8 +21,8 @@ export function LandingPage() {
             <div className="w-7 h-7 bg-sage-soft rounded-full flex items-center justify-center">
               <Leaf className="w-3.5 h-3.5 text-sage-strong" />
             </div>
-            <span className="text-[15px] font-semibold tracking-tight text-app-text">
-              TuAnimo
+            <span className="text-[15px] font-semibold tracking-tight text-sage-strong">
+              Con Elena
             </span>
           </div>
           <nav className="flex items-center gap-1.5">
@@ -205,3 +205,4 @@ export function LandingPage() {
     </div>
   );
 }
+
