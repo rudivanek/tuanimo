@@ -81,7 +81,7 @@ export function formatChatExport(
     const lines: string[] = [
       `# Chat Export`,
       ``,
-      `- **App:** Tu-Animo.app`,
+      `- **App:** conelena.app`,
       `- **Exported:** ${exportedAt}`,
       `- **Chat Title:** ${title}`,
       `- **Chat ID:** ${thread.id}`,
@@ -106,7 +106,7 @@ export function formatChatExport(
     const lines: string[] = [
       `CHAT EXPORT`,
       `==========================================`,
-      `App:        Tu-Animo.app`,
+      `App:        conelena.app`,
       `Exported:   ${exportedAt}`,
       `Chat Title: ${title}`,
       `Chat ID:    ${thread.id}`,
@@ -150,7 +150,7 @@ export function formatDiaryExport(
     const lines: string[] = [
       `# Diary Export`,
       ``,
-      `- **App:** Tu-Animo.app`,
+      `- **App:** conelena.app`,
       `- **Exported:** ${exportedAt}`,
       `- **Entry Title:** ${title}`,
       `- **Entry ID:** ${entry.id}`,
@@ -171,7 +171,7 @@ export function formatDiaryExport(
     const lines: string[] = [
       `DIARY EXPORT`,
       `==========================================`,
-      `App:     Tu-Animo.app`,
+      `App:     conelena.app`,
       `Exported: ${exportedAt}`,
       `Title:   ${title}`,
       `ID:      ${entry.id}`,
@@ -198,7 +198,7 @@ export function formatAllDiariesExport(
 ): ExportResult {
   const exportedAt = new Date().toISOString();
   const dateStr = formatDate(exportedAt);
-  const filename = `tuanimo-diario-completo__${dateStr}.${format}`;
+  const filename = `conelena-diario-completo__${dateStr}.${format}`;
   const mime = format === 'md' ? 'text/markdown' : 'text/plain';
   const count = entries.length;
 
@@ -211,9 +211,9 @@ export function formatAllDiariesExport(
 
   if (format === 'md') {
     const parts: string[] = [
-      `# Diario completo — Tu-Animo`,
+      `# Diario completo — Con Elena`,
       ``,
-      `- **App:** Tu-Animo.app`,
+      `- **App:** conelena.app`,
       `- **Exportado:** ${exportedAt}`,
       `- **Total de entradas:** ${count}`,
       ``,
@@ -244,9 +244,9 @@ export function formatAllDiariesExport(
     content = parts.join('\n');
   } else {
     const parts: string[] = [
-      `DIARIO COMPLETO — TU-ANIMO`,
+      `DIARIO COMPLETO — CON ELENA`,
       `==========================================`,
-      `App:      Tu-Animo.app`,
+      `App:      conelena.app`,
       `Exportado: ${exportedAt}`,
       `Entradas: ${count}`,
       ``,
