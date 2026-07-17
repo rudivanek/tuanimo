@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 // How many days to wait before showing the prompt again after dismissal
 const SNOOZE_DAYS = 7;
-const STORAGE_KEY = 'tuanimo_install_prompt';
+const STORAGE_KEY = 'conelena_install_prompt';
 
 type PromptState = {
   dismissedAt?: number; // timestamp
