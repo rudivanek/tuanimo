@@ -36,13 +36,13 @@ const sections: Section[] = [
   {
     id: 'elena',
     icon: <Heart size={15} className="text-sage-strong" />,
-    title: 'Elena — tu acompañante',
+    title: 'Elena — tu consejera',
     items: [
       {
         q: '¿Quién es Elena?',
         a: (
           <>
-            Elena es una acompañante de bienestar emocional impulsada por inteligencia artificial. No es una chatbot genérica: trabaja desde la{' '}
+            Elena es una consejera de bienestar emocional impulsada por inteligencia artificial. No es una chatbot genérica: trabaja desde la{' '}
             <strong>terapia existencial</strong>, lo que significa que no se limita a validar cómo te sientes, sino que te acompaña a explorar el{' '}
             <em>significado</em> de lo que estás viviendo — tus elecciones, lo que valoras, y lo que quizás estás evitando.
           </>
@@ -141,7 +141,7 @@ const sections: Section[] = [
       },
       {
         q: '¿Elena puede leer mi Diario?',
-        a: 'Sí, y esto es parte central de cómo funciona Con Elena. Elena puede leer tus entradas para darte respuestas más ricas y conectar lo que escribes con lo que conversas. Cuando una entrada de Diario está relacionada con tu conversación activa, Elena lo indica.',
+        a: 'Sí, y esto es parte central de cómo funciona TuAnimo. Elena puede leer tus entradas para darte respuestas más ricas y conectar lo que escribes con lo que conversas. Cuando una entrada de Diario está relacionada con tu conversación activa, Elena lo indica.',
       },
       {
         q: '¿Mis entradas están seguras?',
@@ -378,8 +378,8 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           <div className="pt-2 pb-1">
             <p className="text-[11.5px] text-app-muted text-center leading-relaxed">
               ¿Tienes otra pregunta? Escríbenos a{' '}
-              <a href="mailto:hola@conelena.app" className="text-sage-strong underline-offset-2 underline">
-                hola@conelena.app
+              <a href="mailto:hola@tu-animo.app" className="text-sage-strong underline-offset-2 underline">
+                hola@tu-animo.app
               </a>
             </p>
           </div>
