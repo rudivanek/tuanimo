@@ -53,10 +53,9 @@ export function Layout({ children }: LayoutProps) {
         className="fixed top-0 left-0 right-0 z-40 bg-app-bg border-b border-app-border flex items-center px-5"
         style={{ height: 'var(--header-h)', paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <img src="/image.png" alt="Tu-Animo" className="w-8 h-8 rounded-full mr-2 flex-shrink-0" />
+        <img src="/image.png" alt="Con Elena" className="w-8 h-8 rounded-full mr-2 flex-shrink-0" />
         <div className="flex items-baseline gap-0.5">
-          <span className="text-[18px] font-semibold tracking-tight text-app-text">Tu-Animo</span>
-          <span className="text-[18px] font-semibold tracking-tight text-sage-strong">.app</span>
+          <span className="text-[18px] font-semibold tracking-tight text-sage-strong">Con Elena</span>
           <span className="text-xs text-app-muted ml-2 hidden sm:inline">
             Tu compañera emocional<span className="ml-1 text-sage-strong/70 font-medium">{APP_VERSION}</span>
           </span>
