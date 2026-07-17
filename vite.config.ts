@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-
 export default defineConfig({
   plugins: [
     react(),
@@ -9,9 +8,9 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: 'auto',
       manifest: {
-        name: 'Tu-Animo.app',
-        short_name: 'TuAnimo',
-        description: 'Tu consejera emocional de IA',
+        name: 'Con Elena',
+        short_name: 'Con Elena',
+        description: 'Tu acompañante emocional de IA',
         start_url: '/app/chat',
         display: 'standalone',
         background_color: '#F6F8F6',
