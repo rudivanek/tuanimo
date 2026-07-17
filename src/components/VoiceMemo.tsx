@@ -1,7 +1,7 @@
 /**
  * VoiceMemo.tsx
  *
- * Drop-in voice recording button for TuAnimo.
+ * Drop-in voice recording button for Con Elena.
  * Works in both Chat and Journal contexts.
  *
  * Props:
@@ -333,3 +333,5 @@ function SpinnerIcon() {
     </svg>
   );
 }
+
+
