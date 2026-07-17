@@ -2,7 +2,7 @@
  * OnboardingTour.tsx  — v3: fixes new-user detection + settings button
  *
  * Fixes vs v2:
- *   1. Uses a custom event ("tuanimo:start-tour") instead of a module-level
+ *   1. Uses a custom event ("conelena:start-tour") instead of a module-level
  *      _open variable — avoids timing issues with lazy-loaded components
  *   2. Auto-show effect now also listens for auth user changes so a freshly
  *      invited user always sees the tour regardless of prior localStorage state
@@ -30,8 +30,8 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 
 // ─── Storage key ─────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'tuanimo_tour_done';
-const EVENT_NAME  = 'tuanimo:start-tour';
+const STORAGE_KEY = 'conelena_tour_done';
+const EVENT_NAME  = 'conelena:start-tour';
 
 // ─── Steps ───────────────────────────────────────────────────────────────────
 const STEPS = [
@@ -40,7 +40,7 @@ const STEPS = [
     icon: Sparkles,
     iconColor: 'text-sage-strong',
     iconBg: 'bg-sage-strong/10',
-    subtitle: 'Bienvenido/a a Tu-Animo',
+    subtitle: 'Bienvenido/a a Con Elena',
     title: 'Tu espacio de bienestar personal',
     body: 'En unos segundos te mostramos todo lo que puedes hacer aquí. Es rápido, te lo prometemos.',
     isFinal: false,
