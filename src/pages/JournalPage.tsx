@@ -999,7 +999,7 @@ export function JournalPage() {
 
   // Lightweight client-side crisis signal detection — no API call
   // Returns true if the plaintext text (content + title) contains crisis-level language
-  // Covers Spanish and English — the two languages TuAnimo users write in
+  // Covers Spanish and English — the two languages Con Elena users write in
   const detectCrisisInContent = (text: string): boolean => {
     const lower = text.toLowerCase();
     const crisisSignals = [
@@ -2014,4 +2014,4 @@ export function JournalPage() {
   );
 }
 
-// Last updated: 2026-06-23
+// Last updated: 2026-07-17
