@@ -123,7 +123,7 @@ export function InstallPrompt() {
                 Lleva a Elena contigo
               </p>
               <p className="text-gray-500 text-[13px] mt-0.5">
-                Instala TuAnimo para acceder más rápido
+                Instala Con Elena para acceder más rápido
               </p>
             </div>
             <button
@@ -140,7 +140,7 @@ export function InstallPrompt() {
           {platform === 'android' && (
             <>
               <p className="text-gray-600 text-[13.5px] leading-relaxed mb-4">
-                Agrega TuAnimo a tu pantalla de inicio para abrirla al instante, sin buscarla en el navegador.
+                Agrega Con Elena a tu pantalla de inicio para abrirla al instante, sin buscarla en el navegador.
               </p>
               <div className="flex gap-2">
                 <button
@@ -225,3 +225,4 @@ export function InstallPrompt() {
     </div>
   );
 }
+
