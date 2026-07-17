@@ -82,8 +82,7 @@ export function ResetPasswordPage() {
         </div>
 
         <div className="text-center mb-2">
-          <span className="text-[20px] font-semibold tracking-tight text-app-text">Tu-Animo</span>
-          <span className="text-[20px] font-semibold tracking-tight text-sage-strong">.app</span>
+          <span className="text-[20px] font-semibold tracking-tight text-sage-strong">Con Elena</span>
         </div>
 
         {/* ── Sent confirmation ── */}
@@ -224,3 +223,4 @@ export function ResetPasswordPage() {
     </div>
   );
 }
+
