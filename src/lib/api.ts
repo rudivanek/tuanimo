@@ -300,3 +300,24 @@ export async function generateTitle(params: {
     return null; // never throw — title generation is best-effort
   }
 }
+
+// ── Journal → task-signal tagging ────────────────────────────────────────────
+// Fire-and-forget, best-effort: called right after a journal save so the diary
+// feeds the same theme-tagging pipeline chat already feeds (see
+// tag-journal-signal edge function). Never awaited by the caller's UI, never
+// throws, and never surfaces its own errors — a failed tag just means one
+// entry didn't contribute a signal this time.
+export function tagJournalSignal(content: string): void {
+  void (async () => {
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${FUNCTIONS_URL}/tag-journal-signal`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ content }),
+      });
+    } catch {
+      // best-effort — swallow silently, never surface to the journal UI
+    }
+  })();
+}
