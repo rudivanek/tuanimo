@@ -510,9 +510,10 @@ export function ChatPage() {
           cleanUrl.searchParams.delete('openThread');
           window.history.replaceState({}, '', cleanUrl.toString());
         }
-        const target = normalized.find(t => t.id === pendingOpen);
+       const target = normalized.find(t => t.id === pendingOpen);
         if (target) {
           setCurrentThreadId(target.id);
+          setShowSidebar(false);
         } else if (normalized.length > 0 && !currentThreadId) {
           setCurrentThreadId(normalized[0].id);
         }
