@@ -469,6 +469,7 @@ export function ChatPage() {
                 ...shifted,
               ]);
               setCurrentThreadId(reflectionThread.id);
+              setShowSidebar(false);
               setMessages([]);
               setPendingReflection({
                 threadId: reflectionThread.id,
