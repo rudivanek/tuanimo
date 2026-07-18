@@ -450,6 +450,7 @@ export function ChatPage() {
             if (existingForEntry) {
               setCurrentThreadId(existingForEntry.id);
               setReflectionSourceEntryId({ threadId: existingForEntry.id, entryId: entryId! });
+              setShowSidebar(false);
               return; // handled — reuse the existing thread
             }
             const shifted = normalized.map((t, i) => ({ ...t, sort_order: i + 1 }));
