@@ -7,7 +7,7 @@ import { audioManager } from '../lib/audio';
 import { supabase } from '../lib/supabaseClient';
 import { useProfile } from '../hooks/useProfile';
 import { useTokenStatus } from '../hooks/useTokenStatus';
-import { getJournalPrompts, TokenLimitError, generateAIReflectionPrompt, generateTitle } from '../lib/api';
+import { getJournalPrompts, TokenLimitError, generateAIReflectionPrompt, generateTitle, tagJournalSignal } from '../lib/api';
 import { extractLanguageSignals } from '../lib/languageSignals';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
 import { BookOpen, Plus, Sparkles, Calendar, Tag, Trash2, GripVertical, ArrowLeft, Lock, Download, MessageCircle, X, ChevronRight, Check, Star } from 'lucide-react';
@@ -1144,6 +1144,7 @@ export function JournalPage() {
           const saveSourceUpdate = selectedEntry.origin === 'chat' ? 'converted_from_chat' : selectedPrompt ? 'prompted' : 'manual';
           recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { entryLength: content.length, isDraft: false, isUpdate: true, source: saveSourceUpdate });
           triggerJustSaved(false);
+          tagJournalSignal(content); // fire-and-forget — feeds the theme-tagging pipeline, no UI wait
           if (detectCrisisInContent(content + " " + resolvedTitle)) setShowSaveCrisisBanner(true);
         }
       } else {
@@ -1221,6 +1222,7 @@ export function JournalPage() {
           const saveSourceNew = selectedPrompt ? 'prompted' : 'manual';
           recordFlightEvent(user?.id, 'JOURNAL_ENTRY_SAVED', { entryLength: content.length, isDraft: false, isUpdate: false, source: saveSourceNew });
           triggerJustSaved(content.trim().length >= 200);
+          tagJournalSignal(content); // fire-and-forget — feeds the theme-tagging pipeline, no UI wait
           if (detectCrisisInContent(content + " " + resolvedTitle)) setShowSaveCrisisBanner(true);
         }
       }
@@ -2014,4 +2016,4 @@ export function JournalPage() {
   );
 }
 
-// Last updated: 2026-07-17
+// Last updated: 2026-07-17.2
