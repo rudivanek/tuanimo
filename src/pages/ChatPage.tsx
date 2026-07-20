@@ -1062,9 +1062,17 @@ export function ChatPage() {
   };
 
   const handleSendMessage = async (overrideMessage?: string, threadIdOverride?: string, chipMetaOverride?: MessageChipMeta | null) => {
-    const messageToSend = overrideMessage || inputMessage.trim();
-    const threadId = threadIdOverride ?? currentThreadId;
-    if (!messageToSend || !threadId || !user || isSending) return;
+ const messageToSend = overrideMessage || inputMessage.trim();
+    let threadId = threadIdOverride ?? currentThreadId;
+    if (!messageToSend || !user || isSending) return;
+ 
+    // A brand-new user has no threads yet, so currentThreadId is null and
+    // there is nothing to write into. Create the thread on demand, exactly
+    // as handleChipSelect already does, instead of silently bailing out.
+    if (!threadId) {
+      threadId = await createNewThread({ skipWelcome: true });
+      if (!threadId) return;
+    }
     if (!profile) {
       showInlineToast('Un momento, cargando tu sesión...');
       return;
