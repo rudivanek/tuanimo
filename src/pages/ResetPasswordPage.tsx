@@ -3,10 +3,10 @@ import { Leaf, Eye, EyeOff, RefreshCw, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { Redirect } from 'wouter';
 
-type Step = 'request' | 'sent' | 'set_new' | 'done';
+type Step = 'checking' | 'request' | 'sent' | 'set_new' | 'done';
 
 export function ResetPasswordPage() {
-  const [step, setStep] = useState<Step>('request');
+  const [step, setStep] = useState<Step>('checking');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -14,15 +14,33 @@ export function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // When Supabase redirects back after clicking the reset link,
-  // it appends #access_token=... to the URL and fires a PASSWORD_RECOVERY event.
+  // Supabase processes the recovery token in the URL as soon as the client
+  // initialises, which happens before this lazily-loaded page mounts. That
+  // means the PASSWORD_RECOVERY event has usually already fired by the time
+  // we subscribe, so we cannot rely on the listener alone — we also check
+  // for an active session on mount.
   useEffect(() => {
+    let cancelled = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setStep('set_new');
       }
     });
-    return () => subscription.unsubscribe();
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      setStep((current) => {
+        // Don't override a step the user has already moved past.
+        if (current !== 'checking') return current;
+        return session ? 'set_new' : 'request';
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // ── Step 1: Request reset email ──────────────────────────────────────────
@@ -57,9 +75,14 @@ export function ResetPasswordPage() {
 
     if (error) {
       setError(error.message || 'Error al actualizar la contraseña. Intenta de nuevo.');
-    } else {
-      setStep('done');
+      setLoading(false);
+      return;
     }
+
+    // Clear the recovery session so the user signs in fresh with the new
+    // password, rather than being silently dropped into the app.
+    await supabase.auth.signOut();
+    setStep('done');
     setLoading(false);
   };
 
@@ -84,6 +107,13 @@ export function ResetPasswordPage() {
         <div className="text-center mb-2">
           <span className="text-[20px] font-semibold tracking-tight text-sage-strong">Con Elena</span>
         </div>
+
+        {/* ── Checking for a recovery session ── */}
+        {step === 'checking' && (
+          <div className="flex justify-center py-10">
+            <RefreshCw size={20} className="animate-spin text-app-muted" />
+          </div>
+        )}
 
         {/* ── Sent confirmation ── */}
         {step === 'sent' && (
