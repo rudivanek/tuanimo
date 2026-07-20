@@ -2309,7 +2309,7 @@ export function ChatPage() {
                 }
               }}
               placeholder={isTokenExhausted ? (tokenExhaustReason === 'MONTHLY_LIMIT_REACHED' ? 'Elena volverá el próximo mes…' : 'Elena volverá mañana…') : 'Cuéntame lo que sientes o lo que tienes en mente…'}
-              disabled={isSending || !currentThreadId || !!tokenLimitError || isTokenExhausted || !profile}
+               disabled={isSending || !!tokenLimitError || isTokenExhausted || !profile}
               className={`flex-1 min-w-0 rounded-12 border border-app-border px-4 py-2.5 text-sm text-app-text placeholder:text-app-muted bg-app-surface focus:outline-none disabled:bg-app-surface-2 disabled:text-app-muted transition resize-none overflow-hidden${isTokenExhausted ? ' opacity-70 cursor-not-allowed' : ''}`}
               style={{ boxShadow: 'none', height: '40px' }}
               onFocus={(e) => { if (!isTokenExhausted) e.currentTarget.style.boxShadow = '0 0 0 3px var(--focus)'; }}
