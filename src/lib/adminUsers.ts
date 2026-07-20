@@ -114,8 +114,29 @@ export async function deleteOwnAccount(): Promise<void> {
   const json = await res.json();
   if (!res.ok) throw new Error(json.error ?? 'Error al eliminar cuenta');
 
-  // Sign out locally after successful delete
-  await supabase.auth.signOut();
+ // Sign out after successful delete.
+  //
+  // scope: 'local' is REQUIRED here. The default is 'global', which calls
+  // POST /auth/v1/logout to revoke sessions server-side — but the user was
+  // just deleted, so that endpoint returns 403 "User from sub claim in JWT
+  // does not exist". The throw then skipped the token cleanup, leaving a
+  // dead JWT in localStorage and making every later request fail with a
+  // confusing 500.
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    // Expected: the account no longer exists server-side. Not an error.
+  }
+ 
+  // Belt and braces — make sure no auth token survives, even if signOut
+  // failed in some way we did not anticipate.
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith('sb-'))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // localStorage unavailable (private mode edge cases) — ignore.
+  }
 }
 
 /** @deprecated Use hardDeleteUser instead */
