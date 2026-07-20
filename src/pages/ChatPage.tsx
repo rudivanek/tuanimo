@@ -2324,7 +2324,7 @@ export function ChatPage() {
             />
             <button
               onClick={() => handleSendMessage()}
-              disabled={isSending || !inputMessage.trim() || !currentThreadId || !!tokenLimitError || isTokenExhausted || !profile}
+              disabled={isSending || !inputMessage.trim() || !!tokenLimitError || isTokenExhausted || !profile}
               title={isTokenExhausted ? 'Límite de tokens alcanzado — puedes leer tus conversaciones, pero no enviar nuevos mensajes.' : undefined}
               className="flex-shrink-0 bg-sage-strong text-white rounded-12 px-4 py-2.5 hover:bg-[#4e7260] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 text-sm font-medium"
             >
