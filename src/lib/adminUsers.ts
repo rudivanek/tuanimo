@@ -15,6 +15,26 @@ export interface AdminUser {
   deleted_at: string | null;
   created_at: string;
   flight_recorder_enabled: boolean;
+  chat_model_override: string | null;
+}
+
+/** Models selectable as a per-user override. Must match the CHECK constraint
+ *  on public.ai_user_overrides.chat_model exactly. */
+export const CHAT_MODEL_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'claude-sonnet-5',   label: 'Sonnet 5' },
+  { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+  { value: 'claude-haiku-4-5',  label: 'Haiku 4.5' },
+  { value: 'claude-opus-4-6',   label: 'Opus 4.6' },
+];
+
+/** Assign a model to one user, or pass null to clear the override
+ *  so the user falls back to the global model in Configuración IA. */
+export async function setChatModelForUser(userId: string, model: string | null): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_chat_model', {
+    p_user_id: userId,
+    p_model: model,
+  });
+  if (error) throw error;
 }
 
 export function getDisplayName(user: AdminUser): string {
