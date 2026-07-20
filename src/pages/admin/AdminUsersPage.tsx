@@ -6,7 +6,7 @@ import {
   AlertCircle, Inbox, Pencil, Trash2, CheckCircle, Ban, Wrench, X, CheckCheck,
   RotateCcw, AlertTriangle, CircleDollarSign,
 } from 'lucide-react';
-import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, upsertUserProfile } from '../../lib/adminUsers';
+import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, upsertUserProfile } from '../../lib/adminUsers';
 import { setFlightRecorderForUser } from '../../lib/elenaFlightRecorder';
 import { UserModal } from '../../components/admin/UserModal';
 
@@ -128,6 +128,18 @@ export function AdminUsersPage() {
     try {
       await setFlightRecorderForUser(user.id, !user.flight_recorder_enabled);
       invalidate();
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleChangeChatModel = async (user: AdminUser, value: string) => {
+    setActionLoading(user.id + '-model');
+    try {
+      await setChatModelForUser(user.id, value === '' ? null : value);
+      invalidate();
+    } catch (err) {
+      alert(`No se pudo cambiar el modelo: ${(err as Error).message}`);
     } finally {
       setActionLoading(null);
     }
@@ -396,6 +408,9 @@ export function AdminUsersPage() {
                       Plan
                     </th>
                     <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                      Modelo
+                    </th>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Registrado
                     </th>
                     <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
@@ -425,6 +440,32 @@ export function AdminUsersPage() {
                       </td>
                       <td className="px-5 py-3.5">
                         <PlanBadge planKey={user.plan_key ?? 'starter'} />
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {!user.deleted_at && (
+                          <select
+                            value={user.chat_model_override ?? ''}
+                            onChange={(e) => handleChangeChatModel(user, e.target.value)}
+                            disabled={actionLoading === user.id + '-model'}
+                            title={
+                              user.chat_model_override
+                                ? `Modelo asignado: ${user.chat_model_override}`
+                                : 'Usa el modelo global de Configuración IA'
+                            }
+                            className={`text-[12px] rounded-9 border px-2 py-1 bg-app-card focus:outline-none focus:ring-1 focus:ring-sage-strong/40 disabled:opacity-50 transition-colors ${
+                              user.chat_model_override
+                                ? 'border-sage-strong/40 text-sage-strong font-medium'
+                                : 'border-app-border text-app-muted'
+                            }`}
+                          >
+                            <option value="">Global</option>
+                            {CHAT_MODEL_OPTIONS.map((m) => (
+                              <option key={m.value} value={m.value}>
+                                {m.label}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-[12px] text-app-muted whitespace-nowrap tabular-nums">
                         {formatDate(user.created_at)}
@@ -679,3 +720,4 @@ export function AdminUsersPage() {
     </div>
   );
 }
+
