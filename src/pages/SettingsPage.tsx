@@ -211,11 +211,17 @@ export function SettingsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const handleDeleteAccount = async () => {
+ const handleDeleteAccount = async () => {
     setDeleteLoading(true);
     setDeleteError(null);
     try {
       await deleteOwnAccount();
+ 
+      // Hard redirect, not navigate(). A full page load discards all React
+      // state and any in-memory Supabase client that might still be holding
+      // the deleted user's session. Relying on an auth-state-change listener
+      // is not enough — with the account gone, that event may never fire.
+      window.location.replace('/');
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Error al eliminar cuenta');
       setDeleteLoading(false);
