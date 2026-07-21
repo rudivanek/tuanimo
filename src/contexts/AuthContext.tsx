@@ -14,6 +14,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+const BLOCKED_STORAGE_KEY = 'conelena_account_blocked';
+
 const BLOCKED_DELETED_MSG =
   'Esta cuenta fue eliminada. Si crees que es un error, escríbenos a hola@conelena.app.';
 const BLOCKED_DISABLED_MSG =
@@ -25,7 +27,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accountBlocked, setAccountBlocked] = useState<string | null>(null);
+  // Read from storage so the reason survives the hard navigation that App.tsx
+  // performs when there is no session.
+  const [accountBlocked, setAccountBlocked] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(BLOCKED_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  });
 
   // Guards against re-checking the same user repeatedly on token refresh
   const lastCheckedUserId = useRef<string | null>(null);
@@ -54,6 +64,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const forceSignOut = async (reason: string) => {
     setAccountBlocked(reason);
+    try {
+      localStorage.setItem(BLOCKED_STORAGE_KEY, reason);
+    } catch {
+      /* storage unavailable — message will be lost on navigation, not fatal */
+    }
     try {
       await supabase.auth.signOut({ scope: 'global' });
     } catch (err) {
@@ -181,7 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    setAccountBlocked(null);
+    clearAccountBlocked();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -216,7 +231,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const clearAccountBlocked = () => setAccountBlocked(null);
+  const clearAccountBlocked = () => {
+    setAccountBlocked(null);
+    try {
+      localStorage.removeItem(BLOCKED_STORAGE_KEY);
+    } catch {
+      /* no-op */
+    }
+  };
 
   const value = {
     user,
@@ -239,4 +261,3 @@ export function useAuth() {
   }
   return context;
 }
-
