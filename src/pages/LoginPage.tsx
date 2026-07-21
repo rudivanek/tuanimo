@@ -17,7 +17,7 @@ export function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, accountBlocked } = useAuth();
 
   if (user) return <Redirect to="/app/chat" />;
 
