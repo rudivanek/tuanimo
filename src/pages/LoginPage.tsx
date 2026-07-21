@@ -253,10 +253,10 @@ export function LoginPage() {
           </button>
         </form>
 
-      {(message || accountBlocked) && (
+        {(message || accountBlocked) && (
           <div
             className={`mt-4 p-3.5 rounded-12 text-sm ${
-              isError
+              isError || accountBlocked
                 ? 'bg-red-50 text-danger border border-red-100'
                 : 'bg-sage-soft text-sage-strong border border-sage-soft'
             }`}
