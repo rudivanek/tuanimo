@@ -105,7 +105,7 @@ export function ResetPasswordPage() {
         </div>
 
         <div className="text-center mb-2">
-          <span className="text-[20px] font-semibold tracking-tight text-sage-strong">Con Elena</span>
+         <span className="font-display text-[20px] font-semibold text-app-text">Con <em>Elena</em></span>
         </div>
 
         {/* ── Checking for a recovery session ── */}
