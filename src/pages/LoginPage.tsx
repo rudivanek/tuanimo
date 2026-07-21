@@ -253,7 +253,7 @@ export function LoginPage() {
           </button>
         </form>
 
-        {message && (
+      {(message || accountBlocked) && (
           <div
             className={`mt-4 p-3.5 rounded-12 text-sm ${
               isError
