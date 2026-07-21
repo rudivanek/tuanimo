@@ -1,126 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..700,0..100,0..1;1,9..144,400..700,0..100,0..1&display=swap');
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@keyframes pulse-ring {
-  0%   { transform: scale(0.88); opacity: 0.22; }
-  65%  { transform: scale(1.18); opacity: 0; }
-  100% { transform: scale(1.18); opacity: 0; }
-}
-
-@keyframes shimmer-sweep {
-  0%   { transform: translateX(-110%); }
-  100% { transform: translateX(220%); }
-}
-
-@keyframes diary-entry {
-  0%   { opacity: 0; transform: translateY(7px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-.animate-pulse-ring {
-  animation: pulse-ring 900ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-
-.animate-shimmer-sweep {
-  animation: shimmer-sweep 950ms cubic-bezier(0.4, 0, 0.6, 1) forwards;
-}
-
-.animate-diary-entry {
-  animation: diary-entry 220ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-pulse-ring,
-  .animate-shimmer-sweep {
-    animation: none;
-    opacity: 0;
-  }
-  .animate-diary-entry {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-}
-
-html,
-body {
-  font-family: 'DM Sans', system-ui, ui-sans-serif, sans-serif;
-  background-color: #F7F4EF;
-  color: #1C2B22;
-  overflow-x: hidden;
-  -webkit-text-size-adjust: 100%;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Fraunces display face — wordmark only.
-   Do not apply to buttons, labels, inputs or chat bubbles. */
-.font-display {
-  font-family: 'Fraunces', Georgia, serif;
-  font-optical-sizing: auto;
-  font-variation-settings: 'SOFT' 40, 'WONK' 1;
-  letter-spacing: -0.01em;
-}
-
-.font-display em {
-  font-style: italic;
-  color: var(--primary-strong);
-}
-
-/* Prevent iOS Safari auto-zoom on focused inputs */
-input, textarea, select {
-  font-size: max(16px, 1em) !important;
-}
-
-@layer utilities {
-  .h-dvh {
-    height: 100dvh;
-  }
-  .min-h-dvh {
-    min-height: 100dvh;
-  }
-
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  .pt-safe {
-    padding-top: env(safe-area-inset-top, 0px);
-  }
-  .pl-safe {
-    padding-left: env(safe-area-inset-left, 0px);
-  }
-  .pr-safe {
-    padding-right: env(safe-area-inset-right, 0px);
-  }
-}
-
-:root {
-  /* Design tokens — Con Elena, aligned to conelena.app */
-  --bg: #F7F4EF;
-  --surface: #FFFFFF;
-  --surface-2: #F1EEE7;
-  --surface-warm: #EDE9E2;
-  --border: #D6E0D9;
-  --text: #1C2B22;
-  --text-muted: #6B7F72;
-  --text-muted-soft: #8A9A90;
-  --primary: #7AAB8A;
-  --primary-strong: #4A7C59;
-  --primary-hover: #2D5A3D;
-  --primary-soft: #EAF2ED;
-  --primary-deep: #1A3827;
-  --shadow: 0 8px 24px rgba(28, 43, 34, 0.07);
-  --danger: #D16B6B;
-  --focus: rgba(74, 124, 89, 0.30);
-
-  /* Layout heights */
-  --header-h: 2.75rem;
-  --nav-h: 5.25rem;
-  --nav-total: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
-  --chrome-total: calc(var(--header-h) + var(--nav-total));
-}
-
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/image.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#5F8672" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Con Elena" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>Con Elena</title>
+    <meta property="og:image" content="https://conelena.app/image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://conelena.app/image.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
