@@ -100,10 +100,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    // Always clear local state regardless of server response (handles stale/invalid sessions)
-    setSession(null);
-    setUser(null);
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch (err) {
+      console.warn('signOut failed, clearing locally:', err);
+    } finally {
+      // Drop any Supabase token that survived a failed sign-out
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith('sb-'))
+        .forEach((k) => localStorage.removeItem(k));
+      setSession(null);
+      setUser(null);
+    }
   };
 
   const value = {
