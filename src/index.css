@@ -49,8 +49,8 @@
 html,
 body {
   font-family: 'DM Sans', system-ui, ui-sans-serif, sans-serif;
-  background-color: #F6F8F6;
-  color: #1F2A24;
+  background-color: #F7F4EF;
+  color: #1C2B22;
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
@@ -99,19 +99,23 @@ input, textarea, select {
 }
 
 :root {
-  /* Design tokens — Soft Sage & Warm White */
-  --bg: #F6F8F6;
+  /* Design tokens — Con Elena, aligned to conelena.app */
+  --bg: #F7F4EF;
   --surface: #FFFFFF;
-  --surface-2: #F2F6F3;
-  --border: #E4EAE6;
-  --text: #1F2A24;
-  --text-muted: #6B7A72;
-  --primary: #7FA88C;
-  --primary-strong: #5F8672;
-  --primary-soft: #DCE8E1;
-  --shadow: 0 8px 24px rgba(31, 42, 36, 0.08);
+  --surface-2: #F1EEE7;
+  --surface-warm: #EDE9E2;
+  --border: #D6E0D9;
+  --text: #1C2B22;
+  --text-muted: #6B7F72;
+  --text-muted-soft: #8A9A90;
+  --primary: #7AAB8A;
+  --primary-strong: #4A7C59;
+  --primary-hover: #2D5A3D;
+  --primary-soft: #EAF2ED;
+  --primary-deep: #1A3827;
+  --shadow: 0 8px 24px rgba(28, 43, 34, 0.07);
   --danger: #D16B6B;
-  --focus: rgba(127, 168, 140, 0.35);
+  --focus: rgba(74, 124, 89, 0.30);
 
   /* Layout heights */
   --header-h: 2.75rem;
