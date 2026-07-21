@@ -55,7 +55,7 @@ export function Layout({ children }: LayoutProps) {
       >
         <img src="/image.png" alt="Con Elena" className="w-8 h-8 rounded-full mr-2 flex-shrink-0" />
         <div className="flex items-baseline gap-0.5">
-          <span className="text-[18px] font-semibold tracking-tight text-sage-strong">Con Elena</span>
+          <span className="font-display text-[18px] font-semibold text-app-text">Con <em>Elena</em></span>
           <span className="text-xs text-app-muted ml-2 hidden sm:inline">
             Tu compañera emocional<span className="ml-1 text-sage-strong/70 font-medium">{APP_VERSION}</span>
           </span>
@@ -161,4 +161,5 @@ export function Layout({ children }: LayoutProps) {
     </div>
   );
 }
+
 
