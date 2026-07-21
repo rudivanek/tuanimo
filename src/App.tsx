@@ -120,7 +120,7 @@ function HomeRoute() {
 
   if (loading) return <LoadingScreen />;
   if (user) return <Redirect to="/chat" />;
-  if (isStandalone || !canLeaveApp) return <Redirect to="/login" />;
+  if (isStandalone || !canLeaveApp || hasBlockedNotice) return <Redirect to="/login" />;
   return <LoadingScreen />;
 }
 
