@@ -101,15 +101,30 @@ function HomeRoute() {
     (window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as { standalone?: boolean }).standalone === true);
 
+  // Never bounce out of a dev server or an embedded preview (Bolt, StackBlitz):
+  // the external site refuses to be framed and the preview dies.
+  const canLeaveApp =
+    import.meta.env.PROD &&
+    typeof window !== 'undefined' &&
+    window.self === window.top;
+
+  const hasBlockedNotice = (() => {
+    try {
+      return !!localStorage.getItem('conelena_account_blocked');
+    } catch {
+      return false;
+    }
+  })();
+
   useEffect(() => {
-    if (!loading && !user && !isStandalone) {
+    if (!loading && !user && !isStandalone && canLeaveApp && !hasBlockedNotice) {
       window.location.replace('https://conelena.app');
     }
-  }, [loading, user, isStandalone]);
+  }, [loading, user, isStandalone, canLeaveApp, hasBlockedNotice]);
 
   if (loading) return <LoadingScreen />;
   if (user) return <Redirect to="/chat" />;
-  if (isStandalone) return <Redirect to="/login" />;
+  if (isStandalone || !canLeaveApp || hasBlockedNotice) return <Redirect to="/login" />;
   return <LoadingScreen />;
 }
 
@@ -165,3 +180,4 @@ function App() {
 }
 
 export default App;
+
