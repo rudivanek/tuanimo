@@ -1,8 +1,7 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Route, Switch, Redirect } from 'wouter';
 import { useAuth } from './contexts/AuthContext';
 import { useAdmin } from './hooks/useAdmin';
-import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
 import { Layout } from './components/Layout';
@@ -93,9 +92,25 @@ const AdminAnalyticsRoute = () => <AdminRoute component={AdminAnalyticsPage} />;
 
 function HomeRoute() {
   const { user, loading } = useAuth();
+
+  // Logged-out visitors landing on the app domain get sent to the marketing
+  // site — except inside the installed PWA, where ejecting to a website would
+  // be jarring; those users go to the login screen instead.
+  const isStandalone =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as { standalone?: boolean }).standalone === true);
+
+  useEffect(() => {
+    if (!loading && !user && !isStandalone) {
+      window.location.replace('https://conelena.app');
+    }
+  }, [loading, user, isStandalone]);
+
   if (loading) return <LoadingScreen />;
   if (user) return <Redirect to="/chat" />;
-  return <LandingPage />;
+  if (isStandalone) return <Redirect to="/login" />;
+  return <LoadingScreen />;
 }
 
 function App() {
