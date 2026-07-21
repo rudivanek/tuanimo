@@ -112,6 +112,7 @@ const signOut = async () => {
         .forEach((k) => localStorage.removeItem(k));
       setSession(null);
       setUser(null);
+      queryClient.clear();
     }
   };
 
