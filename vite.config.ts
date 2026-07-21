@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+
 export default defineConfig({
   plugins: [
     react(),
@@ -11,7 +12,8 @@ export default defineConfig({
         name: 'Con Elena',
         short_name: 'Con Elena',
         description: 'Tu acompañante emocional de IA',
-        start_url: '/app/chat',
+        start_url: '/chat',
+        scope: '/',
         display: 'standalone',
         background_color: '#F7F4EF',
         theme_color: '#F7F4EF',
@@ -46,4 +48,3 @@ export default defineConfig({
     globals: true,
   },
 });
-
