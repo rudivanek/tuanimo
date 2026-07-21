@@ -108,11 +108,15 @@ function HomeRoute() {
     typeof window !== 'undefined' &&
     window.self === window.top;
 
+  const hasBlockedNotice =
+    typeof window !== 'undefined' &&
+    !!localStorage.getItem('conelena_account_blocked');
+
   useEffect(() => {
-    if (!loading && !user && !isStandalone && canLeaveApp) {
+    if (!loading && !user && !isStandalone && canLeaveApp && !hasBlockedNotice) {
       window.location.replace('https://conelena.app');
     }
-  }, [loading, user, isStandalone, canLeaveApp]);
+  }, [loading, user, isStandalone, canLeaveApp, hasBlockedNotice]);
 
   if (loading) return <LoadingScreen />;
   if (user) return <Redirect to="/chat" />;
