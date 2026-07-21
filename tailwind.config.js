@@ -16,7 +16,7 @@ export default {
         danger: '#D16B6B',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'ui-sans-serif', 'sans-serif'],
+        sans: ['DM Sans', 'system-ui', 'ui-sans-serif', 'sans-serif'],
       },
       boxShadow: {
         app: '0 8px 24px rgba(31,42,36,0.08)',
