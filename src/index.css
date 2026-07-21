@@ -119,3 +119,4 @@ input, textarea, select {
   --nav-total: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
   --chrome-total: calc(var(--header-h) + var(--nav-total));
 }
+
