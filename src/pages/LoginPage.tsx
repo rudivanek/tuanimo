@@ -75,7 +75,7 @@ export function LoginPage() {
           <span className="text-[20px] font-semibold tracking-tight text-sage-strong">Con Elena</span>
         </div>
         <p className="text-center text-app-muted text-sm mb-7">
-          Tu espacio seguro para el bienestar emocional
+          Un espacio para entenderte, sin juicios 
         </p>
 
         {/* Mode toggle */}
