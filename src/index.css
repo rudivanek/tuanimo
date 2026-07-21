@@ -132,3 +132,4 @@ input, textarea, select {
    updated to `hover:bg-sage-hover` / `hover:text-sage-hover`. */
 html .hover\:bg-\[\#4e7260\]:hover { background-color: #2D5A3D; }
 html .hover\:text-\[\#4e7260\]:hover { color: #2D5A3D; }
+  
