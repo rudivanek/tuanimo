@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { queryClient } from '../lib/queryClient';
@@ -7,10 +7,17 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  accountBlocked: string | null;
+  clearAccountBlocked: () => void;
   signUp: (email: string, password: string, firstName: string, lastName?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
+
+const BLOCKED_DELETED_MSG =
+  'Esta cuenta fue eliminada. Si crees que es un error, escríbenos a hola@conelena.app.';
+const BLOCKED_DISABLED_MSG =
+  'Esta cuenta está deshabilitada. Escríbenos a hola@conelena.app para más información.';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -18,6 +25,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accountBlocked, setAccountBlocked] = useState<string | null>(null);
+
+  // Guards against re-checking the same user repeatedly on token refresh
+  const lastCheckedUserId = useRef<string | null>(null);
+
+  /**
+   * Returns a block message if the account is deleted or disabled, else null.
+   * Fails OPEN: if the profile query errors (offline, RLS hiccup), we do not
+   * lock the user out — we only block on a definitive positive result.
+   */
+  const getBlockReason = async (userId: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('deleted_at, is_disabled')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error || !data) return null;
+      if (data.deleted_at) return BLOCKED_DELETED_MSG;
+      if (data.is_disabled) return BLOCKED_DISABLED_MSG;
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const forceSignOut = async (reason: string) => {
+    setAccountBlocked(reason);
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch (err) {
+      console.warn('Blocked-account sign-out failed, clearing locally:', err);
+    } finally {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith('sb-'))
+        .forEach((k) => localStorage.removeItem(k));
+      setSession(null);
+      setUser(null);
+      lastCheckedUserId.current = null;
+      queryClient.clear();
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -34,6 +84,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setLoading(false);
               return;
             }
+
+            const reason = await getBlockReason(data.session.user.id);
+            if (reason) {
+              await forceSignOut(reason);
+              setLoading(false);
+              return;
+            }
+            lastCheckedUserId.current = data.session.user.id;
+
             setSession(data.session);
             setUser(data.session.user);
             setLoading(false);
@@ -41,7 +100,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch {
         }
+
+        const reason = await getBlockReason(session.user.id);
+        if (reason) {
+          await forceSignOut(reason);
+          setLoading(false);
+          return;
+        }
+        lastCheckedUserId.current = session.user.id;
       }
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -52,11 +120,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setSession(session);
-        setUser(session?.user ?? null);
-      })();
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Optimistically set state so the UI stays responsive.
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (!session?.user) {
+        lastCheckedUserId.current = null;
+        return;
+      }
+
+      // Only re-check on a genuine sign-in, not on every token refresh.
+      const isNewSignIn =
+        event === 'SIGNED_IN' && lastCheckedUserId.current !== session.user.id;
+      if (!isNewSignIn) return;
+
+      // Deferred: calling supabase inside onAuthStateChange synchronously
+      // can deadlock the client. setTimeout breaks out of the callback.
+      setTimeout(async () => {
+        const reason = await getBlockReason(session.user.id);
+        if (reason) {
+          await forceSignOut(reason);
+        } else {
+          lastCheckedUserId.current = session.user.id;
+        }
+      }, 0);
     });
 
     return () => subscription.unsubscribe();
@@ -93,14 +181,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    setAccountBlocked(null);
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
+    if (!error && data.user) {
+      const reason = await getBlockReason(data.user.id);
+      if (reason) {
+        await forceSignOut(reason);
+        return { error: new Error(reason) };
+      }
+      lastCheckedUserId.current = data.user.id;
+    }
+
     return { error };
   };
 
-const signOut = async () => {
+  const signOut = async () => {
     try {
       await supabase.auth.signOut({ scope: 'global' });
     } catch (err) {
@@ -112,14 +211,19 @@ const signOut = async () => {
         .forEach((k) => localStorage.removeItem(k));
       setSession(null);
       setUser(null);
+      lastCheckedUserId.current = null;
       queryClient.clear();
     }
   };
+
+  const clearAccountBlocked = () => setAccountBlocked(null);
 
   const value = {
     user,
     session,
     loading,
+    accountBlocked,
+    clearAccountBlocked,
     signUp,
     signIn,
     signOut,
