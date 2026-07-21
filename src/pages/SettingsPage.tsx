@@ -10,7 +10,6 @@ import { useTour } from '../components/OnboardingTour';
 import { useOnboarding } from '../components/OnboardingConversation';
 import { deleteOwnAccount } from '../lib/adminUsers';
 import { APP_VERSION } from '../lib/appVersion';
-import { PreferredNameCard } from '../components/PreferredNameCard';
 
 function Toggle({
   checked,
