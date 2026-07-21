@@ -28,11 +28,7 @@ export function Layout({ children }: LayoutProps) {
   }, []);
 
   const badgeVisible = hasNewInsightsSinceLastView(latestInsight?.created_at ?? null);
-  console.debug("debug insights badge recompute:", {
-    insightViewVersion,
-    badgeVisible,
-    latestInsightAt: latestInsight?.created_at ?? null,
-  });
+  
 
   const navItems = [
     { path: '/chat', icon: MessageCircle, label: 'Chat' },
