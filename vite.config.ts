@@ -13,8 +13,8 @@ export default defineConfig({
         description: 'Tu acompañante emocional de IA',
         start_url: '/app/chat',
         display: 'standalone',
-        background_color: '#F6F8F6',
-        theme_color: '#5F8672',
+        background_color: '#F7F4EF',
+        theme_color: '#F7F4EF',
         icons: [
           {
             src: '/icon-192.png',
