@@ -124,3 +124,11 @@ input, textarea, select {
   --chrome-total: calc(var(--header-h) + var(--nav-total));
 }
 
+
+/* ── Shim: legacy sage hover ──────────────────────────────────────────────
+   The old hover green (#4e7260) is still hardcoded as a Tailwind arbitrary
+   value in 15 files (27 occurrences). Rather than edit each one, remap it
+   here to the new hover green. Delete this block once the source has been
+   updated to `hover:bg-sage-hover` / `hover:text-sage-hover`. */
+html .hover\:bg-\[\#4e7260\]:hover { background-color: #2D5A3D; }
+html .hover\:text-\[\#4e7260\]:hover { color: #2D5A3D; }
