@@ -261,7 +261,7 @@ export function LoginPage() {
                 : 'bg-sage-soft text-sage-strong border border-sage-soft'
             }`}
           >
-            {message}
+            {accountBlocked || message}
           </div>
         )}
 
