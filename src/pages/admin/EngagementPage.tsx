@@ -13,6 +13,7 @@ interface EngagementRow {
   name: string;
   chats: number;
   diario: number;
+  cost_usd: number;
 }
 
 interface DailyRow {
@@ -46,6 +47,12 @@ function localDaysAgo(n: number): string {
 function shortDay(iso: string): string {
   const [, m, d] = iso.slice(0, 10).split('-');
   return `${d}/${m}`;
+}
+function formatCost(n: number): string {
+  const v = Number(n) || 0;
+  if (v === 0) return '$0.00';
+  if (v < 0.01) return `$${v.toFixed(4)}`;
+  return `$${v.toFixed(2)}`;
 }
 
 // ── Daily bar chart (hand-rolled SVG, no dependencies) ─────────────────────────
@@ -224,6 +231,7 @@ export function EngagementPage() {
     active: rows.filter(r => (Number(r.chats) + Number(r.diario)) > 0).length,
     chats:  rows.reduce((s, r) => s + Number(r.chats), 0),
     diario: rows.reduce((s, r) => s + Number(r.diario), 0),
+    cost:   rows.reduce((s, r) => s + Number(r.cost_usd), 0),
   }), [rows]);
 
   const selectedLabel = useMemo(
@@ -239,12 +247,12 @@ export function EngagementPage() {
 
     // Sheet 1 — totals per user
     const usersAoa: (string | number)[][] = [
-      ['Correo', 'Nombre', 'Chats', 'Diario'],
-      ...rows.map(r => [r.email, r.name, Number(r.chats), Number(r.diario)]),
-      ['TOTAL', '', totals.chats, totals.diario],
+      ['Correo', 'Nombre', 'Chats', 'Diario', 'Costo (USD)'],
+      ...rows.map(r => [r.email, r.name, Number(r.chats), Number(r.diario), Number(Number(r.cost_usd).toFixed(4))]),
+      ['TOTAL', '', totals.chats, totals.diario, Number(totals.cost.toFixed(4))],
     ];
     const wsUsers = XLSX.utils.aoa_to_sheet(usersAoa);
-    wsUsers['!cols'] = [{ wch: 34 }, { wch: 26 }, { wch: 8 }, { wch: 8 }];
+    wsUsers['!cols'] = [{ wch: 34 }, { wch: 26 }, { wch: 8 }, { wch: 8 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, wsUsers, 'Por usuario');
 
     // Sheet 2 — daily breakdown (select these columns in Excel -> Insert -> Chart)
@@ -357,16 +365,17 @@ export function EngagementPage() {
 
         {/* Summary cards */}
         {!isError && rows.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: 'Usuarios', value: String(totals.users) },
               { label: 'Activos', value: String(totals.active), sub: `${totals.users - totals.active} sin actividad` },
               { label: 'Chats', value: totals.chats.toLocaleString('en-US') },
               { label: 'Diario', value: totals.diario.toLocaleString('en-US') },
-            ].map(({ label, value, sub }) => (
+              { label: 'Costo tokens', value: formatCost(totals.cost), green: true },
+            ].map(({ label, value, sub, green }) => (
               <div key={label} className="bg-app-surface border border-app-border rounded-[12px] p-4">
                 <p className="text-[11px] font-medium text-app-muted uppercase tracking-wider mb-1">{label}</p>
-                <p className="text-xl font-semibold text-app-text">{value}</p>
+                <p className={`text-xl font-semibold ${green ? 'text-sage-strong' : 'text-app-text'}`}>{value}</p>
                 {sub && <p className="text-[11px] text-app-muted mt-0.5">{sub}</p>}
               </div>
             ))}
@@ -385,7 +394,7 @@ export function EngagementPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-app-border">
-                      {['Correo', 'Nombre', 'Chats', 'Diario'].map((h, i) => (
+                      {['Correo', 'Nombre', 'Chats', 'Diario', 'Costo (USD)'].map((h, i) => (
                         <th key={h} className={`px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider ${i < 2 ? 'text-left' : 'text-right'}`}>{h}</th>
                       ))}
                     </tr>
@@ -399,6 +408,7 @@ export function EngagementPage() {
                           <td className="px-5 py-3 text-app-text font-medium max-w-[200px] truncate">{row.name}</td>
                           <td className="px-5 py-3 text-right text-app-text tabular-nums font-medium">{Number(row.chats).toLocaleString('en-US')}</td>
                           <td className="px-5 py-3 text-right text-app-text tabular-nums font-medium">{Number(row.diario).toLocaleString('en-US')}</td>
+                          <td className="px-5 py-3 text-right text-sage-strong tabular-nums font-semibold">{formatCost(Number(row.cost_usd))}</td>
                         </tr>
                       );
                     })}
@@ -409,6 +419,7 @@ export function EngagementPage() {
                         <td className="px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider" colSpan={2}>Total</td>
                         <td className="px-5 py-3 text-right font-semibold text-app-text tabular-nums">{totals.chats.toLocaleString('en-US')}</td>
                         <td className="px-5 py-3 text-right font-semibold text-app-text tabular-nums">{totals.diario.toLocaleString('en-US')}</td>
+                        <td className="px-5 py-3 text-right font-semibold text-sage-strong tabular-nums">{formatCost(totals.cost)}</td>
                       </tr>
                     </tfoot>
                   )}
