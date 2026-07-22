@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { Activity, ChevronLeft, RefreshCw, AlertCircle, Inbox, Download, List, BarChart3 } from 'lucide-react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import * as XLSX from 'xlsx';
 import { supabase } from '../../lib/supabaseClient';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -230,38 +231,36 @@ export function EngagementPage() {
     [users, appliedUser]
   );
 
-  // ── CSV export: two sections (totals per user + daily breakdown) ────────────
+  // ── Excel export: two sheets (Por usuario + Por día) ────────────────────────
   const handleExport = useCallback(() => {
     if (rows.length === 0 && daily.length === 0) return;
-    const esc = (v: string | number) => {
-      const s = String(v);
-      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : `${s}`;
-    };
 
-    const lines: string[] = [];
+    const wb = XLSX.utils.book_new();
 
-    // Section 1 — totals per user
-    lines.push('POR USUARIO');
-    lines.push(['Correo', 'Nombre', 'Chats', 'Diario'].join(','));
-    rows.forEach(r => lines.push([esc(r.email), esc(r.name), Number(r.chats), Number(r.diario)].join(',')));
-    lines.push(['TOTAL', '', totals.chats, totals.diario].join(','));
+    // Sheet 1 — totals per user
+    const usersAoa: (string | number)[][] = [
+      ['Correo', 'Nombre', 'Chats', 'Diario'],
+      ...rows.map(r => [r.email, r.name, Number(r.chats), Number(r.diario)]),
+      ['TOTAL', '', totals.chats, totals.diario],
+    ];
+    const wsUsers = XLSX.utils.aoa_to_sheet(usersAoa);
+    wsUsers['!cols'] = [{ wch: 34 }, { wch: 26 }, { wch: 8 }, { wch: 8 }];
+    XLSX.utils.book_append_sheet(wb, wsUsers, 'Por usuario');
 
-    lines.push(''); // blank separator row
-
-    // Section 2 — daily breakdown
-    lines.push(`POR DIA${selectedLabel ? ' - ' + selectedLabel : ' - Todos los usuarios'}`);
-    lines.push(['Fecha', 'Chats', 'Diario'].join(','));
-    daily.forEach(d => lines.push([d.day.slice(0, 10), Number(d.chats), Number(d.diario)].join(',')));
+    // Sheet 2 — daily breakdown (select these columns in Excel -> Insert -> Chart)
     const dChats  = daily.reduce((s, d) => s + Number(d.chats), 0);
     const dDiario = daily.reduce((s, d) => s + Number(d.diario), 0);
-    lines.push(['TOTAL', dChats, dDiario].join(','));
+    const dailyAoa: (string | number)[][] = [
+      ['Fecha', 'Chats', 'Diario'],
+      ...daily.map(d => [d.day.slice(0, 10), Number(d.chats), Number(d.diario)]),
+      ['TOTAL', dChats, dDiario],
+    ];
+    const wsDaily = XLSX.utils.aoa_to_sheet(dailyAoa);
+    wsDaily['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 8 }];
+    XLSX.utils.book_append_sheet(wb, wsDaily, 'Por día');
 
-    const csv = '\uFEFF' + lines.join('\n');
-    const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })),
-      download: `conelena-actividad_${appliedFrom}_${appliedUntil}.csv`,
-    });
-    a.click(); URL.revokeObjectURL(a.href);
+    const scope = selectedLabel ? selectedLabel.replace(/[^a-zA-Z0-9]+/g, '-') : 'todos';
+    XLSX.writeFile(wb, `conelena-actividad_${scope}_${appliedFrom}_${appliedUntil}.xlsx`);
   }, [rows, daily, totals, selectedLabel, appliedFrom, appliedUntil]);
 
   const dailyHasData = daily.some(d => (Number(d.chats) + Number(d.diario)) > 0);
@@ -299,11 +298,11 @@ export function EngagementPage() {
           <button
             onClick={handleExport}
             disabled={(rows.length === 0 && daily.length === 0) || isFetching}
-            title="Exportar a CSV"
+            title="Exportar a Excel"
             className="mt-0.5 flex items-center gap-2 h-9 px-4 rounded-10 bg-app-surface border border-app-border text-sm font-medium text-app-text hover:border-sage-strong hover:text-sage-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Download size={15} />
-            <span className="hidden sm:inline">CSV</span>
+            <span className="hidden sm:inline">Excel</span>
           </button>
         </div>
 
