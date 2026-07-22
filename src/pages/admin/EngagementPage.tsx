@@ -169,6 +169,25 @@ export function EngagementPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Earliest activity date — powers the "Todo el tiempo" shortcut.
+  const { data: minDate } = useQuery<string | null>({
+    queryKey: ['admin-engagement-bounds'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('admin_engagement_bounds');
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row?.min_date as string) ?? null;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const setAllTime = useCallback(() => {
+    const from = (minDate ?? localFirstOfMonth()).slice(0, 10);
+    const until = localToday();
+    setDateFrom(from); setDateUntil(until);
+    setAppliedUser(selectedUser); setAppliedFrom(from); setAppliedUntil(until);
+  }, [minDate, selectedUser]);
+
   // Table data (totals per user)
   const { data: rows = [], isFetching, isError, error, refetch } = useQuery<EngagementRow[]>({
     queryKey: ['admin-engagement', appliedUser, appliedFrom, appliedUntil],
@@ -315,9 +334,14 @@ export function EngagementPage() {
               Aplicar
             </button>
           </div>
-          <button onClick={setLast30} className="text-[11px] font-medium text-app-muted hover:text-sage-strong underline underline-offset-2 transition-colors">
-            Últimos 30 días
-          </button>
+          <div className="flex items-center gap-4">
+            <button onClick={setLast30} className="text-[11px] font-medium text-app-muted hover:text-sage-strong underline underline-offset-2 transition-colors">
+              Últimos 30 días
+            </button>
+            <button onClick={setAllTime} className="text-[11px] font-medium text-app-muted hover:text-sage-strong underline underline-offset-2 transition-colors">
+              Todo el tiempo
+            </button>
+          </div>
         </div>
 
         {/* Error */}
