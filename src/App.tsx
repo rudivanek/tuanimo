@@ -27,7 +27,6 @@ const AdminEmailPage     = lazy(() => import('./pages/admin/AdminEmailPage').the
 const CostPerCyclePage   = lazy(() => import('./pages/admin/CostPerCyclePage').then(m => ({ default: m.CostPerCyclePage })));
 const AISettingsPage     = lazy(() => import('./pages/admin/AISettingsPage').then(m => ({ default: m.AISettingsPage })));
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage').then(m => ({ default: m.AdminAnalyticsPage })));
-const EngagementPage     = lazy(() => import('./pages/admin/EngagementPage').then(m => ({ default: m.EngagementPage })));
 const ElenaMemoryPage    = lazy(() => import('./pages/ElenaMemoryPage').then(m => ({ default: m.ElenaMemoryPage })));
 
 function LoadingScreen() {
@@ -90,7 +89,6 @@ const PlanLimitsRoute    = () => <AdminRoute component={PlanLimitsPage} />;
 const AdminEmailRoute    = () => <AdminRoute component={AdminEmailPage} />;
 const CostPerCycleRoute  = () => <AdminRoute component={CostPerCyclePage} />;
 const AdminAnalyticsRoute = () => <AdminRoute component={AdminAnalyticsPage} />;
-const EngagementRoute    = () => <AdminRoute component={EngagementPage} />;
 
 function HomeRoute() {
   const { user, loading } = useAuth();
@@ -166,7 +164,6 @@ function App() {
         <Route path="/admin/plan-limits"     component={PlanLimitsRoute} />
         <Route path="/admin/email-campaigns" component={AdminEmailRoute} />
         <Route path="/admin/analytics"       component={AdminAnalyticsRoute} />
-        <Route path="/admin/engagement"      component={EngagementRoute} />
         <Route path="/admin/ai-settings"     component={() => <Suspense fallback={<LoadingScreen />}><AISettingsPage /></Suspense>} />
         <Route>
           {user ? <Redirect to="/chat" /> : <Redirect to="/" />}
@@ -183,3 +180,4 @@ function App() {
 }
 
 export default App;
+
