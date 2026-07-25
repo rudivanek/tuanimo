@@ -16,6 +16,32 @@ interface AuthContextType {
 
 const BLOCKED_STORAGE_KEY = 'conelena_account_blocked';
 
+/**
+ * Fires the welcome email (which BCCs rfv@datago.net).
+ *
+ * Safe to call more than once: the edge function checks
+ * email_lifecycle_events and returns { skipped: true, reason: 'already_sent' }
+ * if this user already has a day1_empieza_simple event logged.
+ */
+async function sendWelcomeEmail(): Promise<void> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) return;
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    await fetch(`${supabaseUrl}/functions/v1/send-welcome-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch (err) {
+    console.warn('Welcome email failed (non-blocking):', err);
+  }
+}
+
 const BLOCKED_DELETED_MSG =
   'Esta cuenta fue eliminada. Si crees que es un error, escríbenos a hola@conelena.app.';
 const BLOCKED_DISABLED_MSG =
@@ -39,6 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Guards against re-checking the same user repeatedly on token refresh
   const lastCheckedUserId = useRef<string | null>(null);
+
+  // Set while signUp() is running so the onAuthStateChange handler does not
+  // also fire the welcome email — signUp() sends it itself, after it has
+  // written first_name to the profile.
+  const passwordSignUpInFlight = useRef(false);
 
   /**
    * Returns a block message if the account is deleted or disabled, else null.
@@ -150,15 +181,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         event === 'SIGNED_IN' && lastCheckedUserId.current !== session.user.id;
       if (!isNewSignIn) return;
 
+      // Captured synchronously: signUp() clears this flag once it has sent the
+      // welcome email itself, and that can happen before the await below
+      // resolves.
+      const skipWelcome = passwordSignUpInFlight.current;
+
       // Deferred: calling supabase inside onAuthStateChange synchronously
       // can deadlock the client. setTimeout breaks out of the callback.
       setTimeout(async () => {
         const reason = await getBlockReason(session.user.id);
         if (reason) {
           await forceSignOut(reason);
-        } else {
-          lastCheckedUserId.current = session.user.id;
+          return;
         }
+        lastCheckedUserId.current = session.user.id;
+
+        // Google OAuth users never pass through signUp(), so this is the only
+        // point at which their welcome email can be triggered. No-op for
+        // password signups (skipWelcome) and for anyone who already has one.
+        if (!skipWelcome) void sendWelcomeEmail();
       }, 0);
     });
 
@@ -166,33 +207,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, firstName: string, lastName?: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (!error && data.user) {
-      // Save name to profile
+    // Suppresses the onAuthStateChange welcome trigger for this signup, so the
+    // two paths cannot race each other into a duplicate send.
+    passwordSignUpInFlight.current = true;
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error || !data.user) return { error };
+
+      // Save name to profile first — the welcome email reads first_name.
       await supabase.from('profiles').update({
         first_name: firstName.trim() || null,
         last_name: lastName?.trim() || null,
       }).eq('id', data.user.id);
 
-      // Send welcome email — fire and forget, don't block login on failure
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        if (token) {
-          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-          fetch(`${supabaseUrl}/functions/v1/send-welcome-email`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-          }).catch((err) => console.warn('Welcome email failed (non-blocking):', err));
-        }
-      } catch (err) {
-        console.warn('Welcome email setup failed (non-blocking):', err);
-      }
+      // Fire and forget — don't block signup on email delivery.
+      void sendWelcomeEmail();
+      return { error: null };
+    } finally {
+      passwordSignUpInFlight.current = false;
     }
-    return { error };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -261,6 +294,3 @@ export function useAuth() {
   }
   return context;
 }
-
-
-  
