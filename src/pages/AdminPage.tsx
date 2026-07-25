@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { BarChart2, BarChart3, Bot, CreditCard, DollarSign, Shield, Users, AlertTriangle, AlertCircle, SlidersHorizontal, Mail, Activity } from 'lucide-react';
+import { BarChart2, BarChart3, Bot, CreditCard, DollarSign, Shield, Users, AlertTriangle, AlertCircle, SlidersHorizontal, Mail } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 
 interface NavCard {
@@ -27,12 +27,6 @@ const adminNav: NavCard[] = [
     icon: DollarSign,
     title: 'Costos de Tokens',
     description: 'Gasto estimado: totales 7d/30d, desglose por función y plan, top 20 usuarios.',
-  },
-  {
-    href: '/admin/engagement',
-    icon: Activity,
-    title: 'Actividad de Usuarios',
-    description: 'Cuántos mensajes de chat y entradas de Diario hace cada usuario, por rango de fechas.',
   },
   {
     href: '/admin/users',
