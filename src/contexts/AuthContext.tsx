@@ -23,6 +23,25 @@ const BLOCKED_STORAGE_KEY = 'conelena_account_blocked';
  * email_lifecycle_events and returns { skipped: true, reason: 'already_sent' }
  * if this user already has a day1_empieza_simple event logged.
  */
+/**
+ * Records that this user is active right now.
+ *
+ * Writes profiles.last_active_at / sessions_count / first_session_at, which
+ * drive the reminder + insight email tracks and the admin engagement tables.
+ * A new session is counted after a 30-minute gap.
+ *
+ * Best-effort and non-blocking: a failure here must never block sign-in.
+ */
+async function touchActivity(): Promise<void> {
+  try {
+    await supabase.rpc('touch_user_activity');
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.warn('touch_user_activity failed (non-blocking):', err);
+    }
+  }
+}
+
 async function sendWelcomeEmail(): Promise<void> {
   try {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -200,6 +219,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // point at which their welcome email can be triggered. No-op for
         // password signups (skipWelcome) and for anyone who already has one.
         if (!skipWelcome) void sendWelcomeEmail();
+
+        // Stamp activity. Inside the same setTimeout for the deadlock reason
+        // noted above. No argument = now().
+        void touchActivity();
       }, 0);
     });
 
