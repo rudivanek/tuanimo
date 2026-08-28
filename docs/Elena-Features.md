@@ -1,7 +1,7 @@
 # Elena (Tu-Animo.app) — Feature Documentation
 
-Version: 3.2
-Last Updated: 2026-03-20T13:00:00Z
+Version: 3.3
+Last Updated: 2026-08-28T00:00:00Z
 
 ---
 
@@ -1913,3 +1913,67 @@ Turn 1 shows chips A, B, C. User does not tap any and writes free text. Turn 3 (
 
 **Follow-up chip freshness:**
 User tapped chip `fu_ow_1` ("Lo que más me pesa") in turn 2. The full `overwhelm` family of 5 is fetched. `fu_ow_1` gets penalty 2. The other 4 chips have penalty 0 or 1. The 3 chips returned never include `fu_ow_1` unless all others are also penalized.
+
+---
+
+## 29. Chat — Bulk Export All Conversations
+
+### 29.1 Overview
+
+The Journal page already has a bulk export action ("Descargar todo el diario") that downloads every diary entry in a single file. The Chat page previously only supported exporting the currently open conversation. A new bulk export action — "Descargar todas las conversaciones" — has been added to Chat, mirroring the diary's pattern exactly: same `ExportModal`, same warning style, same filename convention.
+
+### 29.2 Trigger
+
+A `Download` icon (lucide-react, `size={17}`) is placed in the chat sidebar header, immediately to the left of the green `+` (new conversation) button — the same position and styling as the diary's bulk export button. It appears only when `threads.length > 0` (there is at least one conversation to export), matching the diary's `savedEntries.length > 0` gate.
+
+The button is available to every user regardless of plan or token status. Export only reads existing data; a user who has hit their token limit can still download their own conversations. The only disable condition is `loadingAllChats` (while the export is being prepared).
+
+### 29.3 Loader — `handleExportAllChats`
+
+Unlike the diary (which already holds decrypted entries in React state), ChatPage only holds the *current* thread's messages. The bulk export therefore fetches and decrypts all threads and messages before opening the modal:
+
+1. Two parallel Supabase queries fetch all `chat_threads` (id, title, created_at) and all `chat_messages` (thread_id, sender, content_enc, created_at, chip_meta) for the user, ordered newest-first and oldest-first respectively.
+2. Messages are grouped by `thread_id` into a `Map`.
+3. Each message is decrypted individually via `decryptForUser`. Decryption runs serially because each message has its own random salt and requires a full PBKDF2 key derivation (~40–80 ms per message in a browser).
+4. The assembled `ChatExportBundle[]` (thread + messages pairs) is stored in state and the `ExportModal` is shown.
+
+### 29.4 Progress Feedback
+
+Because decryption is serial and can take significant time (50 messages ≈ 3 s, 300 ≈ 15–25 s, 1000+ ≈ over a minute), the loader shows a live progress counter ("Descifrando 120 de 340…") in the same inline toast style ChatPage already uses. The counter updates every 25 messages, with `await new Promise(r => setTimeout(r, 0))` yielding to the event loop so React can repaint between batches.
+
+The per-message salt is never cached or reused across messages — reusing a derived key would weaken the encryption. The progress yield is the only "optimization" applied.
+
+### 29.5 Export Format — `formatAllChatsExport`
+
+A new function in `src/lib/exportUtils.ts` mirrors `formatAllDiariesExport`:
+
+**Exported types:**
+- `ChatExportBundle` — `{ thread: ChatExportThread; messages: ChatExportMessage[] }`
+
+**Exported function:**
+- `formatAllChatsExport(chats: ChatExportBundle[], format: ExportFormat): ExportResult`
+
+The output file is named `conelena-conversaciones-completas__<date>.<ext>`, matching the diary's `conelena-diario-completo__<date>.<ext>` convention.
+
+Both Markdown and plain-text formats include:
+- A header with app name, export timestamp, total conversation count, and total message count
+- A security warning ("Este archivo contiene todas tus conversaciones sin cifrar. Guárdalo en un lugar seguro.")
+- Each conversation rendered with its title, creation timestamp, message count, and all messages (sender label "Tú"/"Elena", timestamp, content, and any chip suggestion label used)
+
+Conversations are ordered newest-first, matching the in-app thread ordering.
+
+### 29.6 Modal
+
+The same `ExportModal` component used by the single-conversation export is reused, with:
+- `title="Descargar todas las conversaciones"`
+- `warning` prop showing the uncrypted-data warning with the conversation count
+- `getExport` calling `formatAllChatsExport(allChats, format)`
+
+The warning uses the same amber styling as the diary's bulk export warning.
+
+### 29.7 Files Modified
+
+| File | Change |
+|---|---|
+| `src/lib/exportUtils.ts` | Added `ChatExportBundle` interface and `formatAllChatsExport()` function |
+| `src/pages/ChatPage.tsx` | Added `formatAllChatsExport` and `ChatExportBundle`/`ChatExportMessage` imports; added `showExportAll`, `allChats`, `loadingAllChats`, `decryptProgress` state; added `handleExportAllChats` loader with progress feedback; added download button in sidebar header; added `ExportModal` instance for bulk export |

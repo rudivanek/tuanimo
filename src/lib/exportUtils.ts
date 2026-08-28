@@ -334,3 +334,114 @@ export async function shareFile(filename: string, mime: string, content: string)
 export function canShare(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.share;
 }
+
+// ── All conversations, one file ──────────────────────────────────────────────
+// Mirrors formatAllDiariesExport. Used by the "Descargar todas las
+// conversaciones" action in ChatPage.
+
+export interface ChatExportBundle {
+  thread: ChatExportThread;
+  messages: ChatExportMessage[];
+}
+
+export function formatAllChatsExport(
+  chats: ChatExportBundle[],
+  format: ExportFormat,
+): ExportResult {
+  const exportedAt = new Date().toISOString();
+  const dateStr = formatDate(exportedAt);
+  const filename = `conelena-conversaciones-completas__${dateStr}.${format}`;
+  const mime = format === 'md' ? 'text/markdown' : 'text/plain';
+  const count = chats.length;
+  const messageCount = chats.reduce((n, c) => n + c.messages.length, 0);
+
+  // Newest first, matching the in-app thread ordering.
+  const ordered = [...chats].sort(
+    (a, b) => new Date(b.thread.created_at).getTime() - new Date(a.thread.created_at).getTime(),
+  );
+
+  let content: string;
+
+  if (format === 'md') {
+    const parts: string[] = [
+      `# Conversaciones completas — Con Elena`,
+      ``,
+      `- **App:** conelena.app`,
+      `- **Exportado:** ${exportedAt}`,
+      `- **Total de conversaciones:** ${count}`,
+      `- **Total de mensajes:** ${messageCount}`,
+      ``,
+      `> Este archivo contiene todas tus conversaciones sin cifrar. Guárdalo en un lugar seguro.`,
+      ``,
+      `---`,
+      ``,
+    ];
+
+    ordered.forEach((chat, idx) => {
+      const title = chat.thread.title?.trim() || 'Sin título';
+      parts.push(
+        `## ${idx + 1}. ${title}`,
+        ``,
+        `- **Creada:** ${formatTimestamp(chat.thread.created_at)}`,
+        `- **Mensajes:** ${chat.messages.length}`,
+        ``,
+      );
+      if (chat.messages.length === 0) {
+        parts.push(`_(sin mensajes)_`, ``);
+      }
+      chat.messages.forEach((m) => {
+        const who = m.sender === 'user' ? 'Tú' : 'Elena';
+        const body = normalizeNewlines(m.content?.trim() || '(vacío)');
+        parts.push(`**${who}** · ${formatTimestamp(m.created_at)}`, ``, body, ``);
+        if (m.chipMeta?.label) {
+          parts.push(`_(sugerencia usada: ${m.chipMeta.label})_`, ``);
+        }
+      });
+      parts.push(`---`, ``);
+    });
+
+    content = parts.join('\n');
+  } else {
+    const parts: string[] = [
+      `CONVERSACIONES COMPLETAS — CON ELENA`,
+      `==========================================`,
+      `App:            conelena.app`,
+      `Exportado:      ${exportedAt}`,
+      `Conversaciones: ${count}`,
+      `Mensajes:       ${messageCount}`,
+      ``,
+      `Este archivo contiene todas tus conversaciones`,
+      `sin cifrar. Guardalo en un lugar seguro.`,
+      `==========================================`,
+      ``,
+    ];
+
+    ordered.forEach((chat, idx) => {
+      const title = chat.thread.title?.trim() || 'Sin título';
+      parts.push(
+        `------------------------------------------`,
+        `${idx + 1}. ${title}`,
+        `Creada:   ${formatTimestamp(chat.thread.created_at)}`,
+        `Mensajes: ${chat.messages.length}`,
+        `------------------------------------------`,
+        ``,
+      );
+      if (chat.messages.length === 0) {
+        parts.push(`(sin mensajes)`, ``);
+      }
+      chat.messages.forEach((m) => {
+        const who = m.sender === 'user' ? 'Tu' : 'Elena';
+        const body = normalizeNewlines(m.content?.trim() || '(vacío)');
+        parts.push(`[${formatTimestamp(m.created_at)}] ${who}:`, body, ``);
+        if (m.chipMeta?.label) {
+          parts.push(`(sugerencia usada: ${m.chipMeta.label})`, ``);
+        }
+      });
+      parts.push(``);
+    });
+
+    content = parts.join('\n');
+  }
+
+  return { filename, mime, content };
+}

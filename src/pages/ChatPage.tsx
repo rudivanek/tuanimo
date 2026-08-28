@@ -30,7 +30,7 @@ import { getUXContextState, type StanceLock, type SupportStance } from '../lib/u
 import { generateDiaryDraft } from '../lib/diaryDraft';
 import { evaluateDiarySuggestion, sessionCrisisLevel as computeSessionCrisisLevel } from '../lib/emotionHeuristics';
 import type { MoodState } from '../types/mood';
-import { formatChatExport } from '../lib/exportUtils';
+import { formatChatExport, formatAllChatsExport, type ChatExportBundle, type ChatExportMessage } from '../lib/exportUtils';
 import { useAdmin } from '../hooks/useAdmin';
 import { useTokenStatus } from '../hooks/useTokenStatus';
 import { useChipCooldown } from '../hooks/useChipCooldown';
@@ -145,6 +145,10 @@ export function ChatPage() {
   const [editingTitle, setEditingTitle] = useState('');
   const [editingInHeader, setEditingInHeader] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showExportAll, setShowExportAll] = useState(false);
+  const [allChats, setAllChats] = useState<ChatExportBundle[] | null>(null);
+  const [loadingAllChats, setLoadingAllChats] = useState(false);
+  const [decryptProgress, setDecryptProgress] = useState<string | null>(null);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [pendingChip, setPendingChip] = useState<MessageChipMeta | null>(null);
   const [_currentMood, setCurrentMood] = useState<MoodState>({
@@ -1733,6 +1737,60 @@ export function ChatPage() {
       format,
     );
 
+  const handleExportAllChats = async () => {
+    if (!user || !profile || loadingAllChats) return;
+    setLoadingAllChats(true);
+    setDecryptProgress('Preparando…');
+    try {
+      const [{ data: threadRows, error: tErr }, { data: msgRows, error: mErr }] = await Promise.all([
+        supabase
+          .from('chat_threads')
+          .select('id, title, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('chat_messages')
+          .select('thread_id, sender, content_enc, created_at, chip_meta')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true }),
+      ]);
+      if (tErr || mErr) throw new Error(tErr?.message || mErr?.message);
+
+      const total = msgRows?.length ?? 0;
+      const byThread = new Map<string, ChatExportMessage[]>();
+      let processed = 0;
+      for (const m of msgRows ?? []) {
+        const content = await decryptForUser(m.content_enc, profile).catch(() => '[Contenido cifrado]');
+        const list = byThread.get(m.thread_id) ?? [];
+        list.push({
+          sender: m.sender as 'user' | 'counselor',
+          content,
+          created_at: m.created_at,
+          chipMeta: (m.chip_meta as { label: string } | null) ?? undefined,
+        });
+        byThread.set(m.thread_id, list);
+        processed++;
+        if (processed % 25 === 0) {
+          setDecryptProgress(`Descifrando ${processed} de ${total}…`);
+          await new Promise((r) => setTimeout(r, 0));
+        }
+      }
+
+      setAllChats((threadRows ?? []).map((t) => ({
+        thread: { id: t.id, title: t.title, created_at: t.created_at },
+        messages: byThread.get(t.id) ?? [],
+      })));
+      setDecryptProgress(null);
+      setShowExportAll(true);
+    } catch (err) {
+      console.error('[export-all-chats]', err);
+      setDecryptProgress(null);
+      showInlineToast('No se pudieron cargar las conversaciones. Inténtalo de nuevo.');
+    } finally {
+      setLoadingAllChats(false);
+    }
+  };
+
   return (
     <div
       className="flex overflow-hidden bg-app-bg"
@@ -1760,6 +1818,16 @@ export function ChatPage() {
       >
         <div className="px-4 border-b border-app-border flex items-center gap-2 flex-shrink-0" style={{ height: '52px' }}>
           <h2 className="flex-1 text-[15px] font-semibold text-app-text truncate">Chat con Elena</h2>
+          {threads.length > 0 && (
+            <button
+              onClick={handleExportAllChats}
+              disabled={loadingAllChats}
+              title="Descargar todas las conversaciones"
+              className="flex-shrink-0 p-2 rounded-12 hover:bg-app-surface-2 text-app-muted hover:text-app-text transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download size={17} />
+            </button>
+          )}
           <button
             onClick={isTokenExhausted ? undefined : createNewThread}
             disabled={isTokenExhausted}
@@ -2208,6 +2276,13 @@ export function ChatPage() {
               </div>
             </div>
           )}
+          {decryptProgress && (
+            <div className="flex justify-center mt-2">
+              <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-app-surface border border-app-border shadow-sm text-[12.5px] text-app-muted animate-in fade-in slide-in-from-bottom-1 duration-200">
+                {decryptProgress}
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -2340,6 +2415,15 @@ export function ChatPage() {
           title="Exportar conversación"
           onClose={() => setShowExport(false)}
           getExport={getChatExport}
+        />
+      )}
+
+      {showExportAll && allChats && (
+        <ExportModal
+          title="Descargar todas las conversaciones"
+          warning={`Se descargarán tus ${allChats.length} conversaciones en un solo archivo sin cifrar. Guárdalo en un lugar seguro y evita compartirlo.`}
+          onClose={() => setShowExportAll(false)}
+          getExport={(format) => formatAllChatsExport(allChats, format)}
         />
       )}
 
