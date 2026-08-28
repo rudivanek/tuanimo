@@ -1458,7 +1458,12 @@ Core Traits:
 - Accompanies grief without rushing past it
 - Holds people accountable to their own stated values — gently
 - Adapts: more presence when raw, more honest challenge when stable
-- Responds in Spanish if the user writes in Spanish, English if they write in English${elenaNotebookBlock}${memoryContext}${priorContextBlock}
+- Responds in Spanish if the user writes in Spanish, English if they write in English
+
+DIALECT LOCK (non-negotiable):
+- When writing Spanish, ALWAYS use Mexican Spanish with tuteo: tú, tienes, sientes, sabes, quieres, puedes.
+- NEVER use voseo (vos, tenés, sentís, sabés, querés, creés, animás) or any Rioplatense or peninsular idiom.
+- This holds EVEN IF the user uses those forms, and even if a phrase they use (for example "mi vieja") reads as regional. Mirror the user's FEELING, never their dialect.${elenaNotebookBlock}${memoryContext}${priorContextBlock}
 
 VOICE & RESPONSE STYLE — How Elena writes:
 
@@ -1720,6 +1725,19 @@ crisis values: "NO", "MAYBE", "YES" — use MAYBE or YES only for genuine safety
 DO NOT include any text outside the JSON object.${recognitionBlock}${returnTriggerBlock}${sessionClosingBlock}${chipSignalBlock}${firstSessionBlock}${boundaryEscalationInstruction}${buildStanceInstruction(uxStance, uxIntensity, memoryAnchors, userRequestedList)}${commitmentBlock}`;
 
 
+// ── Resolve active model: per-user override → global ai_settings ─────────
+    const svcForModel = getServiceClient();
+    const [globalModelResult, userOverrideResult] = await Promise.all([
+      svcForModel.from("ai_settings").select("value").eq("key", "chat_model").maybeSingle(),
+      svcForModel.from("ai_user_overrides").select("chat_model").eq("user_id", user.id).maybeSingle(),
+    ]);
+    const globalModel: string = (globalModelResult.data?.value as string) ?? "claude-sonnet-4-6";
+    const overrideModel: string | null = (userOverrideResult.data?.chat_model as string | null) ?? null;
+    const chatModel: string = overrideModel ?? globalModel;
+    if (overrideModel) {
+      console.log("[chat-ai] model override active", { userId: user.id, model: overrideModel });
+    }
+
     // ── Anthropic Claude API call with prompt caching ─────────────────────────
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!anthropicKey) throw new Error("Anthropic API key not configured");
@@ -1730,30 +1748,79 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
     ];
 
     function buildAnthropicBody(msgs: Array<{ role: string; content: string }>) {
-      return JSON.stringify({
-        model: "claude-sonnet-4-6",
+      const body: Record<string, unknown> = {
+        model: chatModel,
         max_tokens: 2500,
-        temperature: 0.8,
         system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
         messages: msgs,
-      });
+      };
+      if (chatModel !== "claude-sonnet-5") {
+        body.temperature = 0.8;
+      }
+      return JSON.stringify(body);
+    }
+
+    // Strips any prose/markdown the model wraps around its JSON envelope.
+    // The old version fell back to `reply: rawContent`, which pasted the entire
+    // raw response — fences, chips array, meta block and all — into a message a
+    // user then read. That must never happen again: whatever leaves this
+    // function is shown verbatim to a person.
+    const DEFAULT_META = { state: "E3_EXPAND", emotion: "unknown", intensity: 5, valence: "neutral", stuck: false, crisis: "NO" };
+
+    function stripEnvelopeArtifacts(text: string): string {
+      if (!text) return "";
+      let out = text;
+      // Remove fenced blocks entirely (```json { ... } ``` and bare ``` ... ```).
+      out = out.replace(/```[a-z]*\s*[\s\S]*?```/gi, " ");
+      // Remove a leftover bare envelope object, identified by its own keys.
+      out = out.replace(/\{[\s\S]*?"(?:reply|chips|meta|commitment_suggestion)"[\s\S]*\}/g, " ");
+      return out.replace(/\s+/g, " ").trim();
     }
 
     function parseAIResponse(rawContent: string): AIResponse {
-      try {
-        return JSON.parse(rawContent) as AIResponse;
-      } catch {
-        const jsonMatch = rawContent?.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try { return JSON.parse(jsonMatch[0]) as AIResponse; }
-          catch { /* fall through */ }
-        }
-        return {
-          reply: rawContent ?? "",
-          meta: { state: "E3_EXPAND", emotion: "unknown", intensity: 5, valence: "neutral", stuck: false, crisis: "NO" },
-          chips: [],
-        };
+      const raw = rawContent ?? "";
+
+      // 1 — clean parse, after removing a markdown fence if there is one.
+      const unfenced = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+      for (const candidate of [raw, unfenced]) {
+        try {
+          const parsed = JSON.parse(candidate) as AIResponse;
+          if (parsed && typeof parsed.reply === "string") return parsed;
+        } catch { /* next */ }
       }
+
+      // 2 — the outermost { ... } anywhere in the response.
+      const jsonMatch = unfenced.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]) as AIResponse;
+          if (parsed && typeof parsed.reply === "string") return parsed;
+        } catch { /* next */ }
+      }
+
+      // 3 — JSON is malformed (commonly an unescaped quote inside "reply").
+      // Pull the reply string out textually rather than giving up.
+      const replyField = unfenced.match(/"reply"\s*:\s*"([\s\S]*?)"\s*,\s*"(?:chips|meta|commitment_suggestion)"/);
+      if (replyField?.[1]) {
+        const recovered = replyField[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').trim();
+        if (recovered) {
+          console.warn("[chat-ai] Recovered reply from malformed JSON", { rawLength: raw.length });
+          return { reply: recovered, meta: DEFAULT_META, chips: [] };
+        }
+      }
+
+      // 4 — last resort: use the prose, with every trace of the envelope removed.
+      const cleaned = stripEnvelopeArtifacts(raw);
+      console.error("[chat-ai] PARSE_FAILED — falling back to cleaned prose", {
+        rawPreview: raw.slice(0, 300),
+        rawLength: raw.length,
+        cleanedLength: cleaned.length,
+      });
+      return {
+        reply: cleaned,
+        meta: DEFAULT_META,
+        chips: [],
+      };
     }
 
     const anthropicHeaders: Record<string, string> = {
@@ -1838,14 +1905,14 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
           console.log("[chat-ai] Retry succeeded");
         } else {
           console.warn("[chat-ai] Retry also empty — using fallback");
-          EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", "claude-sonnet-4-6", retryUsage));
+          EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", chatModel, retryUsage));
         }
       } else {
         console.warn("[chat-ai] Retry Anthropic call failed");
       }
     }
 
-    EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", "claude-sonnet-4-6", usage));
+    EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", chatModel, usage));
 
     if (!aiResponse.meta) {
       aiResponse.meta = { state: "E3_EXPAND", emotion: "unknown", intensity: 5, valence: "neutral", stuck: false, crisis: "NO" };
@@ -1868,16 +1935,19 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
     if (containsBannedLabel(aiResponse.reply)) {
       console.warn("[chat-ai] Banned label detected — retrying once", { replyLength: aiResponse.reply.length });
       const guardSystemContent = systemPrompt + "\n\nCRITICAL OVERRIDE: Your previous response contained a banned feeling label or forbidden phrase. Rewrite the COMPLETE response using only experiential, sensory language. Do NOT use: confusión, desorientación, ansiedad, tristeza, angustia, frustración, agotamiento, bloqueo emocional, estado emocional, a veces, es comprensible, es normal, es natural. Every sentence must pass SELF-CHECK before you output.";
-      const guardBody = JSON.stringify({
-        model: "claude-sonnet-4-6",
+      const guardBodyObj: Record<string, unknown> = {
+        model: chatModel,
         max_tokens: 2500,
-        temperature: 0.8,
         system: [{ type: "text", text: guardSystemContent, cache_control: { type: "ephemeral" } }],
         messages: [
           ...conversationHistory.slice(-4).map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
           { role: "user" as const, content: message },
         ],
-      });
+      };
+      if (chatModel !== "claude-sonnet-5") {
+        guardBodyObj.temperature = 0.8;
+      }
+      const guardBody = JSON.stringify(guardBodyObj);
       const { data: guardData } = await callAnthropic(guardBody);
       if (guardData) {
         const guardRaw: string = extractContent(guardData);
@@ -1887,7 +1957,7 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
         if (guardTrimmed.length > 0 && !containsBannedLabel(guardTrimmed)) {
           aiResponse.reply = guardTrimmed;
           aiResponse.meta = guardParsed.meta ?? aiResponse.meta;
-          EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", "claude-sonnet-4-6", extractUsage(guardData)));
+          EdgeRuntime.waitUntil(logTokenUsageAndIncrement(user.id, "chat", chatModel, extractUsage(guardData)));
           console.log("[chat-ai] Guard retry produced clean reply");
         } else {
           console.warn("[chat-ai] Guard retry still tainted — using safe fallback");
@@ -1907,11 +1977,11 @@ DO NOT include any text outside the JSON object.${recognitionBlock}${returnTrigg
     if (detectedCrisis === "MAYBE" || detectedCrisis === "YES") {
       EdgeRuntime.waitUntil(logCrisisEvent({
         userId: user.id, severity: detectedCrisis, source: "chat-ai",
-        threadId: threadId ?? null, model: "claude-sonnet-4-6", meta: { ui_shown: true },
+        threadId: threadId ?? null, model: chatModel, meta: { ui_shown: true },
       }));
     }
 
-    const isSpanish = /[áéíóúñ¿¡]/i.test(message);
+    const isSpanish = true; // app is Spanish-only
 
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     const allMessages = messagesResult.data || [];
