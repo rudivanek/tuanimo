@@ -598,8 +598,13 @@ export function ChatPage() {
             if (topicEnc) {
               const topic = await decryptForUser(topicEnc, profile);
               if (topic && topic.length > 5) {
-                text = buildReturnGreetingWithMemory(name, topic);
-                resolved = true;
+                // null when the stored topic does not read as a clause —
+                // fall through to the time-based greeting instead.
+                const topicGreeting = buildReturnGreetingWithMemory(name, topic);
+                if (topicGreeting) {
+                  text = topicGreeting;
+                  resolved = true;
+                }
               }
             }
           } catch (memErr) {
