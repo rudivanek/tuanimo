@@ -94,15 +94,52 @@ export async function getFirstSessionTopicEnc(userId: string): Promise<string | 
   }
 }
 
+// The RETURN_WITH_MEMORY templates slot {topic} in after "que", so the topic
+// has to be a sentence fragment: lowercase, no final period, addressed to the
+// user. Notes written as standalone third-person sentences ("Los pensamientos
+// sobre el dinero son un tema recurrente para Albert.") produce a greeting that
+// is both ungrammatical and oddly clinical — Elena talking *about* the person
+// instead of *to* them. Returns null when the note cannot be used that way, so
+// the caller can fall through to a plain greeting rather than say something odd.
+export function normalizeTopicForGreeting(
+  topic: string | null | undefined,
+  name: string | null,
+): string | null {
+  if (!topic) return null;
+  let t = topic.trim().replace(/\s+/g, ' ').replace(/[.;,\s]+$/, '');
+  if (t.length < 6 || t.length > 140) return null;
+
+  // A note that names the user was written about them, not to them. Rewriting
+  // the grammar reliably is not possible here, so skip it.
+  const first = (name ?? '').trim().split(/\s+/)[0];
+  if (first && first.length > 2) {
+    const escaped = first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`, 'i').test(t)) return null;
+  }
+
+  // Multiple sentences never read as a clause.
+  if (/[.!?]\s+\S/.test(t)) return null;
+
+  // Lowercase a leading capital unless it is a proper noun (a capitalised word
+  // followed by another capitalised word is left alone).
+  if (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(t) && !/^[A-ZÁÉÍÓÚÑ]\S*\s+[A-ZÁÉÍÓÚÑ]/.test(t)) {
+    t = t.charAt(0).toLowerCase() + t.slice(1);
+  }
+  return t;
+}
+
 // Builds a return greeting that references the first-session topic.
 // The topic should already be decrypted before passing here.
+// Returns null when the topic is not usable as a clause (see above).
 export function buildReturnGreetingWithMemory(
   name: string | null,
   topic: string,
-): string {
+): string | null {
+  const clause = normalizeTopicForGreeting(topic, name);
+  if (!clause) return null;
   const template = pickRandom(RETURN_WITH_MEMORY);
   const withName = applyName(template, name);
-  return withName.replace('{topic}', topic);
+  return withName.replace('{topic}', clause);
 }
 
 // ── Dynamic elena_memories greeting ───────────────────────────────────────────
@@ -151,15 +188,23 @@ export async function buildDynamicMemoryGreeting(
         new Date(a.last_referenced_at).getTime() -
         new Date(b.last_referenced_at).getTime(),
     );
-    const chosen = pool[0];
+    // Take the least-recently-referenced note that actually reads as a clause.
+    // Older notes were written as third-person sentences and cannot be spliced
+    // into a greeting; skipping them is better than saying something odd.
+    for (const candidate of pool) {
+      const greeting = buildReturnGreetingWithMemory(name, candidate.note);
+      if (!greeting) continue;
 
-    // Bump last_referenced_at so it rotates out next time.
-    await supabase
-      .from('elena_memories')
-      .update({ last_referenced_at: new Date().toISOString() })
-      .eq('id', chosen.id);
+      // Bump last_referenced_at so it rotates out next time. Only the note we
+      // actually used is bumped.
+      await supabase
+        .from('elena_memories')
+        .update({ last_referenced_at: new Date().toISOString() })
+        .eq('id', candidate.id);
 
-    return buildReturnGreetingWithMemory(name, chosen.note);
+      return greeting;
+    }
+    return null;
   } catch (err) {
     console.warn('[greeting] dynamic memory greeting failed:', err);
     return null;
