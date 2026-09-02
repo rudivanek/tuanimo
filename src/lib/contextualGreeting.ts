@@ -107,6 +107,16 @@ export function normalizeTopicForGreeting(
 ): string | null {
   if (!topic) return null;
   let t = topic.trim().replace(/\s+/g, ' ').replace(/[.;,\s]+$/, '');
+
+  // Some notes were saved with the greeting's own lead-in baked into them
+  // ("la última vez me contabas que X"), which would double up as
+  // "Recuerdo que hablamos de que la última vez me contabas que X". Strip it.
+  t = t.replace(
+    /^(?:la\s+última\s+vez\s+)?(?:me\s+)?(?:contabas|contaste|dijiste|comentabas|comentaste|mencionabas|mencionaste)(?:\s+que)?\s+/i,
+    '',
+  ).trim();
+  t = t.replace(/^que\s+/i, '').trim();
+
   if (t.length < 6 || t.length > 140) return null;
 
   // A note that names the user was written about them, not to them. Rewriting
