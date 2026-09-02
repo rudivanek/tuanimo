@@ -83,8 +83,14 @@ export async function saveElenaMemory(
   sensitive: boolean,
   profile: ProfileForEncryption
 ): Promise<void> {
+  // user_id is NOT NULL and the RLS INSERT policy is
+  // WITH CHECK (auth.uid() = user_id) — omitting it rejects every insert.
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
   const note_enc = await encryptForUser(note, profile);
   const { error } = await supabase.from('elena_memories').insert({
+    user_id: user.id,
     note_enc,
     type,
     sensitive: sensitive || type === 'crisis',
@@ -119,14 +125,13 @@ export async function deleteAllElenaMemories(): Promise<void> {
 
 export async function triggerMemoryExtraction(
   threadId: string,
-  existingNotes: ElenaMemoryNote[],
+  conversationHistory: Array<{ role: string; content: string }>,
   profile: ProfileForEncryption
 ): Promise<void> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
-    const existingPlaintext = existingNotes.map((n) => n.note);
+    if (!session?.user) return;
+    if (!conversationHistory.length) return;
 
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-memories`,
@@ -137,7 +142,15 @@ export async function triggerMemoryExtraction(
           Authorization: `Bearer ${session.access_token}`,
           Apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ threadId, existingNotes: existingPlaintext }),
+        body: JSON.stringify({
+          threadId,
+          userId: session.user.id,
+          conversationHistory,
+          // The client persists the notes itself, encrypted. Without this the
+          // edge function would ALSO insert them in plaintext — duplicating
+          // every note, half encrypted and half not. Do not remove.
+          skipInsert: true,
+        }),
       }
     );
 
@@ -159,7 +172,9 @@ export async function triggerMemoryExtraction(
       )
     );
 
-    console.log(`[elenaMemory] saved ${result.memories.length} new note(s) from thread ${threadId}`);
+    if (import.meta.env.DEV) {
+      console.log(`[elenaMemory] saved ${result.memories.length} new note(s) from thread ${threadId}`);
+    }
   } catch (err) {
     // Extraction is best-effort — never block the UI
     console.warn('[elenaMemory] extraction error:', err);
