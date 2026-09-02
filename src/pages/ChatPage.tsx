@@ -7,7 +7,7 @@ import { audioManager } from '../lib/audio';
 import { supabase } from '../lib/supabaseClient';
 import { useProfile } from '../hooks/useProfile';
 import { sendChatMessage, getUserMemories, saveUserMemory, TokenLimitError, generateTitle, type DevFlags } from '../lib/api';
-import { loadElenaMemories, type ElenaMemoryNote } from '../lib/elenaMemory';
+import { loadElenaMemories, triggerMemoryExtraction, type ElenaMemoryNote } from '../lib/elenaMemory';
 import { loadIntentions } from '../lib/intentions';
 import { DevPanel } from '../components/DevPanel';
 import { encryptForUser, decryptForUser } from '../lib/encryption';
