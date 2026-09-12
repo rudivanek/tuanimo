@@ -598,13 +598,8 @@ export function ChatPage() {
             if (topicEnc) {
               const topic = await decryptForUser(topicEnc, profile);
               if (topic && topic.length > 5) {
-                // null when the stored topic does not read as a clause —
-                // fall through to the time-based greeting instead.
-                const topicGreeting = buildReturnGreetingWithMemory(name, topic);
-                if (topicGreeting) {
-                  text = topicGreeting;
-                  resolved = true;
-                }
+                text = buildReturnGreetingWithMemory(name, topic);
+                resolved = true;
               }
             }
           } catch (memErr) {
@@ -1297,28 +1292,8 @@ export function ChatPage() {
         .select()
         .single();
 
-            if (aiInsertError) {
+      if (aiInsertError) {
         console.error('[chat] AI message insert failed:', aiInsertError);
-      }
-
-      // ── Elena's notebook ──────────────────────────────────────────────────
-      // Extract durable notes (people, events, recurring themes) from this
-      // conversation. Fire-and-forget: it must never block the UI. The edge
-      // function guards itself with chat_threads.memory_extracted_at, so this
-      // runs at most once per thread however often it is called.
-      // Threshold matches the first_session_topic save below — under three
-      // turns there is rarely anything durable to keep.
-      if (profile && messages.filter(m => m.sender === 'user').length + 1 >= 3) {
-        const historyForMemory = [
-          ...messages,
-          { sender: 'user' as const, content: messageToSend },
-        ]
-          .filter(m => m.content?.trim())
-          .map(m => ({
-            role: m.sender === 'user' ? 'user' : 'assistant',
-            content: m.content,
-          }));
-        void triggerMemoryExtraction(threadId, historyForMemory, profile);
       }
 
       const detectedMood = await moodPromise;
