@@ -61,7 +61,7 @@ export function LargestEntriesPanel({
                   {entry.title}
                 </p>
                 <p className="text-[10px] text-app-muted mt-0.5">
-                  {new Date(entry.created_at).toLocaleDateString()}
+                  {new Date(entry.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                 </p>
               </div>
 
