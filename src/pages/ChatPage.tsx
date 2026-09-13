@@ -1354,6 +1354,25 @@ export function ChatPage() {
         }
       }
 
+      // ── Elena's memory ────────────────────────────────────────────────────
+      // Sends the conversation to extract-memories. The FUNCTION decides whether
+      // to run: first time for a thread, then again every 10 new user messages.
+      // Calling on every turn is correct — the server-side gate is what throttles
+      // it, and keeping the decision there means an old build on someone's phone
+      // cannot get it wrong.
+      //
+      // This call went missing at some point and Elena silently stopped taking
+      // notes for real users entirely (only Albert kept working, because the
+      // runner has its own copy). If it disappears again, the symptom is that
+      // token_usage shows no extract_memories rows for real user ids.
+      if (userMsgCount >= 3) {
+        triggerMemoryExtraction(
+          threadId,
+          [...conversationHistory, { role: 'user', content: messageToSend }],
+          profile,
+        ).catch(err => console.warn('[chat] memory extraction failed:', err));
+      }
+
       const effectiveAiMessage = aiMessage ?? {
         id: `local-${Date.now()}`,
         created_at: new Date().toISOString(),
@@ -1904,7 +1923,7 @@ export function ChatPage() {
                           {thread.title}
                         </div>
                         <div className="text-xs text-app-muted mt-0.5">
-                          {new Date(thread.created_at).toLocaleDateString()}
+                          {new Date(thread.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </div>
                       </div>
                     </div>
@@ -2153,7 +2172,7 @@ export function ChatPage() {
                         message.sender === 'user' ? 'text-white/60' : 'text-app-muted'
                       }`}
                     >
-                      {new Date(message.created_at).toLocaleTimeString()}
+                      {new Date(message.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                   {message.sender === 'user' && message.chipMeta?.label && (
