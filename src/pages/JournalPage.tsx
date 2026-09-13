@@ -1239,8 +1239,8 @@ export function JournalPage() {
   const visibleEntries = tab === 'drafts' ? draftEntries : savedEntries;
 
   const activeDate = selectedEntry
-    ? new Date(selectedEntry.created_at).toLocaleDateString()
-    : new Date().toLocaleDateString();
+    ? new Date(selectedEntry.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const getDiaryExport = (format: ExportFormat) =>
     formatDiaryExport(
@@ -1463,7 +1463,7 @@ export function JournalPage() {
                     </div>
                     <div className="text-xs text-app-muted mt-0.5 flex items-center gap-1">
                       <Calendar size={11} />
-                      {new Date(entry.created_at).toLocaleDateString()}
+                      {new Date(entry.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </div>
                     {entry.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1.5">
