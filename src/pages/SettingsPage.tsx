@@ -408,7 +408,6 @@ export function SettingsPage() {
         {/* ── Bienvenida con Elena ── */}
         <div className="bg-app-surface rounded-[16px] shadow-app border border-app-border p-5">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[15px]">🌷</span>
             <h2 className="text-[15px] font-semibold text-app-text">Bienvenida con Elena</h2>
           </div>
           <p className="text-[12.5px] text-app-muted mb-4 leading-snug">
@@ -418,7 +417,7 @@ export function SettingsPage() {
             onClick={resetOnboarding}
             className="flex items-center gap-2 px-4 py-2 rounded-12 border border-app-border text-app-text text-sm font-medium hover:bg-app-surface-2 transition-colors"
           >
-            🌷 Conversar con Elena
+            Conversar con Elena
           </button>
         </div>
 
@@ -435,3 +434,4 @@ export function SettingsPage() {
     </div>
   );
 }
+
