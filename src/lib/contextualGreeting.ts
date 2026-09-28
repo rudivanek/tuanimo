@@ -32,11 +32,13 @@ const PAST_WEEK: string[] = [
   'Hola {name}\n\nQué bueno que volviste.\n\n¿Qué tienes ahora mismo?',
 ];
 
+// Más de una semana sin escribir. Frase de Tere, 2026-09-24 (VOICE.md §8 W-10):
+// "¡Hola! Hace rato que no nos escribíamos." Sin reproche, sin preguntar por qué.
 const LONG_ABSENCE: string[] = [
-  'Hola {name}\n\nMe alegra que estés aquí.\n\n¿Qué ha estado pasando estos días?',
-  'Hola {name}\n\nHa pasado un tiempo.\n\n¿Qué tienes en mente ahora?',
-  'Hola {name}\n\nAquí estoy.\n\n¿Qué te trajo de vuelta hoy?',
-  'Hola {name}\n\nEstoy aquí para escucharte.\n\n¿Qué está presente ahora mismo?',
+  '¡Hola {name}! Hace rato que no nos escribíamos.\n\n¿Qué ha estado pasando estos días?',
+  '¡Hola {name}! Hace rato que no nos escribíamos.\n\n¿Qué tienes en mente ahora?',
+  '¡Hola {name}! Hace rato que no nos escribíamos.\n\n¿Qué te trajo de vuelta hoy?',
+  '¡Hola {name}! Hace rato que no nos escribíamos.\n\n¿Qué está presente ahora mismo?',
 ];
 
 function applyName(template: string, name: string | null): string {
@@ -196,6 +198,9 @@ function extractInsightForChat(raw: string): string {
 }
 
 export async function getInsightSnippetForReturn(): Promise<string | null> {
+  // Desactivado 2026-09-28 — misma regla de Tere (W-5): el saludo no trae por su
+  // cuenta nada de conversaciones anteriores. Con null, ChatPage sigue de largo.
+  if (DISABLE_PROACTIVE_TOPIC_RECALL) return null;
   try {
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
       .toISOString()
@@ -244,6 +249,9 @@ const EARLY_RETURN_SIGNAL_LINES: Record<string, string[]> = {
 };
 
 export async function getChatSignalForReturn(): Promise<{ type: string; score: number } | null> {
+  // Desactivado 2026-09-28 — regla de Tere (W-5), y además nombraba un sentimiento
+  // en el primer mensaje ("Noté algo de inquietud…"), contra W-1, y usaba "peso".
+  if (DISABLE_PROACTIVE_TOPIC_RECALL) return null;
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       .toISOString()
