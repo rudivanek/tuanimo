@@ -37,7 +37,7 @@ export function DiaryDraftSuggestion({
     : isHeavy
       ? 'Para darte un poco más de espacio'
       : isRepetition
-        ? 'Algo que sigue presente'
+        ? 'Para seguir pensando'
         : 'Para seguir pensando';
 
   const body = isFirstSession
@@ -45,7 +45,7 @@ export function DiaryDraftSuggestion({
     : isHeavy
       ? 'A veces ayuda escribir esto cuando ya no hay que explicarlo — solo seguir pensando con más calma.'
       : isRepetition
-        ? 'Esto sigue apareciendo en la conversación. Escribirlo podría ayudarte a verlo con más claridad.'
+        ? 'Recuerda que puedes escribir sobre este y otros temas en el diario para desahogarte y aclararte.'
         : 'Si quieres, puedes escribir esto con más calma en tu diario. No tiene que estar ordenado.';
 
   const handleCreate = async () => {
