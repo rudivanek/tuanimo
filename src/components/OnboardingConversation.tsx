@@ -318,7 +318,7 @@ function useChatLogic(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const ONBOARDING_OPENING =
-  '¡Hola! Soy Elena 🌷 Me alegra mucho que estés aquí. Para que podamos caminar juntos desde el principio... ¿cómo te llamas? ¿Cómo te gusta que te llamen?';
+  '¡Hola! Soy Elena. Me alegra mucho que estés aquí. Para que podamos caminar juntos desde el principio... ¿cómo te llamas? ¿Cómo te gusta que te llamen?';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -359,7 +359,6 @@ export function OnboardingConversation({ onComplete }: OnboardingProps) {
       {showSkipModal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
           <div className="bg-app-surface rounded-[20px] shadow-app border border-app-border w-full max-w-sm p-6 text-center">
-            <p className="text-2xl mb-3">🌷</p>
             <h2 className="text-[16px] font-semibold text-app-text mb-2">
               Sin problema
             </h2>
@@ -386,9 +385,6 @@ export function OnboardingConversation({ onComplete }: OnboardingProps) {
         style={{ paddingTop: 'max(env(safe-area-inset-top), 1.5rem)' }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-sage-strong/10 flex items-center justify-center text-lg">
-            🌷
-          </div>
           <div>
             <p className="text-[15px] font-semibold text-app-text">Elena</p>
             <p className="text-[11px] text-app-muted">Tu acompañante emocional</p>
@@ -423,7 +419,7 @@ export function OnboardingConversation({ onComplete }: OnboardingProps) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const EDIT_OPENING =
-  'Hola de nuevo 🌷 ¿Qué quieres que sepa de ti? Puedes contarme algo nuevo, corregir algo, o simplemente lo que sientas que es importante que tenga presente.';
+  'Hola de nuevo. ¿Qué quieres que sepa de ti? Puedes contarme algo nuevo, corregir algo, o simplemente lo que sientas que es importante que tenga presente.';
 
 interface EditProps {
   onClose: () => void;
@@ -455,9 +451,6 @@ export function ElenaEditPresentacion({ onClose }: EditProps) {
         style={{ paddingTop: 'max(env(safe-area-inset-top), 1.5rem)' }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-sage-strong/10 flex items-center justify-center text-lg">
-            🌷
-          </div>
           <div className="flex-1">
             <p className="text-[15px] font-semibold text-app-text">Elena</p>
             <p className="text-[11px] text-app-muted">Actualizar mi presentación</p>
@@ -474,7 +467,6 @@ export function ElenaEditPresentacion({ onClose }: EditProps) {
       {saved ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center px-8">
-            <p className="text-3xl mb-3">🌷</p>
             <p className="text-[15px] font-medium text-app-text">Guardado</p>
             <p className="text-[13px] text-app-muted mt-1">Elena lo tendrá presente.</p>
           </div>
@@ -499,3 +491,4 @@ export function ElenaEditPresentacion({ onClose }: EditProps) {
     </div>
   );
 }
+
