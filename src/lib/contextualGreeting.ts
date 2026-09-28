@@ -2,36 +2,40 @@ import { supabase } from './supabaseClient';
 import { loadElenaMemories } from './elenaMemory';
 import type { ProfileForEncryption } from './encryption';
 
+// Tere, 2026-09-24 (VOICE.md §8 W-5): Elena no trae por su cuenta temas de
+// conversaciones anteriores. Apaga los saludos que citan un tema guardado.
+const DISABLE_PROACTIVE_TOPIC_RECALL = true;
+
 const FIRST_TIME: string[] = [
-  'Hola {name}, soy Elena 🌷',
+  'Hola {name}, soy Elena.',
 ];
 
 // ── Return greetings that reference what the user shared in their first session ──
 // These use {topic} as a placeholder for the decrypted first_session_topic memory.
 const RETURN_WITH_MEMORY: string[] = [
-  'Hola {name} 🌷\n\nLa última vez me contabas que {topic}.\n\n¿Cómo ha estado eso?',
-  'Hola {name} 🌷\n\nMe quedé pensando en lo que compartiste — que {topic}.\n\n¿Cómo llega ese tema hoy?',
-  'Hola {name} 🌷\n\nRecuerdo que hablamos de que {topic}.\n\n¿Algo ha cambiado desde entonces?',
+  'Hola {name}\n\nLa última vez me contabas que {topic}.\n\n¿Cómo ha estado eso?',
+  'Hola {name}\n\nMe quedé pensando en lo que compartiste — que {topic}.\n\n¿Cómo llega ese tema hoy?',
+  'Hola {name}\n\nRecuerdo que hablamos de que {topic}.\n\n¿Algo ha cambiado desde entonces?',
 ];
 
 const YESTERDAY: string[] = [
-  'Hola {name} 🌷\n\n¿Cómo ha estado este día desde ayer?',
+  'Hola {name}\n\n¿Cómo ha estado este día desde ayer?',
   'Hola {name}\n\nAquí estoy.\n\n¿Qué ha habido desde ayer?',
-  'Hola {name} 🌷\n\n¿Algo ha cambiado desde ayer?',
+  'Hola {name}\n\n¿Algo ha cambiado desde ayer?',
   'Hola {name}\n\nGracias por volver.\n\n¿Qué tienes en la cabeza hoy?',
 ];
 
 const PAST_WEEK: string[] = [
-  'Hola {name} 🌷\n\n¿Cómo ha estado la semana desde la última vez?',
+  'Hola {name}\n\n¿Cómo ha estado la semana desde la última vez?',
   'Hola {name}\n\nAquí estoy para escucharte.\n\n¿Qué ha habido estos días?',
-  'Hola {name} 🌷\n\n¿Qué ha estado ocupando tu mente estos días?',
+  'Hola {name}\n\n¿Qué ha estado ocupando tu mente estos días?',
   'Hola {name}\n\nQué bueno que volviste.\n\n¿Qué tienes ahora mismo?',
 ];
 
 const LONG_ABSENCE: string[] = [
-  'Hola {name} 🌷\n\nMe alegra que estés aquí.\n\n¿Qué ha estado pasando estos días?',
+  'Hola {name}\n\nMe alegra que estés aquí.\n\n¿Qué ha estado pasando estos días?',
   'Hola {name}\n\nHa pasado un tiempo.\n\n¿Qué tienes en mente ahora?',
-  'Hola {name} 🌷\n\nAquí estoy.\n\n¿Qué te trajo de vuelta hoy?',
+  'Hola {name}\n\nAquí estoy.\n\n¿Qué te trajo de vuelta hoy?',
   'Hola {name}\n\nEstoy aquí para escucharte.\n\n¿Qué está presente ahora mismo?',
 ];
 
@@ -81,6 +85,10 @@ export function buildContextualGreeting(
 // Fetches the encrypted 'first_session_topic' key from user_memory.
 // Returns the raw encrypted value — caller must decrypt.
 export async function getFirstSessionTopicEnc(userId: string): Promise<string | null> {
+  // Desactivado 2026-09-28 — decisión de Tere (VOICE.md §8 W-5): Elena solo
+  // retoma algo de una conversación anterior si la persona lo menciona primero.
+  // Con null, ChatPage pasa al saludo genérico. El código de abajo se conserva.
+  if (DISABLE_PROACTIVE_TOPIC_RECALL) return null;
   try {
     const { data } = await supabase
       .from('user_memory')
@@ -118,6 +126,8 @@ export async function buildDynamicMemoryGreeting(
   name: string | null,
   profile: ProfileForEncryption,
 ): Promise<string | null> {
+  // Desactivado 2026-09-28 — misma razón que getFirstSessionTopicEnc (W-5).
+  if (DISABLE_PROACTIVE_TOPIC_RECALL) return null;
   try {
     const notes = await loadElenaMemories(profile);
     if (!notes.length) return null;
@@ -209,7 +219,7 @@ export function buildReturnGreetingWithInsight(
   name: string | null,
   insightSnippet: string,
 ): string {
-  const greeting = name ? `Hola ${name} 🌷` : 'Hola 🌷';
+  const greeting = name ? `Hola ${name}` : 'Hola';
   const opener = pickRandom(RETURN_INSIGHT_OPENERS);
   return `${greeting}\n\n${opener}\n\n${insightSnippet}\n\n¿Qué hay ahora mismo?`;
 }
@@ -266,7 +276,7 @@ export function buildReturnGreetingWithSignal(
   name: string | null,
   signalType: string,
 ): string {
-  const greeting = name ? `Hola ${name} 🌷` : 'Hola 🌷';
+  const greeting = name ? `Hola ${name}` : 'Hola';
   const lines = EARLY_RETURN_SIGNAL_LINES[signalType];
   if (!lines?.length) return buildContextualGreeting(null, name);
   const line = pickRandom(lines);
