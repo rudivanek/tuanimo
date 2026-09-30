@@ -39,4 +39,5 @@ export interface ChatResponse {
     completion_tokens: number;
     total_tokens: number;
   };
+  saved_message?: { id: string; created_at: string } | null;
 }

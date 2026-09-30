@@ -1065,7 +1065,7 @@ export function ChatPage() {
     }, 0);
   };
 
-  const handleSendMessage = async (overrideMessage?: string, threadIdOverride?: string, chipMetaOverride?: MessageChipMeta | null) => {
+  const handleSendMessage = async (overrideMessage?: string, threadIdOverride?: string, chipMetaOverride?: MessageChipMeta | null, resendExisting: boolean = false) => {
  const messageToSend = overrideMessage || inputMessage.trim();
     let threadId = threadIdOverride ?? currentThreadId;
     if (!messageToSend || !user || isSending) return;
@@ -1128,40 +1128,42 @@ export function ChatPage() {
     });
 
     try {
-      const optimisticId = `optimistic-${Date.now()}`;
-      setMessages(prev => [...prev, {
-        id: optimisticId,
-        sender: 'user',
-        content: messageToSend,
-        created_at: new Date().toISOString(),
-        chipMeta: chipMetaForMessage ?? undefined,
-      }]);
-
-      const encryptedMessage = await encryptForUser(messageToSend, profile);
-
-      const { data: userMessage, error: userInsertError } = await supabase
-        .from('chat_messages')
-        .insert({
-          thread_id: threadId,
-          user_id: user.id,
+      if (!resendExisting) {
+        const optimisticId = `optimistic-${Date.now()}`;
+        setMessages(prev => [...prev, {
+          id: optimisticId,
           sender: 'user',
-          content_enc: encryptedMessage,
-          enc_version: 2,
-          chip_meta: (chipMetaForMessage ?? null) as Record<string, unknown> | null,
-        })
-        .select()
-        .single();
+          content: messageToSend,
+          created_at: new Date().toISOString(),
+          chipMeta: chipMetaForMessage ?? undefined,
+        }]);
 
-      if (userInsertError) {
-        console.error('[chat] User message insert failed:', userInsertError);
-      }
+        const encryptedMessage = await encryptForUser(messageToSend, profile);
 
-      if (userMessage) {
-        setMessages(prev => prev.map(m =>
-          m.id === optimisticId
-            ? { ...m, id: userMessage.id, created_at: userMessage.created_at }
-            : m
-        ));
+        const { data: userMessage, error: userInsertError } = await supabase
+          .from('chat_messages')
+          .insert({
+            thread_id: threadId,
+            user_id: user.id,
+            sender: 'user',
+            content_enc: encryptedMessage,
+            enc_version: 2,
+            chip_meta: (chipMetaForMessage ?? null) as Record<string, unknown> | null,
+          })
+          .select()
+          .single();
+
+        if (userInsertError) {
+          console.error('[chat] User message insert failed:', userInsertError);
+        }
+
+        if (userMessage) {
+          setMessages(prev => prev.map(m =>
+            m.id === optimisticId
+              ? { ...m, id: userMessage.id, created_at: userMessage.created_at }
+              : m
+          ));
+        }
       }
 
       let decryptedMemories: Array<{ key: string; value: string }> = [];
@@ -1197,7 +1199,10 @@ export function ChatPage() {
         console.log('Could not load intentions:', intentionsError);
       }
 
-      const conversationHistory = messages
+      const historySource = resendExisting && messages.length > 0 && messages[messages.length - 1].sender === 'user'
+        ? messages.slice(0, -1)
+        : messages;
+      const conversationHistory = historySource
         .filter(m => m.content?.trim())
         .slice(-20)
         .map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.content }));
@@ -1277,23 +1282,28 @@ export function ChatPage() {
         showInlineToast('Tuve un problema al responder. Inténtalo otra vez.');
         return;
       }
-      const encryptedReply = await encryptForUser(replyText, profile);
-
-      const { data: aiMessage, error: aiInsertError } = await supabase
-        .from('chat_messages')
-        .insert({
-          thread_id: threadId,
-          user_id: user.id,
-          sender: 'counselor',
-          content_enc: encryptedReply,
-          enc_version: 2,
-          meta: (aiResponse.meta ?? {}) as unknown as Record<string, unknown>,
-        })
-        .select()
-        .single();
-
-      if (aiInsertError) {
-        console.error('[chat] AI message insert failed:', aiInsertError);
+      // The chat-ai edge function now saves Elena's reply itself (serverSave),
+      // so the reply is not lost if the person closes the app while waiting.
+      // Only insert here if the server did not save it.
+      let aiMessage: { id: string; created_at: string } | null = aiResponse.saved_message ?? null;
+      if (!aiMessage?.id) {
+        const encryptedReply = await encryptForUser(replyText, profile);
+        const { data: insertedAi, error: aiInsertError } = await supabase
+          .from('chat_messages')
+          .insert({
+            thread_id: threadId,
+            user_id: user.id,
+            sender: 'counselor',
+            content_enc: encryptedReply,
+            enc_version: 2,
+            meta: (aiResponse.meta ?? {}) as unknown as Record<string, unknown>,
+          })
+          .select()
+          .single();
+        if (aiInsertError) {
+          console.error('[chat] AI message insert failed:', aiInsertError);
+        }
+        aiMessage = insertedAi ?? null;
       }
 
       const detectedMood = await moodPromise;
@@ -2238,6 +2248,43 @@ export function ChatPage() {
               </div>
             </div>
           )}
+
+          {(() => {
+            const lastMsg = messages[messages.length - 1];
+            if (!lastMsg || lastMsg.sender !== 'user') return null;
+            if (lastMsg.id.startsWith('optimistic-')) return null;
+            if (isSending) return null;
+            const hasError = !!chatError;
+            const ageMs = Date.now() - new Date(lastMsg.created_at).getTime();
+            const stale = ageMs > 60_000;
+            if (!hasError && !stale) return null;
+            if (isTokenExhausted) {
+              return (
+                <div className="flex justify-end pr-1">
+                  <p className="text-[12.5px] text-app-muted">
+                    Este mensaje no recibió respuesta.{' '}
+                    <span className="text-app-muted/70">Llegaste a tu límite de hoy. Podrás volver a intentarlo mañana.</span>
+                  </p>
+                </div>
+              );
+            }
+            return (
+              <div className="flex justify-end pr-1">
+                <p className="text-[12.5px] text-app-muted">
+                  Este mensaje no recibió respuesta.{' '}
+                  <button
+                    onClick={() => {
+                      setChatError(null);
+                      handleSendMessage(lastMsg.content, currentThreadId ?? undefined, null, true);
+                    }}
+                    className="text-sage-strong hover:text-[#4e7260] transition-colors underline underline-offset-2"
+                  >
+                    Volver a intentar
+                  </button>
+                </p>
+              </div>
+            );
+          })()}
 
           {showContinuationHint && (
             <p className="text-center text-[12.5px] text-app-muted py-3 px-4 animate-in fade-in duration-500">

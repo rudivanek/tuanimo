@@ -1,7 +1,7 @@
 # Elena (Tu-Animo.app) — Feature Documentation
 
-Version: 3.3
-Last Updated: 2026-08-28T00:00:00Z
+Version: 3.4
+Last Updated: 2026-09-30T00:00:00Z
 
 ---
 
@@ -1977,3 +1977,58 @@ The warning uses the same amber styling as the diary's bulk export warning.
 |---|---|
 | `src/lib/exportUtils.ts` | Added `ChatExportBundle` interface and `formatAllChatsExport()` function |
 | `src/pages/ChatPage.tsx` | Added `formatAllChatsExport` and `ChatExportBundle`/`ChatExportMessage` imports; added `showExportAll`, `allChats`, `loadingAllChats`, `decryptProgress` state; added `handleExportAllChats` loader with progress feedback; added download button in sidebar header; added `ExportModal` instance for bulk export |
+
+---
+
+## 30. Chat — Server-Side Reply Saving & Retry for Unanswered Messages
+
+### 30.1 Overview
+
+Two related improvements to the chat pipeline:
+
+1. **Server-side reply saving (`serverSave`):** The chat-ai edge function now saves Elena's reply to the database itself, so the reply is not lost if the person closes the app while waiting for a response. The client only inserts the reply locally if the server did not already save it.
+2. **Retry for unanswered messages ("Volver a intentar"):** When the user's last message never received a reply — either because of an error or because more than 60 seconds passed with no response — a small, muted retry line appears below the user's bubble, aligned to the right.
+
+### 30.2 Server-Side Reply Saving
+
+**What changed:**
+
+- `sendChatMessage` in `src/lib/api.ts` now sends `serverSave: true` in the JSON body to the chat-ai edge function.
+- The `ChatResponse` interface in `src/types/chat.ts` gained an optional `saved_message?: { id: string; created_at: string } | null` field.
+- In `handleSendMessage` (`src/pages/ChatPage.tsx`), the client checks `aiResponse.saved_message`. If the server already saved the reply, the client skips its own insert. If not, it falls back to inserting locally (the previous behavior).
+
+**Why:** Previously, if the user closed the app while Elena was composing a reply, the reply was lost — it existed only in the client's memory. Now the server saves it, so on next load the reply appears in the message history.
+
+### 30.3 Retry for Unanswered Messages
+
+**Display conditions** — all must be true:
+
+| Condition | Detail |
+|---|---|
+| Last message is from the user | `messages[last].sender === 'user'` |
+| Not an optimistic message | `lastMsg.id` does not start with `optimistic-` |
+| Not currently sending | `isSending` is `false` |
+| Error or stale | Either `chatError` is set, or the message's `created_at` is more than 60 seconds ago |
+
+**Content:**
+
+- A small, muted line aligned to the right (under the user's bubble), in the same font as the chat:
+  - Text: `Este mensaje no recibió respuesta.`
+  - A small text button: `Volver a intentar` — calls `handleSendMessage(lastMessage.content, currentThreadId, null, true)` and clears `chatError`.
+- If `isTokenExhausted` is true, the button is hidden and instead shows: `Llegaste a tu límite de hoy. Podrás volver a intentarlo mañana.`
+
+**How resend works (`resendExisting` parameter):**
+
+`handleSendMessage` gained a fourth parameter `resendExisting: boolean = false`. When `true`:
+
+- The optimistic user message, encryption, and `chat_messages` insert are skipped (the user's message is already saved and already on screen).
+- The conversation history sent to the edge function excludes the last message (so it is not sent twice).
+- Everything else (AI call, reply saving, chips, follow-ups, etc.) works exactly the same as a normal send.
+
+### 30.4 Files Modified
+
+| File | Change |
+|---|---|
+| `src/types/chat.ts` | Added `saved_message?: { id: string; created_at: string } \| null` to `ChatResponse` |
+| `src/lib/api.ts` | Added `serverSave: true` to the `sendChatMessage` JSON body |
+| `src/pages/ChatPage.tsx` | `handleSendMessage` gained `resendExisting` parameter; optimistic insert + history wrapped in `if (!resendExisting)`; AI reply insert uses `saved_message` fallback; retry UI below message list |
