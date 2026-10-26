@@ -6,7 +6,7 @@ import {
   AlertCircle, Inbox, Pencil, Trash2, CheckCircle, Ban, Wrench, X, CheckCheck,
   RotateCcw, AlertTriangle, CircleDollarSign,
 } from 'lucide-react';
-import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, upsertUserProfile } from '../../lib/adminUsers';
+import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, upsertUserProfile, fetchUsersUsageOverview, type UserUsageOverview } from '../../lib/adminUsers';
 import { setFlightRecorderForUser } from '../../lib/elenaFlightRecorder';
 import { UserModal } from '../../components/admin/UserModal';
 
@@ -64,6 +64,62 @@ function PlanBadge({ planKey }: { planKey: string }) {
 
 function formatLimit(n: number | null | undefined): string {
   return n == null ? '—' : n.toLocaleString('es-MX');
+}
+
+// ── Usage cell ("Consumo") ───────────────────────────────────────────────────
+// Compact: today vs daily limit, current cycle vs monthly limit (+ bar, cost,
+// dates), and all-time total. Numbers come from admin_users_usage_overview,
+// which uses the same rules as check_token_budget.
+
+function formatTokensShort(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
+  return String(n);
+}
+
+function formatUsd(n: number): string {
+  return n >= 100 ? `$${n.toFixed(0)}` : `$${n.toFixed(2)}`;
+}
+
+function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' });
+}
+
+function UsageCell({ usage }: { usage?: UserUsageOverview }) {
+  if (!usage) return <span className="text-[11px] text-app-muted">—</span>;
+  const pct = usage.monthly_limit > 0 ? Math.min((usage.cycle_used / usage.monthly_limit) * 100, 100) : 0;
+  const bar = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-sage-strong';
+  const dayPct = usage.daily_limit > 0 ? usage.daily_used / usage.daily_limit : 0;
+  return (
+    <div className="min-w-[170px] text-[11px] leading-tight tabular-nums">
+      <div className="flex justify-between gap-2">
+        <span className="text-app-muted">Hoy</span>
+        <span className={dayPct >= 0.9 ? 'text-red-500 font-medium' : 'text-app-text'}>
+          {formatTokensShort(usage.daily_used)} / {formatTokensShort(usage.daily_limit)}
+        </span>
+      </div>
+      <div className="flex justify-between gap-2 mt-1">
+        <span className="text-app-muted">Ciclo</span>
+        <span className="text-app-text">
+          {formatTokensShort(usage.cycle_used)} / {formatTokensShort(usage.monthly_limit)}
+          <span className="text-sage-strong font-medium ml-1.5">{formatUsd(usage.cycle_cost_usd)}</span>
+        </span>
+      </div>
+      <div className="h-1 bg-app-border rounded-full overflow-hidden mt-0.5">
+        <div className={`h-full rounded-full ${bar}`} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="text-[10px] text-app-muted mt-0.5">
+        {formatShortDate(usage.cycle_start)} → {formatShortDate(usage.cycle_end)} · {pct.toFixed(0)}%
+      </div>
+      <div className="flex justify-between gap-2 mt-1">
+        <span className="text-app-muted">Total</span>
+        <span className="text-app-text">
+          {formatTokensShort(usage.total_used)}
+          <span className="text-app-muted ml-1.5">{formatUsd(usage.total_cost_usd)}</span>
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function DailyLimitCell({ user, onSaved }: { user: AdminUser; onSaved: () => void }) {
@@ -171,6 +227,13 @@ export function AdminUsersPage() {
   const { data: users = [], isFetching, isError, error, refetch } = useQuery<AdminUser[]>({
     queryKey: ['admin-users', includeDeleted],
     queryFn: () => listUsers('', includeDeleted),
+    staleTime: 30_000,
+  });
+
+  // Key starts with 'admin-users' so invalidate() (e.g. after changing a limit) refreshes it too.
+  const { data: usageById = {} } = useQuery<Record<string, UserUsageOverview>>({
+    queryKey: ['admin-users', 'usage-overview'],
+    queryFn: fetchUsersUsageOverview,
     staleTime: 30_000,
   });
 
@@ -506,6 +569,9 @@ export function AdminUsersPage() {
                       Límite diario
                     </th>
                     <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                      Consumo
+                    </th>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Registrado
                     </th>
                     <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
@@ -566,6 +632,9 @@ export function AdminUsersPage() {
                         {!user.deleted_at && (
                           <DailyLimitCell user={user} onSaved={invalidate} />
                         )}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <UsageCell usage={usageById[user.id]} />
                       </td>
                       <td className="px-5 py-3.5 text-[12px] text-app-muted whitespace-nowrap tabular-nums">
                         {formatDate(user.created_at)}
