@@ -51,6 +51,40 @@ export async function setDailyTokenLimitForUser(userId: string, limit: number | 
   if (error) throw error;
 }
 
+/** Per-user token usage for the admin Users panel ("Consumo" column).
+ *  Same numbers check_token_budget enforces (Mexico City day; user's own monthly cycle). */
+export interface UserUsageOverview {
+  user_id: string;
+  daily_used: number;
+  daily_limit: number;
+  cycle_start: string;
+  cycle_end: string;
+  cycle_used: number;
+  monthly_limit: number;
+  cycle_cost_usd: number;
+  total_used: number;
+  total_cost_usd: number;
+}
+
+export async function fetchUsersUsageOverview(): Promise<Record<string, UserUsageOverview>> {
+  const { data, error } = await supabase.rpc('admin_users_usage_overview');
+  if (error) throw error;
+  const byId: Record<string, UserUsageOverview> = {};
+  for (const row of (data ?? []) as UserUsageOverview[]) {
+    byId[row.user_id] = {
+      ...row,
+      daily_used: Number(row.daily_used),
+      daily_limit: Number(row.daily_limit),
+      cycle_used: Number(row.cycle_used),
+      monthly_limit: Number(row.monthly_limit),
+      cycle_cost_usd: Number(row.cycle_cost_usd),
+      total_used: Number(row.total_used),
+      total_cost_usd: Number(row.total_cost_usd),
+    };
+  }
+  return byId;
+}
+
 export function getDisplayName(user: AdminUser): string {
   if (user.first_name) {
     return [user.first_name, user.last_name].filter(Boolean).join(' ');
