@@ -16,6 +16,10 @@ export interface AdminUser {
   created_at: string;
   flight_recorder_enabled: boolean;
   chat_model_override: string | null;
+  /** Per-user daily token limit set by an admin. null = uses the plan's limit. */
+  daily_token_limit_override: number | null;
+  /** The daily limit of the user's plan (token_plan_limits), for reference. */
+  plan_daily_token_limit: number | null;
 }
 
 /** Models selectable as a per-user override. Must match the CHECK constraint
@@ -33,6 +37,16 @@ export async function setChatModelForUser(userId: string, model: string | null):
   const { error } = await supabase.rpc('admin_set_chat_model', {
     p_user_id: userId,
     p_model: model,
+  });
+  if (error) throw error;
+}
+
+/** Set a permanent daily token limit for one user, or pass null to remove it
+ *  so the user falls back to their plan's daily limit. Admin only (checked in DB). */
+export async function setDailyTokenLimitForUser(userId: string, limit: number | null): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_daily_token_limit', {
+    p_user_id: userId,
+    p_limit: limit,
   });
   if (error) throw error;
 }
