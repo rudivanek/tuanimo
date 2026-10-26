@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -6,7 +6,7 @@ import {
   AlertCircle, Inbox, Pencil, Trash2, CheckCircle, Ban, Wrench, X, CheckCheck,
   RotateCcw, AlertTriangle, CircleDollarSign,
 } from 'lucide-react';
-import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, upsertUserProfile } from '../../lib/adminUsers';
+import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, upsertUserProfile } from '../../lib/adminUsers';
 import { setFlightRecorderForUser } from '../../lib/elenaFlightRecorder';
 import { UserModal } from '../../components/admin/UserModal';
 
@@ -55,6 +55,98 @@ function PlanBadge({ planKey }: { planKey: string }) {
     <span className={`inline-flex items-center text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cls}`}>
       {label}
     </span>
+  );
+}
+
+// ── Daily token limit cell ────────────────────────────────────────────────────
+// Empty input = the user uses their plan's daily limit (shown as placeholder).
+// A number = permanent per-user daily limit. Saves on blur or Enter; Esc cancels.
+
+function formatLimit(n: number | null | undefined): string {
+  return n == null ? '—' : n.toLocaleString('es-MX');
+}
+
+function DailyLimitCell({ user, onSaved }: { user: AdminUser; onSaved: () => void }) {
+  const saved = user.daily_token_limit_override != null ? String(user.daily_token_limit_override) : '';
+  const [value, setValue] = useState(saved);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const cancelRef = useRef(false);
+
+  useEffect(() => { setValue(saved); }, [saved]);
+
+  const persist = async (next: number | null) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await setDailyTokenLimitForUser(user.id, next);
+      onSaved();
+    } catch (err) {
+      setError((err as Error).message ?? 'No se pudo guardar');
+      setValue(saved);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBlur = () => {
+    if (cancelRef.current) { cancelRef.current = false; setValue(saved); return; }
+    const cleaned = value.replace(/[\s,.]/g, '');
+    if (cleaned === saved) { setValue(saved); return; }
+    if (cleaned === '') { void persist(null); return; }
+    const n = Number(cleaned);
+    if (!Number.isInteger(n) || n <= 0) {
+      setError('Escribe un número entero mayor que 0');
+      setValue(saved);
+      return;
+    }
+    void persist(n);
+  };
+
+  const isOverride = user.daily_token_limit_override != null;
+
+  return (
+    <div className="flex flex-col gap-0.5 min-w-[130px]">
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          inputMode="numeric"
+          value={value}
+          placeholder={formatLimit(user.plan_daily_token_limit)}
+          onChange={(e) => { setValue(e.target.value); setError(null); }}
+          onBlur={handleBlur}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            if (e.key === 'Escape') { cancelRef.current = true; (e.target as HTMLInputElement).blur(); }
+          }}
+          disabled={saving}
+          title={
+            isOverride
+              ? `Límite diario especial: ${formatLimit(user.daily_token_limit_override)} tokens. Borra el número para volver al del plan.`
+              : 'Usa el límite diario de su plan. Escribe un número para asignarle uno especial.'
+          }
+          className={`w-[110px] text-[12px] tabular-nums rounded-9 border px-2 py-1 bg-app-card focus:outline-none focus:ring-1 focus:ring-sage-strong/40 disabled:opacity-50 transition-colors ${
+            isOverride
+              ? 'border-sage-strong/40 text-sage-strong font-medium'
+              : 'border-app-border text-app-text placeholder:text-app-muted'
+          }`}
+        />
+        {isOverride && !saving && (
+          <button
+            onClick={() => { setValue(''); void persist(null); }}
+            className="w-6 h-6 flex items-center justify-center rounded-9 text-app-muted hover:text-red-500 hover:bg-red-50 transition-colors"
+            title="Quitar límite especial (volver al del plan)"
+          >
+            <X size={12} />
+          </button>
+        )}
+        {saving && <RefreshCw size={12} className="animate-spin text-app-muted" />}
+      </div>
+      <span className="text-[10px] text-app-muted">
+        {isOverride ? `Plan: ${formatLimit(user.plan_daily_token_limit)}` : 'Del plan'}
+      </span>
+      {error && <span className="text-[10px] text-red-500 max-w-[160px]">{error}</span>}
+    </div>
   );
 }
 
@@ -411,6 +503,9 @@ export function AdminUsersPage() {
                       Modelo
                     </th>
                     <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                      Límite diario
+                    </th>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Registrado
                     </th>
                     <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
@@ -465,6 +560,11 @@ export function AdminUsersPage() {
                               </option>
                             ))}
                           </select>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {!user.deleted_at && (
+                          <DailyLimitCell user={user} onSaved={invalidate} />
                         )}
                       </td>
                       <td className="px-5 py-3.5 text-[12px] text-app-muted whitespace-nowrap tabular-nums">
