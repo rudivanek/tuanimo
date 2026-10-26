@@ -107,6 +107,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    
     const whisperData = await whisperRes.json();
     const transcript = whisperData.text?.trim() ?? "";
 
