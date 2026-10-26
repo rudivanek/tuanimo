@@ -1620,6 +1620,21 @@ export type Database = {
         Args: { p_model: string; p_user_id: string }
         Returns: undefined
       }
+      admin_users_usage_overview: {
+        Args: never
+        Returns: {
+          cycle_cost_usd: number
+          cycle_end: string
+          cycle_start: string
+          cycle_used: number
+          daily_limit: number
+          daily_used: number
+          monthly_limit: number
+          total_cost_usd: number
+          total_used: number
+          user_id: string
+        }[]
+      }
       admin_set_daily_token_limit: {
         Args: { p_limit: number | null; p_user_id: string }
         Returns: undefined
