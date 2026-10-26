@@ -1585,6 +1585,7 @@ export type Database = {
         Returns: {
           chat_model_override: string
           created_at: string
+          daily_token_limit_override: number | null
           deleted_at: string
           email: string
           first_name: string
@@ -1594,6 +1595,7 @@ export type Database = {
           is_admin_user: boolean
           is_disabled: boolean
           last_name: string
+          plan_daily_token_limit: number | null
           plan_key: string
         }[]
       }
@@ -1616,6 +1618,10 @@ export type Database = {
       admin_reset_user_data: { Args: { p_user_id: string }; Returns: Json }
       admin_set_chat_model: {
         Args: { p_model: string; p_user_id: string }
+        Returns: undefined
+      }
+      admin_set_daily_token_limit: {
+        Args: { p_limit: number | null; p_user_id: string }
         Returns: undefined
       }
       admin_set_flight_recorder: {
