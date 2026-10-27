@@ -22,6 +22,7 @@ export function ElenaVoiceSettings() {
   const [voiceId, setVoiceId]   = useState('');
   const [model, setModel]       = useState('eleven_multilingual_v2');
   const [customModel, setCustomModel] = useState('');
+  const [usdPer1k, setUsdPer1k] = useState('0.18');
   const [loading, setLoading]   = useState(true);
   const [loadError, setLoadError] = useState('');
   const [previewing, setPreviewing] = useState(false);
@@ -34,10 +35,11 @@ export function ElenaVoiceSettings() {
   async function load() {
     setLoading(true);
     setLoadError('');
-    const { data } = await supabase.from('ai_settings').select('key, value').in('key', ['tts_voice_id', 'tts_model']);
+    const { data } = await supabase.from('ai_settings').select('key, value').in('key', ['tts_voice_id', 'tts_model', 'tts_usd_per_1k_credits']);
     const map: Record<string, string> = {};
     (data ?? []).forEach((r: { key: string; value: string }) => { map[r.key] = r.value; });
     setVoiceId(map.tts_voice_id ?? '');
+    setUsdPer1k(map.tts_usd_per_1k_credits ?? '0.18');
     const m = map.tts_model ?? 'eleven_multilingual_v2';
     if (TTS_MODELS.some(x => x.value === m)) setModel(m);
     else { setModel('custom'); setCustomModel(m); }
@@ -50,6 +52,7 @@ export function ElenaVoiceSettings() {
   }
 
   const effectiveModel = model === 'custom' ? customModel.trim() : model;
+  const priceValid = usdPer1k.trim() !== '' && Number.isFinite(Number(usdPer1k)) && Number(usdPer1k) >= 0;
 
   async function handlePreview() {
     if (!voiceId || !effectiveModel) return;
@@ -71,6 +74,7 @@ export function ElenaVoiceSettings() {
       [
         { key: 'tts_voice_id', value: voiceId },
         { key: 'tts_model', value: effectiveModel || 'eleven_multilingual_v2' },
+        { key: 'tts_usd_per_1k_credits', value: String(priceValid ? Number(usdPer1k) : 0.18) },
       ],
       { onConflict: 'key' },
     );
@@ -151,6 +155,22 @@ export function ElenaVoiceSettings() {
             )}
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-app-text" htmlFor="tts-price">Precio por 1,000 créditos (USD)</label>
+            <input
+              id="tts-price"
+              type="number"
+              min="0"
+              step="0.001"
+              value={usdPer1k}
+              onChange={e => setUsdPer1k(e.target.value)}
+              className="w-full rounded-[10px] border border-app-border bg-app-bg px-3 py-2 text-sm text-app-text"
+            />
+            <p className="text-[11px] text-app-muted">
+              Solo para estimar el costo en Costos de Tokens. Creator ≈ 0.18 (22 USD / 121k créditos) · Pro ≈ 0.165 (99 USD / 600k). Aplica a las respuestas nuevas.
+            </p>
+          </div>
+
           {status === 'error' && (
             <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-[10px] text-xs text-red-700">
               <AlertCircle size={14} /><span>{message}</span>
@@ -173,7 +193,7 @@ export function ElenaVoiceSettings() {
             </button>
             <button
               onClick={handleSave}
-              disabled={saving || (model === 'custom' && !customModel.trim())}
+              disabled={saving || !priceValid || (model === 'custom' && !customModel.trim())}
               className="flex-1 h-10 rounded-[12px] bg-sage-strong text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2"
             >
               {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
