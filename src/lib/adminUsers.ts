@@ -127,6 +127,36 @@ export function getDisplayName(user: AdminUser): string {
   return user.full_name || '';
 }
 
+/** Voice beta: estimated ElevenLabs cost per user — today, this cycle (same
+ *  cycle as the token Consumo), and since signup. Only users Elena has spoken to. */
+export interface UserVoiceOverview {
+  user_id: string;
+  today_replies: number;
+  today_usd: number;
+  cycle_replies: number;
+  cycle_usd: number;
+  total_replies: number;
+  total_usd: number;
+}
+
+export async function fetchUsersVoiceOverview(): Promise<Record<string, UserVoiceOverview>> {
+  const { data, error } = await supabase.rpc('admin_users_voice_overview');
+  if (error) throw error;
+  const byId: Record<string, UserVoiceOverview> = {};
+  for (const r of (data ?? []) as UserVoiceOverview[]) {
+    byId[r.user_id] = {
+      user_id: r.user_id,
+      today_replies: Number(r.today_replies),
+      today_usd: Number(r.today_usd),
+      cycle_replies: Number(r.cycle_replies),
+      cycle_usd: Number(r.cycle_usd),
+      total_replies: Number(r.total_replies),
+      total_usd: Number(r.total_usd),
+    };
+  }
+  return byId;
+}
+
 /** Voice beta: which users have Elena's spoken replies enabled. Read straight
  *  from profiles (admins can read all rows), so admin_list_users is untouched. */
 export async function fetchUsersVoiceEnabled(): Promise<Record<string, boolean>> {
