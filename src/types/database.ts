@@ -1622,6 +1622,13 @@ export type Database = {
         Args: { p_model: string; p_user_id: string }
         Returns: undefined
       }
+      admin_users_last_activity: {
+        Args: never
+        Returns: {
+          last_active_at: string | null
+          user_id: string
+        }[]
+      }
       admin_users_usage_overview: {
         Args: never
         Returns: {
