@@ -94,6 +94,7 @@ export type Database = {
           failure_count: number
           id: string
           recipient_count: number
+          skipped_count: number
           status: string
           subject: string
           success_count: number
@@ -106,6 +107,7 @@ export type Database = {
           failure_count?: number
           id?: string
           recipient_count?: number
+          skipped_count?: number
           status?: string
           subject: string
           success_count?: number
@@ -118,6 +120,7 @@ export type Database = {
           failure_count?: number
           id?: string
           recipient_count?: number
+          skipped_count?: number
           status?: string
           subject?: string
           success_count?: number
@@ -991,6 +994,7 @@ export type Database = {
           email_sequence_status: string
           email_sequence_step: number
           email_weekly_insight_opt_in: boolean
+          email_news_opt_in: boolean
           enc_version: number
           encryption_secret: string
           first_name: string | null
@@ -1035,6 +1039,7 @@ export type Database = {
           email_sequence_status?: string
           email_sequence_step?: number
           email_weekly_insight_opt_in?: boolean
+          email_news_opt_in?: boolean
           enc_version?: number
           encryption_secret: string
           first_name?: string | null
@@ -1079,6 +1084,7 @@ export type Database = {
           email_sequence_status?: string
           email_sequence_step?: number
           email_weekly_insight_opt_in?: boolean
+          email_news_opt_in?: boolean
           enc_version?: number
           encryption_secret?: string
           first_name?: string | null
