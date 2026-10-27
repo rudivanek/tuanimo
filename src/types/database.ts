@@ -1469,6 +1469,20 @@ export type Database = {
           user_label: string
         }[]
       }
+      admin_tts_usage: {
+        Args: { p_since?: string | null }
+        Returns: {
+          characters: number
+          credits: number
+          email: string
+          est_cost_usd: number
+          last_at: string
+          name: string
+          previews: number
+          replies: number
+          user_id: string
+        }[]
+      }
       admin_engagement_bounds: {
         Args: never
         Returns: {
