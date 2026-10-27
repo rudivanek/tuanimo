@@ -1019,6 +1019,7 @@ export type Database = {
           sound_response_enabled: boolean
           timezone: string
           updated_at: string
+          voice_enabled: boolean
         }
         Insert: {
           created_at?: string
@@ -1062,6 +1063,7 @@ export type Database = {
           sound_response_enabled?: boolean
           timezone?: string
           updated_at?: string
+          voice_enabled?: boolean
         }
         Update: {
           created_at?: string
@@ -1105,6 +1107,7 @@ export type Database = {
           sound_response_enabled?: boolean
           timezone?: string
           updated_at?: string
+          voice_enabled?: boolean
         }
         Relationships: []
       }
