@@ -3,6 +3,7 @@ import { DollarSign, ChevronLeft, RefreshCw, AlertCircle, Inbox, TrendingUp, Zap
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
+import { VoiceUsageCard } from '../../components/admin/VoiceUsageCard';
 
 interface CostReportRow {
   group_label: string;
@@ -378,6 +379,8 @@ export function TokenCostsPage() {
             </div>
           ) : null}
         </div>
+
+        <VoiceUsageCard />
 
       </div>
     </div>
