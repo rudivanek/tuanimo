@@ -127,6 +127,21 @@ export function getDisplayName(user: AdminUser): string {
   return user.full_name || '';
 }
 
+/** Voice beta: which users have Elena's spoken replies enabled. Read straight
+ *  from profiles (admins can read all rows), so admin_list_users is untouched. */
+export async function fetchUsersVoiceEnabled(): Promise<Record<string, boolean>> {
+  const { data, error } = await supabase.from('profiles').select('id, voice_enabled');
+  if (error) throw error;
+  return Object.fromEntries((data ?? []).map((r: { id: string; voice_enabled: boolean }) => [r.id, !!r.voice_enabled]));
+}
+
+/** Voice beta: turn Elena's spoken replies on or off for one user (admins only;
+ *  profiles_guard_user_columns blocks users from changing it themselves). */
+export async function setVoiceEnabledForUser(userId: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase.from('profiles').update({ voice_enabled: enabled }).eq('id', userId);
+  if (error) throw error;
+}
+
 export async function listUsers(search = '', includeDeleted = false): Promise<AdminUser[]> {
   const { data, error } = await supabase.rpc('admin_list_users', {
     p_search: search.trim() || null,
