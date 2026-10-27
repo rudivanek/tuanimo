@@ -6,7 +6,7 @@ import {
   AlertCircle, Inbox, Pencil, Trash2, CheckCircle, Ban, Wrench, X, CheckCheck,
   RotateCcw, AlertTriangle, CircleDollarSign,
 } from 'lucide-react';
-import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, setMonthlyTokenLimitForUser, setPlanForUser, fetchUsersLastActivity, upsertUserProfile, fetchUsersUsageOverview, type UserUsageOverview, fetchUsersVoiceEnabled, setVoiceEnabledForUser } from '../../lib/adminUsers';
+import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, setMonthlyTokenLimitForUser, setPlanForUser, fetchUsersLastActivity, upsertUserProfile, fetchUsersUsageOverview, type UserUsageOverview, fetchUsersVoiceEnabled, setVoiceEnabledForUser, fetchUsersVoiceOverview, type UserVoiceOverview } from '../../lib/adminUsers';
 import { setFlightRecorderForUser } from '../../lib/elenaFlightRecorder';
 import { UserModal } from '../../components/admin/UserModal';
 
@@ -172,6 +172,35 @@ function UsageCell({ usage }: { usage?: UserUsageOverview }) {
   );
 }
 
+// ── Voice cell (voice beta) ──────────────────────────────────────────────────
+// Estimated ElevenLabs cost, split like the token Consumo: today, this cycle
+// (same cycle bounds), since signup. Shown only for users Elena has spoken to.
+
+function VoiceCostLines({ voice }: { voice?: UserVoiceOverview }) {
+  if (!voice || voice.total_replies === 0) return null;
+  const usd = (n: number) => (n > 0 && n < 0.01 ? `$${n.toFixed(3)}` : formatUsd(n));
+  const line = (label: string, replies: number, cost: number, muted = false) => (
+    <div className="flex justify-between gap-2 mt-0.5">
+      <span className="text-app-muted">{label}</span>
+      <span className="text-app-text">
+        {replies} resp.
+        <span className={`${muted ? 'text-app-muted' : 'text-sage-strong font-medium'} ml-1.5`}>{usd(cost)}</span>
+      </span>
+    </div>
+  );
+  return (
+    <div
+      className="min-w-[170px] text-[11px] leading-tight tabular-nums mt-1.5 pt-1.5 border-t border-dashed border-app-border"
+      title="Costo estimado de ElevenLabs (voz de Elena). El cobro real está en la cuenta de ElevenLabs."
+    >
+      <div className="text-[10px] font-semibold text-app-muted uppercase tracking-wider">Voz</div>
+      {line('Hoy', voice.today_replies, voice.today_usd)}
+      {line('Este ciclo', voice.cycle_replies, voice.cycle_usd)}
+      {line('Desde el alta', voice.total_replies, voice.total_usd, true)}
+    </div>
+  );
+}
+
 // ── Limit box (daily or monthly) ─────────────────────────────────────────────
 // Empty box = the user uses their plan's limit (shown as text underneath, never
 // inside the box, so it can't be mistaken for a saved value).
@@ -332,6 +361,12 @@ export function AdminUsersPage() {
   const { data: lastActiveById = {} } = useQuery<Record<string, string | null>>({
     queryKey: ['admin-users', 'last-activity'],
     queryFn: fetchUsersLastActivity,
+    staleTime: 30_000,
+  });
+
+  const { data: voiceCostById = {} } = useQuery<Record<string, UserVoiceOverview>>({
+    queryKey: ['admin-users', 'voice-overview'],
+    queryFn: fetchUsersVoiceOverview,
     staleTime: 30_000,
   });
 
@@ -868,6 +903,7 @@ export function AdminUsersPage() {
                       </td>
                       <td className="px-3 py-3.5">
                         <UsageCell usage={usageById[user.id]} />
+                        <VoiceCostLines voice={voiceCostById[user.id]} />
                       </td>
                       <td className="px-3 py-3.5 text-[12px] whitespace-nowrap tabular-nums">
                         <div className="text-app-muted">{formatDate(user.created_at)}</div>
