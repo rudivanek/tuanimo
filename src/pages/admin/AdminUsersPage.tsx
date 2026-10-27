@@ -6,7 +6,7 @@ import {
   AlertCircle, Inbox, Pencil, Trash2, CheckCircle, Ban, Wrench, X, CheckCheck,
   RotateCcw, AlertTriangle, CircleDollarSign,
 } from 'lucide-react';
-import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, setMonthlyTokenLimitForUser, upsertUserProfile, fetchUsersUsageOverview, type UserUsageOverview } from '../../lib/adminUsers';
+import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, setMonthlyTokenLimitForUser, setPlanForUser, fetchUsersLastActivity, upsertUserProfile, fetchUsersUsageOverview, type UserUsageOverview } from '../../lib/adminUsers';
 import { setFlightRecorderForUser } from '../../lib/elenaFlightRecorder';
 import { UserModal } from '../../components/admin/UserModal';
 
@@ -47,6 +47,7 @@ const PLAN_BADGE: Record<string, { label: string; cls: string }> = {
   starter: { label: 'Starter', cls: 'bg-app-bg text-app-muted border border-app-border' },
   pro:     { label: 'Pro',     cls: 'bg-sage-strong/10 text-sage-strong border border-sage-strong/20' },
   power:   { label: 'Power',   cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
+  sim:     { label: 'Sim',     cls: 'bg-purple-50 text-purple-700 border border-purple-200' },
 };
 
 function PlanBadge({ planKey }: { planKey: string }) {
@@ -57,6 +58,55 @@ function PlanBadge({ planKey }: { planKey: string }) {
     </span>
   );
 }
+
+/** Plans an admin can assign. 'sim' (test users) is only offered to users already on it. */
+const PLAN_KEYS = ['starter', 'pro', 'power', 'sim'] as const;
+
+function PlanSelect({ user, onChange, disabled }: {
+  user: AdminUser;
+  onChange: (planKey: string) => void;
+  disabled: boolean;
+}) {
+  const current = user.plan_key ?? 'starter';
+  const { cls } = PLAN_BADGE[current] ?? PLAN_BADGE['starter'];
+  const options = PLAN_KEYS.filter((k) => k !== 'sim' || current === 'sim');
+  return (
+    <select
+      value={current}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      title="Cambiar plan"
+      className={`admin-compact-input text-[11px] font-semibold uppercase tracking-wider pl-2 pr-1 py-0.5 rounded-full cursor-pointer focus:outline-none focus:ring-1 focus:ring-sage-strong/40 disabled:opacity-50 ${cls}`}
+    >
+      {options.map((k) => (
+        <option key={k} value={k}>{PLAN_BADGE[k].label}</option>
+      ))}
+    </select>
+  );
+}
+
+function formatRelative(iso: string | null | undefined): string {
+  if (!iso) return 'Nunca';
+  const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (diffMin < 1) return 'Ahora';
+  if (diffMin < 60) return `Hace ${diffMin} min`;
+  const h = Math.floor(diffMin / 60);
+  if (h < 24) return `Hace ${h} h`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `Hace ${d} día${d !== 1 ? 's' : ''}`;
+  const m = Math.floor(d / 30);
+  return `Hace ${m} mes${m !== 1 ? 'es' : ''}`;
+}
+
+function activityColor(iso: string | null | undefined): string {
+  if (!iso) return 'text-app-muted/60';
+  const days = (Date.now() - new Date(iso).getTime()) / 86_400_000;
+  if (days <= 7) return 'text-sage-strong font-medium';
+  if (days <= 30) return 'text-app-text';
+  return 'text-app-muted';
+}
+
+type SortKey = 'registro' | 'actividad' | 'ciclo' | 'costo';
 
 // ── Daily token limit cell ────────────────────────────────────────────────────
 // Empty input = the user uses their plan's daily limit (shown as placeholder).
@@ -279,19 +329,75 @@ export function AdminUsersPage() {
     staleTime: 30_000,
   });
 
+  const { data: lastActiveById = {} } = useQuery<Record<string, string | null>>({
+    queryKey: ['admin-users', 'last-activity'],
+    queryFn: fetchUsersLastActivity,
+    staleTime: 30_000,
+  });
+
+  const [planFilter, setPlanFilter] = useState<string>('');
+  const [sortKey, setSortKey] = useState<SortKey>('registro');
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) =>
-        u.email.toLowerCase().includes(q) ||
-        (u.first_name ?? '').toLowerCase().includes(q) ||
-        (u.last_name ?? '').toLowerCase().includes(q) ||
-        u.full_name.toLowerCase().includes(q),
-    );
-  }, [users, search]);
+    let list = users;
+    if (planFilter) list = list.filter((u) => (u.plan_key ?? 'starter') === planFilter);
+    if (q) {
+      list = list.filter(
+        (u) =>
+          u.email.toLowerCase().includes(q) ||
+          (u.first_name ?? '').toLowerCase().includes(q) ||
+          (u.last_name ?? '').toLowerCase().includes(q) ||
+          u.full_name.toLowerCase().includes(q),
+      );
+    }
+    if (sortKey === 'registro') return list; // already newest first from the DB
+    const time = (iso: string | null | undefined) => (iso ? new Date(iso).getTime() : 0);
+    const key = (u: AdminUser): number =>
+      sortKey === 'actividad' ? time(lastActiveById[u.id])
+      : sortKey === 'ciclo' ? (usageById[u.id]?.cycle_used ?? 0)
+      : (usageById[u.id]?.total_cost_usd ?? 0);
+    return [...list].sort((a, b) => key(b) - key(a));
+  }, [users, search, planFilter, sortKey, usageById, lastActiveById]);
+
+  // Summary for the strip above the table (non-deleted users, ignores search/filter).
+  const summary = useMemo(() => {
+    const live = users.filter((u) => !u.deleted_at);
+    const byPlan: Record<string, number> = {};
+    for (const u of live) {
+      const k = u.plan_key ?? 'starter';
+      byPlan[k] = (byPlan[k] ?? 0) + 1;
+    }
+    const weekAgo = Date.now() - 7 * 86_400_000;
+    const active7 = live.filter((u) => {
+      const t = lastActiveById[u.id];
+      return t != null && new Date(t).getTime() >= weekAgo;
+    }).length;
+    let cycleCost = 0;
+    let totalCost = 0;
+    for (const u of live) {
+      cycleCost += usageById[u.id]?.cycle_cost_usd ?? 0;
+      totalCost += usageById[u.id]?.total_cost_usd ?? 0;
+    }
+    return { total: live.length, byPlan, active7, cycleCost, totalCost };
+  }, [users, usageById, lastActiveById]);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin-users'] });
+
+  const handleChangePlan = async (user: AdminUser, planKey: string) => {
+    const from = PLAN_BADGE[user.plan_key ?? 'starter']?.label ?? user.plan_key;
+    const to = PLAN_BADGE[planKey]?.label ?? planKey;
+    if (!confirm(`¿Cambiar el plan de ${user.email} de ${from} a ${to}?\n\nSus límites pasan a ser los del plan ${to}, salvo los límites especiales que le hayas puesto.`)) return;
+    setActionLoading(user.id + '-plan');
+    try {
+      await setPlanForUser(user.id, planKey);
+      invalidate();
+    } catch (err) {
+      alert(`No se pudo cambiar el plan: ${(err as Error).message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const handleToggleDisable = async (user: AdminUser) => {
     setActionLoading(user.id + '-disable');
@@ -405,7 +511,7 @@ export function AdminUsersPage() {
         paddingBottom: 'calc(var(--nav-total) + 1.5rem)',
       }}
     >
-      <div className="max-w-[1600px] mx-auto space-y-5">
+      <div className="w-full space-y-5">
 
         {/* Header */}
         <div className="flex items-start gap-4">
@@ -427,8 +533,8 @@ export function AdminUsersPage() {
         </div>
 
         {/* Controls */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap gap-3">
+          <div className="relative flex-1 min-w-[280px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-app-muted pointer-events-none" />
             <input
               type="text"
@@ -438,6 +544,30 @@ export function AdminUsersPage() {
               className="w-full h-10 pl-8 pr-3 rounded-10 bg-app-surface border border-app-border text-sm text-app-text placeholder:text-app-muted/50 focus:outline-none focus:border-sage-strong transition-colors"
             />
           </div>
+
+          <select
+            value={planFilter}
+            onChange={(e) => setPlanFilter(e.target.value)}
+            title="Filtrar por plan"
+            className="admin-compact-input h-10 px-3 rounded-10 bg-app-surface border border-app-border text-sm text-app-text focus:outline-none focus:border-sage-strong transition-colors"
+          >
+            <option value="">Todos los planes</option>
+            {PLAN_KEYS.filter((k) => (summary.byPlan[k] ?? 0) > 0 || k !== 'sim').map((k) => (
+              <option key={k} value={k}>{PLAN_BADGE[k].label} ({summary.byPlan[k] ?? 0})</option>
+            ))}
+          </select>
+
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            title="Ordenar lista"
+            className="admin-compact-input h-10 px-3 rounded-10 bg-app-surface border border-app-border text-sm text-app-text focus:outline-none focus:border-sage-strong transition-colors"
+          >
+            <option value="registro">Orden: registro (reciente)</option>
+            <option value="actividad">Orden: último uso</option>
+            <option value="ciclo">Orden: consumo este ciclo</option>
+            <option value="costo">Orden: costo desde el alta</option>
+          </select>
 
           <label className="flex items-center gap-2 px-3.5 py-2 rounded-10 bg-app-surface border border-app-border cursor-pointer select-none text-sm text-app-muted hover:border-sage-strong/50 transition-colors">
             <input
@@ -480,6 +610,38 @@ export function AdminUsersPage() {
             Añadir usuario
           </button>
         </div>
+
+        {/* Summary strip */}
+        {users.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-[12px]">
+            <button
+              onClick={() => setPlanFilter('')}
+              className={`px-3 py-1.5 rounded-full border transition-colors ${planFilter === '' ? 'border-sage-strong text-sage-strong bg-sage-strong/10 font-medium' : 'border-app-border text-app-text bg-app-surface hover:border-sage-strong/50'}`}
+            >
+              Todos · {summary.total}
+            </button>
+            {PLAN_KEYS.filter((k) => (summary.byPlan[k] ?? 0) > 0).map((k) => (
+              <button
+                key={k}
+                onClick={() => setPlanFilter(planFilter === k ? '' : k)}
+                title={`Mostrar solo ${PLAN_BADGE[k].label}`}
+                className={`px-3 py-1.5 rounded-full transition-opacity ${PLAN_BADGE[k].cls} ${planFilter && planFilter !== k ? 'opacity-50' : ''} ${planFilter === k ? 'ring-2 ring-sage-strong/40' : ''}`}
+              >
+                <span className="font-semibold uppercase tracking-wider">{PLAN_BADGE[k].label}</span> · {summary.byPlan[k]}
+              </button>
+            ))}
+            <span className="mx-1 h-4 w-px bg-app-border" />
+            <span className="px-3 py-1.5 rounded-full bg-app-surface border border-app-border text-app-text">
+              Activos 7 días · <span className="font-semibold text-sage-strong">{summary.active7}</span>
+            </span>
+            <span className="px-3 py-1.5 rounded-full bg-app-surface border border-app-border text-app-text">
+              Costo este ciclo · <span className="font-semibold text-sage-strong">{formatUsd(summary.cycleCost)}</span>
+            </span>
+            <span className="px-3 py-1.5 rounded-full bg-app-surface border border-app-border text-app-text">
+              Costo desde el alta · <span className="font-semibold">{formatUsd(summary.totalCost)}</span>
+            </span>
+          </div>
+        )}
 
         {/* Error */}
         {isError && (
@@ -591,7 +753,7 @@ export function AdminUsersPage() {
               </p>
             </div>
           ) : !isError ? (
-            <div className="overflow-auto max-h-[calc(100dvh-240px)]">
+            <div className="overflow-auto max-h-[calc(100dvh-290px)]">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-app-surface">
                   <tr className="border-b border-app-border">
@@ -614,7 +776,7 @@ export function AdminUsersPage() {
                       Consumo
                     </th>
                     <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
-                      Registrado
+                      Alta / Último uso
                     </th>
                     <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Flight Rec.
@@ -642,7 +804,15 @@ export function AdminUsersPage() {
                         {statusBadge(user)}
                       </td>
                       <td className="px-3 py-3.5">
-                        <PlanBadge planKey={user.plan_key ?? 'starter'} />
+                        {user.deleted_at ? (
+                          <PlanBadge planKey={user.plan_key ?? 'starter'} />
+                        ) : (
+                          <PlanSelect
+                            user={user}
+                            disabled={actionLoading === user.id + '-plan'}
+                            onChange={(planKey) => handleChangePlan(user, planKey)}
+                          />
+                        )}
                       </td>
                       <td className="px-3 py-3.5">
                         {!user.deleted_at && (
@@ -678,8 +848,14 @@ export function AdminUsersPage() {
                       <td className="px-3 py-3.5">
                         <UsageCell usage={usageById[user.id]} />
                       </td>
-                      <td className="px-3 py-3.5 text-[12px] text-app-muted whitespace-nowrap tabular-nums">
-                        {formatDate(user.created_at)}
+                      <td className="px-3 py-3.5 text-[12px] whitespace-nowrap tabular-nums">
+                        <div className="text-app-muted">{formatDate(user.created_at)}</div>
+                        <div
+                          className={`text-[11px] mt-0.5 ${activityColor(lastActiveById[user.id])}`}
+                          title={lastActiveById[user.id] ? new Date(lastActiveById[user.id] as string).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }) : 'Nunca ha usado la app'}
+                        >
+                          {formatRelative(lastActiveById[user.id])}
+                        </div>
                       </td>
                       <td className="px-3 py-3.5">
                         {!user.deleted_at && (
