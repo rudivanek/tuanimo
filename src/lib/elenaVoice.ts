@@ -106,7 +106,6 @@ export async function listElenaVoices(): Promise<Array<{ voice_id: string; name:
     ? 'Falta la clave ELEVENLABS_API_KEY en los secretos de Supabase.'
     : `Error ${res.status}: ${body?.detail ?? body?.error ?? ''}`);
   return body.voices ?? [];
-  
 }
 
 /** Admin only: hear a voice/model before saving it. */
