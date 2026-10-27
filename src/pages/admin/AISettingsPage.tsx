@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, Bot, RefreshCw, Save, CheckCircle, AlertCircle } from 'lucide-react';
 import { Link } from 'wouter';
 import { supabase } from '../../lib/supabaseClient';
+import { ElenaVoiceSettings } from '../../components/admin/ElenaVoiceSettings';
 
 interface AiSettings {
   chat_model: string;
@@ -235,6 +236,8 @@ export function AISettingsPage() {
         <p className="text-[11px] text-app-muted text-center pb-2">
           Los cambios aplican inmediatamente al siguiente mensaje que envíe cualquier usuario.
         </p>
+
+        <ElenaVoiceSettings />
 
       </div>
     </div>
