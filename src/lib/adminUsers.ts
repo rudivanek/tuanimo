@@ -65,6 +65,27 @@ export async function setMonthlyTokenLimitForUser(userId: string, limit: number 
   if (error) throw error;
 }
 
+/** Change only a user's plan (names, disabled flag etc. are kept as they are). Admin only. */
+export async function setPlanForUser(userId: string, planKey: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_upsert_user_profile', {
+    p_user_id: userId,
+    p_plan_key: planKey,
+  });
+  if (error) throw error;
+}
+
+/** Last time each user did anything (activity, AI use, chat message, journal entry).
+ *  null = never used the app. Admin only. */
+export async function fetchUsersLastActivity(): Promise<Record<string, string | null>> {
+  const { data, error } = await supabase.rpc('admin_users_last_activity');
+  if (error) throw error;
+  const byId: Record<string, string | null> = {};
+  for (const row of (data ?? []) as Array<{ user_id: string; last_active_at: string | null }>) {
+    byId[row.user_id] = row.last_active_at;
+  }
+  return byId;
+}
+
 /** Per-user token usage for the admin Users panel ("Consumo" column).
  *  Same numbers check_token_budget enforces (Mexico City day; user's own monthly cycle). */
 export interface UserUsageOverview {
