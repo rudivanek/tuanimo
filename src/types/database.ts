@@ -1595,8 +1595,10 @@ export type Database = {
           is_admin_user: boolean
           is_disabled: boolean
           last_name: string
+          monthly_token_limit_override: number | null
           plan_daily_token_limit: number | null
           plan_key: string
+          plan_monthly_token_limit: number | null
         }[]
       }
       admin_list_users_with_usage: {
@@ -1636,6 +1638,10 @@ export type Database = {
         }[]
       }
       admin_set_daily_token_limit: {
+        Args: { p_limit: number | null; p_user_id: string }
+        Returns: undefined
+      }
+      admin_set_monthly_token_limit: {
         Args: { p_limit: number | null; p_user_id: string }
         Returns: undefined
       }
