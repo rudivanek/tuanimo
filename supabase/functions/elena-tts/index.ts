@@ -11,6 +11,8 @@
 //
 // Voice and model come from ai_settings (tts_voice_id, tts_model), chosen by an admin.
 // Needs the secret ELEVENLABS_API_KEY (Text to Speech + Voices read).
+// Every successful speak/preview writes one row to tts_usage (estimated cost),
+// kept apart from token_usage so voice never eats into the chat token budget.
 // Never blocks chat: the client shows the text first and treats any error here as "no audio".
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
@@ -26,6 +28,35 @@ const MAX_CHARS = 1200; // Elena's hard cap is 800; leave room, refuse anything 
 const MODEL_RE = /^[a-z0-9_]{3,64}$/;
 const VOICE_RE = /^[A-Za-z0-9]{10,40}$/;
 
+type SupabaseClient = ReturnType<typeof createClient>;
+type UsageLog = { svc: SupabaseClient; userId: string; kind: "speak" | "preview"; usdPer1kCredits: number };
+
+// ElevenLabs bills by character: about 0.5 credits per character on Flash/Turbo,
+// about 1 on the others (Multilingual v2, v3). An estimate, not the bill.
+function creditsPerChar(model: string): number {
+  return /flash|turbo/.test(model) ? 0.5 : 1;
+}
+
+async function logUsage(log: UsageLog, voiceId: string, model: string, text: string): Promise<void> {
+  try {
+    const characters = text.length;
+    const credits = Math.round(characters * creditsPerChar(model) * 100) / 100;
+    const est = (credits / 1000) * (Number.isFinite(log.usdPer1kCredits) ? log.usdPer1kCredits : 0);
+    const { error } = await log.svc.from("tts_usage").insert({
+      user_id: log.userId,
+      kind: log.kind,
+      characters,
+      model,
+      voice_id: voiceId,
+      credits,
+      est_cost_usd: Math.round(est * 1e6) / 1e6,
+    });
+    if (error) console.error("elena-tts: usage log failed", JSON.stringify(error));
+  } catch (err) {
+    console.error("elena-tts: usage log failed", err);
+  }
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -33,7 +64,7 @@ function json(body: unknown, status = 200) {
   });
 }
 
-async function tts(key: string, voiceId: string, model: string, text: string): Promise<Response> {
+async function tts(key: string, voiceId: string, model: string, text: string, log: UsageLog): Promise<Response> {
   const r = await fetch(
     `${API}/text-to-speech/${encodeURIComponent(voiceId)}/stream?output_format=mp3_44100_128`,
     {
@@ -47,6 +78,8 @@ async function tts(key: string, voiceId: string, model: string, text: string): P
     console.error(`elena-tts: ElevenLabs ${r.status} ${detail.slice(0, 500)}`);
     return json({ error: "tts_failed", status: r.status }, 502);
   }
+  // ElevenLabs accepted the request, so it is billed: record it. Never blocks the audio.
+  await logUsage(log, voiceId, model, text);
   return new Response(r.body, {
     headers: { ...corsHeaders, "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
   });
@@ -106,7 +139,9 @@ Deno.serve(async (req: Request) => {
       const model = String(body.model ?? "");
       if (!text || text.length > MAX_CHARS) return json({ error: "bad_text" }, 400);
       if (!VOICE_RE.test(voiceId) || !MODEL_RE.test(model)) return json({ error: "bad_voice_or_model" }, 400);
-      return await tts(key, voiceId, model, text);
+      const { data: price } = await svc.from("ai_settings").select("value").eq("key", "tts_usd_per_1k_credits").maybeSingle();
+      return await tts(key, voiceId, model, text,
+        { svc, userId: user.id, kind: "preview", usdPer1kCredits: parseFloat(price?.value ?? "0") });
     }
 
     // ── Chat: speak Elena's reply ─────────────────────────────────────────
@@ -116,7 +151,7 @@ Deno.serve(async (req: Request) => {
 
       const [{ data: profile }, { data: settings }] = await Promise.all([
         svc.from("profiles").select("voice_enabled").eq("id", user.id).maybeSingle(),
-        svc.from("ai_settings").select("key, value").in("key", ["tts_voice_id", "tts_model"]),
+        svc.from("ai_settings").select("key, value").in("key", ["tts_voice_id", "tts_model", "tts_usd_per_1k_credits"]),
       ]);
       if (!profile?.voice_enabled) return json({ error: "voice_not_enabled" }, 403);
 
@@ -126,7 +161,8 @@ Deno.serve(async (req: Request) => {
       const model = (map.tts_model ?? "eleven_multilingual_v2").trim();
       if (!VOICE_RE.test(voiceId) || !MODEL_RE.test(model)) return json({ error: "voice_not_configured" }, 503);
 
-      return await tts(key, voiceId, model, text);
+      return await tts(key, voiceId, model, text,
+        { svc, userId: user.id, kind: "speak", usdPer1kCredits: parseFloat(map.tts_usd_per_1k_credits ?? "0") });
     }
 
     return json({ error: "unknown_action" }, 400);
@@ -135,4 +171,3 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Internal server error" }, 500);
   }
 });
-
