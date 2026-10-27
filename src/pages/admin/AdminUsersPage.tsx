@@ -405,7 +405,7 @@ export function AdminUsersPage() {
         paddingBottom: 'calc(var(--nav-total) + 1.5rem)',
       }}
     >
-      <div className="max-w-6xl mx-auto space-y-5">
+      <div className="max-w-[1600px] mx-auto space-y-5">
 
         {/* Header */}
         <div className="flex items-start gap-4">
@@ -591,35 +591,35 @@ export function AdminUsersPage() {
               </p>
             </div>
           ) : !isError ? (
-            <div className="overflow-x-auto">
+            <div className="overflow-auto max-h-[calc(100dvh-240px)]">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-app-surface">
                   <tr className="border-b border-app-border">
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Nombre / Email
                     </th>
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Estado
                     </th>
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Plan
                     </th>
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Modelo
                     </th>
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Límites
                     </th>
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Consumo
                     </th>
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Registrado
                     </th>
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Flight Rec.
                     </th>
-                    <th className="px-5 py-3" />
+                    <th className="px-3 py-3" />
                   </tr>
                 </thead>
                 <tbody>
@@ -630,7 +630,7 @@ export function AdminUsersPage() {
                         user.deleted_at ? 'opacity-50' : ''
                       } ${isFetching ? 'opacity-70' : ''}`}
                     >
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-3.5">
                         <div className="font-medium text-app-text truncate max-w-[200px]">
                           {getDisplayName(user) || <span className="text-app-muted italic">Sin nombre</span>}
                         </div>
@@ -638,13 +638,13 @@ export function AdminUsersPage() {
                           {user.email}
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 whitespace-nowrap">
+                      <td className="px-3 py-3.5 whitespace-nowrap">
                         {statusBadge(user)}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-3.5">
                         <PlanBadge planKey={user.plan_key ?? 'starter'} />
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-3.5">
                         {!user.deleted_at && (
                           <select
                             value={user.chat_model_override ?? ''}
@@ -670,18 +670,18 @@ export function AdminUsersPage() {
                           </select>
                         )}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-3.5">
                         {!user.deleted_at && (
                           <LimitsCell user={user} onSaved={invalidate} />
                         )}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-3.5">
                         <UsageCell usage={usageById[user.id]} />
                       </td>
-                      <td className="px-5 py-3.5 text-[12px] text-app-muted whitespace-nowrap tabular-nums">
+                      <td className="px-3 py-3.5 text-[12px] text-app-muted whitespace-nowrap tabular-nums">
                         {formatDate(user.created_at)}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-3.5">
                         {!user.deleted_at && (
                           <button
                             onClick={() => handleToggleFlightRecorder(user)}
@@ -699,7 +699,7 @@ export function AdminUsersPage() {
                           </button>
                         )}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-3.5">
                         <div className="flex items-center gap-1.5 justify-end">
                           {!user.deleted_at && (
                             <>
