@@ -24,6 +24,7 @@ const CrisisEventsPage   = lazy(() => import('./pages/admin/CrisisEventsPage').t
 const CrisisResourcesPage = lazy(() => import('./pages/admin/CrisisResourcesPage').then(m => ({ default: m.CrisisResourcesPage })));
 const PlanLimitsPage     = lazy(() => import('./pages/admin/PlanLimitsPage').then(m => ({ default: m.PlanLimitsPage })));
 const AdminEmailPage     = lazy(() => import('./pages/admin/AdminEmailPage').then(m => ({ default: m.AdminEmailPage })));
+const AdminSendEmailPage = lazy(() => import('./pages/admin/AdminSendEmailPage').then(m => ({ default: m.AdminSendEmailPage })));
 const CostPerCyclePage   = lazy(() => import('./pages/admin/CostPerCyclePage').then(m => ({ default: m.CostPerCyclePage })));
 const AISettingsPage     = lazy(() => import('./pages/admin/AISettingsPage').then(m => ({ default: m.AISettingsPage })));
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage').then(m => ({ default: m.AdminAnalyticsPage })));
@@ -88,6 +89,7 @@ const CrisisEventsRoute  = () => <AdminRoute component={CrisisEventsPage} />;
 const CrisisResourcesRoute = () => <AdminRoute component={CrisisResourcesPage} />;
 const PlanLimitsRoute    = () => <AdminRoute component={PlanLimitsPage} />;
 const AdminEmailRoute    = () => <AdminRoute component={AdminEmailPage} />;
+const AdminSendEmailRoute = () => <AdminRoute component={AdminSendEmailPage} />;
 const CostPerCycleRoute  = () => <AdminRoute component={CostPerCyclePage} />;
 const AdminAnalyticsRoute = () => <AdminRoute component={AdminAnalyticsPage} />;
 const EngagementRoute    = () => <AdminRoute component={EngagementPage} />;
@@ -165,6 +167,7 @@ function App() {
         <Route path="/admin/crisis-resources"  component={CrisisResourcesRoute} />
         <Route path="/admin/plan-limits"     component={PlanLimitsRoute} />
         <Route path="/admin/email-campaigns" component={AdminEmailRoute} />
+        <Route path="/admin/send-email"      component={AdminSendEmailRoute} />
         <Route path="/admin/analytics"       component={AdminAnalyticsRoute} />
         <Route path="/admin/engagement"      component={EngagementRoute} />
         <Route path="/admin/ai-settings"     component={() => <Suspense fallback={<LoadingScreen />}><AISettingsPage /></Suspense>} />
