@@ -20,6 +20,10 @@ export interface AdminUser {
   daily_token_limit_override: number | null;
   /** The daily limit of the user's plan (token_plan_limits), for reference. */
   plan_daily_token_limit: number | null;
+  /** Per-user monthly (cycle) token limit set by an admin. null = uses the plan's limit. */
+  monthly_token_limit_override: number | null;
+  /** The monthly limit of the user's plan (token_plan_limits), for reference. */
+  plan_monthly_token_limit: number | null;
 }
 
 /** Models selectable as a per-user override. Must match the CHECK constraint
@@ -45,6 +49,16 @@ export async function setChatModelForUser(userId: string, model: string | null):
  *  so the user falls back to their plan's daily limit. Admin only (checked in DB). */
 export async function setDailyTokenLimitForUser(userId: string, limit: number | null): Promise<void> {
   const { error } = await supabase.rpc('admin_set_daily_token_limit', {
+    p_user_id: userId,
+    p_limit: limit,
+  });
+  if (error) throw error;
+}
+
+/** Set a permanent monthly (cycle) token limit for one user, or pass null to remove it
+ *  so the user falls back to their plan's monthly limit. Admin only (checked in DB). */
+export async function setMonthlyTokenLimitForUser(userId: string, limit: number | null): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_monthly_token_limit', {
     p_user_id: userId,
     p_limit: limit,
   });
