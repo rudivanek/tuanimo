@@ -6,7 +6,7 @@ import {
   AlertCircle, Inbox, Pencil, Trash2, CheckCircle, Ban, Wrench, X, CheckCheck,
   RotateCcw, AlertTriangle, CircleDollarSign,
 } from 'lucide-react';
-import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, setMonthlyTokenLimitForUser, setPlanForUser, fetchUsersLastActivity, upsertUserProfile, fetchUsersUsageOverview, type UserUsageOverview } from '../../lib/adminUsers';
+import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, setMonthlyTokenLimitForUser, setPlanForUser, fetchUsersLastActivity, upsertUserProfile, fetchUsersUsageOverview, type UserUsageOverview, fetchUsersVoiceEnabled, setVoiceEnabledForUser } from '../../lib/adminUsers';
 import { setFlightRecorderForUser } from '../../lib/elenaFlightRecorder';
 import { UserModal } from '../../components/admin/UserModal';
 
@@ -334,6 +334,24 @@ export function AdminUsersPage() {
     queryFn: fetchUsersLastActivity,
     staleTime: 30_000,
   });
+
+  const { data: voiceById = {}, refetch: refetchVoice } = useQuery<Record<string, boolean>>({
+    queryKey: ['admin-users', 'voice-enabled'],
+    queryFn: fetchUsersVoiceEnabled,
+    staleTime: 30_000,
+  });
+
+  const handleToggleVoice = async (user: AdminUser) => {
+    setActionLoading(user.id + '-voice');
+    try {
+      await setVoiceEnabledForUser(user.id, !voiceById[user.id]);
+      await refetchVoice();
+    } catch (err) {
+      alert(`No se pudo cambiar la voz: ${(err as Error).message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const [planFilter, setPlanFilter] = useState<string>('');
   const [sortKey, setSortKey] = useState<SortKey>('registro');
@@ -781,6 +799,9 @@ export function AdminUsersPage() {
                     <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Flight Rec.
                     </th>
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
+                      Voz (beta)
+                    </th>
                     <th className="px-3 py-3" />
                   </tr>
                 </thead>
@@ -870,6 +891,24 @@ export function AdminUsersPage() {
                             <span
                               className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
                                 user.flight_recorder_enabled ? 'translate-x-4' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-3 py-3.5">
+                        {!user.deleted_at && (
+                          <button
+                            onClick={() => handleToggleVoice(user)}
+                            disabled={actionLoading === user.id + '-voice'}
+                            title={voiceById[user.id] ? 'Desactivar voz de Elena' : 'Activar voz de Elena'}
+                            className={`relative inline-flex flex-shrink-0 w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
+                              voiceById[user.id] ? 'bg-emerald-500' : 'bg-app-border'
+                            }`}
+                          >
+                            <span
+                              className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                                voiceById[user.id] ? 'translate-x-4' : 'translate-x-0'
                               }`}
                             />
                           </button>
