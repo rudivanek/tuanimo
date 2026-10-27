@@ -1483,6 +1483,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_users_voice_overview: {
+        Args: never
+        Returns: {
+          cycle_replies: number
+          cycle_usd: number
+          today_replies: number
+          today_usd: number
+          total_replies: number
+          total_usd: number
+          user_id: string
+        }[]
+      }
       admin_engagement_bounds: {
         Args: never
         Returns: {
