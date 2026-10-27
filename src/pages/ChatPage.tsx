@@ -47,6 +47,7 @@ import { InsightActivationChip } from '../components/InsightActivationChip';
 import { useInsightActivation } from '../hooks/useInsightActivation';
 import { recordFlightEvent, getSessionId } from '../lib/elenaFlightRecorder';
 import VoiceMemo from '../components/VoiceMemo';
+import { speakElena, stopElenaVoice, unlockElenaVoice } from '../lib/elenaVoice';
 import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import { NavigationGuardModal } from '../components/NavigationGuardModal';
 import { CrisisResourceModal } from '../components/CrisisResourceModal';
@@ -100,6 +101,9 @@ export function ChatPage() {
   const qc = useQueryClient();
   const { data: _isAdmin } = useAdmin();
   const { data: profile } = useProfile();
+  // Voice beta: true only for the message that came from the microphone ("Enviar a Elena").
+  const dictatedRef = useRef(false);
+  useEffect(() => () => stopElenaVoice(), []);
   const { isTokenExhausted, reason: tokenExhaustReason } = useTokenStatus();
   const { canPlay } = useSoundSettings();
   const { data: latestInsight } = useLatestInsightAt();
@@ -1067,6 +1071,10 @@ export function ChatPage() {
 
   const handleSendMessage = async (overrideMessage?: string, threadIdOverride?: string, chipMetaOverride?: MessageChipMeta | null, resendExisting: boolean = false) => {
  const messageToSend = overrideMessage || inputMessage.trim();
+    // Read and clear the voice flag at once, so it can never leak to a later typed message.
+    const wasDictated = dictatedRef.current;
+    dictatedRef.current = false;
+    stopElenaVoice(); // a new message silences Elena's previous spoken reply
     let threadId = threadIdOverride ?? currentThreadId;
     if (!messageToSend || !user || isSending) return;
  
@@ -1452,7 +1460,13 @@ export function ChatPage() {
       }]);
       recordFlightEvent(user?.id, 'ELENA_RESPONSE_RENDERED', { length: replyText.length });
 
-      if (canPlay('response')) {
+      // Voice beta: Elena speaks only when the person dictated, has voice enabled,
+      // and this is not a crisis (the help line must stay visible, not spoken).
+      // The text above is already on screen; voice never blocks or replaces it.
+      const speakReply = wasDictated && profile?.voice_enabled === true && !msgCrisis;
+      if (speakReply) {
+        void speakElena(replyText);
+      } else if (canPlay('response')) {
         audioManager.play('response');
       }
 
@@ -2460,6 +2474,10 @@ export function ChatPage() {
               context="chat"
               supabaseClient={supabase}
               onTranscript={(text: string) => {
+                if (profile?.voice_enabled) {
+                  unlockElenaVoice(); // must run inside the tap, for iOS
+                  dictatedRef.current = true;
+                }
                 handleSendMessage(text);
               }}
             />
