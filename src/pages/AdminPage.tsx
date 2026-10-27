@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { BarChart2, BarChart3, Bot, CreditCard, DollarSign, Shield, Users, AlertTriangle, AlertCircle, SlidersHorizontal, Mail, Activity } from 'lucide-react';
+import { BarChart2, BarChart3, Bot, CreditCard, DollarSign, Shield, Users, AlertTriangle, AlertCircle, SlidersHorizontal, Mail, Send, Activity } from 'lucide-react';
 import { useAdmin } from '../hooks/useAdmin';
 
 interface NavCard {
@@ -63,6 +63,12 @@ const adminNav: NavCard[] = [
     icon: Mail,
     title: 'Campañas de Email',
     description: 'Configura recordatorios e insights: frecuencia, elegibilidad y excepciones por usuario para pruebas.',
+  },
+  {
+    href: '/admin/send-email',
+    icon: Send,
+    title: 'Enviar correo',
+    description: 'Elige usuarios y envíales un correo escrito a mano. Respeta "Noticias de Con Elena" y el historial de envíos.',
   },
   {
     href: '/admin/ai-settings',
