@@ -200,7 +200,7 @@ function LimitInput({
               ? `Límite ${kind} especial: ${formatLimit(override)} tokens. Borra el número o pulsa ✕ para volver al del plan.`
               : `Usa el límite ${kind} de su plan (${formatLimit(planLimit)}). Escribe un número para asignarle uno especial.`
           }
-          className={`w-[100px] text-[12px] tabular-nums rounded-9 border px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sage-strong/40 disabled:opacity-50 transition-colors ${
+          className={`admin-compact-input w-[88px] text-[12px] tabular-nums rounded-9 border px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-sage-strong/40 disabled:opacity-50 transition-colors ${
             isOverride
               ? 'border-sage-strong bg-sage-strong/10 text-sage-strong font-semibold'
               : 'border-app-border bg-app-card text-app-text'
@@ -655,7 +655,7 @@ export function AdminUsersPage() {
                                 ? `Modelo asignado: ${user.chat_model_override}`
                                 : 'Usa el modelo global de Configuración IA'
                             }
-                            className={`text-[12px] rounded-9 border px-2 py-1 bg-app-card focus:outline-none focus:ring-1 focus:ring-sage-strong/40 disabled:opacity-50 transition-colors ${
+                            className={`admin-compact-input text-[12px] rounded-9 border px-2 py-1 bg-app-card focus:outline-none focus:ring-1 focus:ring-sage-strong/40 disabled:opacity-50 transition-colors ${
                               user.chat_model_override
                                 ? 'border-sage-strong/40 text-sage-strong font-medium'
                                 : 'border-app-border text-app-muted'
