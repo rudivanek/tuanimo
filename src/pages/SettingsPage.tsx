@@ -86,6 +86,7 @@ interface EmailPrefs {
   email_reminders_opt_in: boolean;
   email_insights_opt_in: boolean;
   email_weekly_insight_opt_in: boolean;
+  email_news_opt_in: boolean;
 }
 
 function useEmailPrefs() {
@@ -95,6 +96,7 @@ function useEmailPrefs() {
     email_reminders_opt_in: true,
     email_insights_opt_in: true,
     email_weekly_insight_opt_in: true,
+    email_news_opt_in: true,
   });
   const [loading, setLoading] = useState(true);
   const [savingField, setSavingField] = useState<string | null>(null);
@@ -103,7 +105,7 @@ function useEmailPrefs() {
     if (!user) return;
     supabase
       .from('profiles')
-      .select('email_opt_in, email_reminders_opt_in, email_insights_opt_in, email_weekly_insight_opt_in')
+      .select('email_opt_in, email_reminders_opt_in, email_insights_opt_in, email_weekly_insight_opt_in, email_news_opt_in')
       .eq('id', user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -113,6 +115,7 @@ function useEmailPrefs() {
             email_reminders_opt_in: data.email_reminders_opt_in ?? true,
             email_insights_opt_in: data.email_insights_opt_in ?? true,
             email_weekly_insight_opt_in: data.email_weekly_insight_opt_in ?? true,
+            email_news_opt_in: data.email_news_opt_in ?? true,
           });
         }
         setLoading(false);
@@ -347,6 +350,14 @@ export function SettingsPage() {
                 onChange={(v) => updateEmailPref('email_weekly_insight_opt_in', v)}
                 disabled={!prefs.email_opt_in}
                 saving={savingField === 'email_weekly_insight_opt_in'}
+              />
+              <SettingRow
+                label="Noticias de Con Elena"
+                description="Novedades de la app y mensajes del equipo de Con Elena"
+                checked={prefs.email_news_opt_in}
+                onChange={(v) => updateEmailPref('email_news_opt_in', v)}
+                disabled={!prefs.email_opt_in}
+                saving={savingField === 'email_news_opt_in'}
               />
             </div>
           )}
