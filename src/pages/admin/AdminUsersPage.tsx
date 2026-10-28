@@ -9,6 +9,7 @@ import {
 import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, setMonthlyTokenLimitForUser, setPlanForUser, fetchUsersLastActivity, upsertUserProfile, fetchUsersUsageOverview, type UserUsageOverview, fetchUsersVoiceEnabled, setVoiceEnabledForUser, fetchUsersVoiceOverview, type UserVoiceOverview } from '../../lib/adminUsers';
 import { setFlightRecorderForUser } from '../../lib/elenaFlightRecorder';
 import { UserModal } from '../../components/admin/UserModal';
+import { UserCostModal } from '../../components/admin/UserCostModal';
 
 type ModalState =
   | { open: false }
@@ -333,6 +334,8 @@ export function AdminUsersPage() {
   const [includeDeleted, setIncludeDeleted] = useState(false);
   const [modal, setModal] = useState<ModalState>({ open: false });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Cost detail popup (click on Consumo)
+  const [costUser, setCostUser] = useState<AdminUser | null>(null);
   const [reconcileLoading, setReconcileLoading] = useState<string | null>(null);
   const [reconcileResult, setReconcileResult] = useState<(ReconcileResult & { targetLabel: string }) | null>(null);
   const [reconcileError, setReconcileError] = useState<string | null>(null);
@@ -902,8 +905,15 @@ export function AdminUsersPage() {
                         )}
                       </td>
                       <td className="px-3 py-3.5">
-                        <UsageCell usage={usageById[user.id]} />
-                        <VoiceCostLines voice={voiceCostById[user.id]} />
+                        <button
+                          type="button"
+                          onClick={() => setCostUser(user)}
+                          title="Ver detalle de costos"
+                          className="block w-full text-left rounded-[8px] -m-1 p-1 hover:bg-app-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sage-strong/40"
+                        >
+                          <UsageCell usage={usageById[user.id]} />
+                          <VoiceCostLines voice={voiceCostById[user.id]} />
+                        </button>
                       </td>
                       <td className="px-3 py-3.5 text-[12px] whitespace-nowrap tabular-nums">
                         <div className="text-app-muted">{formatDate(user.created_at)}</div>
@@ -1178,6 +1188,16 @@ export function AdminUsersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {costUser && (
+        <UserCostModal
+          userId={costUser.id}
+          name={getDisplayName(costUser)}
+          email={costUser.email}
+          plan={costUser.plan_key}
+          onClose={() => setCostUser(null)}
+        />
       )}
     </div>
   );
