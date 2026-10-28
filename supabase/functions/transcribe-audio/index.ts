@@ -1,5 +1,10 @@
 // DEPLOY REQUIREMENT: verify_jwt MUST be false
 // This function performs its own auth via auth.getUser().
+//
+// Each successful transcription is recorded in stt_usage (seconds of audio and
+// estimated cost, ai_settings.stt_usd_per_min), for the admin cost panel. It is
+// not token_usage, so it does not count against the user's token budget.
+// Recording never blocks or changes the response.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
@@ -30,6 +35,31 @@ async function enforceBudget(userId: string): Promise<Response | null> {
     JSON.stringify({ error: result.reason, message, daily_used: result.daily_used, daily_limit: result.daily_limit, monthly_used: result.monthly_used, monthly_limit: result.monthly_limit }),
     { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
+}
+
+const WHISPER_MODEL = "whisper-1";
+
+async function logDictation(userId: string, context: string | null, seconds: number, estimated: boolean): Promise<void> {
+  try {
+    const svc = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    const { data: price } = await svc.from("ai_settings").select("value").eq("key", "stt_usd_per_min").maybeSingle();
+    const perMin = parseFloat(price?.value ?? "0.006");
+    const est = (seconds / 60) * (Number.isFinite(perMin) ? perMin : 0.006);
+    const { error } = await svc.from("stt_usage").insert({
+      user_id: userId,
+      context: context ?? "chat",
+      model: WHISPER_MODEL,
+      seconds: Math.round(seconds * 100) / 100,
+      duration_estimated: estimated,
+      est_cost_usd: Math.round(est * 1e6) / 1e6,
+    });
+    if (error) console.error("transcribe-audio: usage log failed", JSON.stringify(error));
+  } catch (err) {
+    console.error("transcribe-audio: usage log failed", err);
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -87,7 +117,9 @@ Deno.serve(async (req: Request) => {
     // Forward to Whisper
     const whisperForm = new FormData();
     whisperForm.append("file", audioFile, "audio.webm");
-    whisperForm.append("model", "whisper-1");
+    whisperForm.append("model", WHISPER_MODEL);
+    // verbose_json adds the audio duration (for the cost log); "text" is unchanged.
+    whisperForm.append("response_format", "verbose_json");
     whisperForm.append("language", "es");
     // Optional prompt to nudge Whisper toward natural Spanish
     whisperForm.append("prompt", "Esta es una nota personal o mensaje de voz en español.");
@@ -110,6 +142,13 @@ Deno.serve(async (req: Request) => {
     
     const whisperData = await whisperRes.json();
     const transcript = whisperData.text?.trim() ?? "";
+
+    // Whisper bills per minute of audio. Use its duration; if missing, estimate
+    // from the file size (~32 kbps Opus/WebM) and flag the row as estimated.
+    const reported = Number(whisperData.duration);
+    const hasDuration = Number.isFinite(reported) && reported > 0;
+    const seconds = hasDuration ? reported : (audioFile.size * 8) / 32000;
+    await logDictation(user.id, context, seconds, !hasDuration);
 
     return new Response(
       JSON.stringify({ transcript, context: context ?? "chat" }),
