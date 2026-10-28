@@ -94,7 +94,6 @@ export type Database = {
           failure_count: number
           id: string
           recipient_count: number
-          skipped_count: number
           status: string
           subject: string
           success_count: number
@@ -107,7 +106,6 @@ export type Database = {
           failure_count?: number
           id?: string
           recipient_count?: number
-          skipped_count?: number
           status?: string
           subject: string
           success_count?: number
@@ -120,7 +118,6 @@ export type Database = {
           failure_count?: number
           id?: string
           recipient_count?: number
-          skipped_count?: number
           status?: string
           subject?: string
           success_count?: number
@@ -994,7 +991,6 @@ export type Database = {
           email_sequence_status: string
           email_sequence_step: number
           email_weekly_insight_opt_in: boolean
-          email_news_opt_in: boolean
           enc_version: number
           encryption_secret: string
           first_name: string | null
@@ -1039,7 +1035,6 @@ export type Database = {
           email_sequence_status?: string
           email_sequence_step?: number
           email_weekly_insight_opt_in?: boolean
-          email_news_opt_in?: boolean
           enc_version?: number
           encryption_secret: string
           first_name?: string | null
@@ -1084,7 +1079,6 @@ export type Database = {
           email_sequence_status?: string
           email_sequence_step?: number
           email_weekly_insight_opt_in?: boolean
-          email_news_opt_in?: boolean
           enc_version?: number
           encryption_secret?: string
           first_name?: string | null
@@ -1487,6 +1481,38 @@ export type Database = {
           previews: number
           replies: number
           user_id: string
+        }[]
+      }
+      admin_user_cost_detail: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          chats_cycle: number
+          chats_today: number
+          chats_total: number
+          cost_cycle: number
+          cost_today: number
+          cost_total: number
+          credits_cycle: number
+          credits_today: number
+          credits_total: number
+          cycle_end: string
+          cycle_start: string
+          detail: string
+          label: string
+          minutes_cycle: number
+          minutes_today: number
+          minutes_total: number
+          replies_cycle: number
+          replies_today: number
+          replies_total: number
+          section: string
+          tokens_cycle: number
+          tokens_today: number
+          tokens_total: number
+          user_id: string
+          words_cycle: number
+          words_today: number
+          words_total: number
         }[]
       }
       admin_users_voice_overview: {
