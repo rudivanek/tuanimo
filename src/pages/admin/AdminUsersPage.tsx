@@ -4,12 +4,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft, Users, Search, UserPlus, RefreshCw,
   AlertCircle, Inbox, Pencil, Trash2, CheckCircle, Ban, Wrench, X, CheckCheck,
-  RotateCcw, AlertTriangle, CircleDollarSign,
+  RotateCcw, AlertTriangle, CircleDollarSign, FileSpreadsheet,
 } from 'lucide-react';
 import { AdminUser, ReconcileResult, ResetUserResult, ResetTokenResult, CHAT_MODEL_OPTIONS, getDisplayName, listUsers, purgeUserData, reconcileJournalStorage, resetUserData, resetTokenUsage, setChatModelForUser, setDailyTokenLimitForUser, setMonthlyTokenLimitForUser, setPlanForUser, fetchUsersLastActivity, upsertUserProfile, fetchUsersUsageOverview, type UserUsageOverview, fetchUsersVoiceEnabled, setVoiceEnabledForUser, fetchUsersVoiceOverview, type UserVoiceOverview } from '../../lib/adminUsers';
 import { setFlightRecorderForUser } from '../../lib/elenaFlightRecorder';
 import { UserModal } from '../../components/admin/UserModal';
 import { UserCostModal } from '../../components/admin/UserCostModal';
+import { exportUsersCostXlsx } from '../../lib/adminCostExport';
 
 type ModalState =
   | { open: false }
@@ -336,6 +337,11 @@ export function AdminUsersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   // Cost detail popup (click on Consumo)
   const [costUser, setCostUser] = useState<AdminUser | null>(null);
+  // Excel export: selected user ids
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
+  const toggleSelected = (id: string) =>
+    setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [reconcileLoading, setReconcileLoading] = useState<string | null>(null);
   const [reconcileResult, setReconcileResult] = useState<(ReconcileResult & { targetLabel: string }) | null>(null);
   const [reconcileError, setReconcileError] = useState<string | null>(null);
@@ -809,10 +815,65 @@ export function AdminUsersPage() {
               </p>
             </div>
           ) : !isError ? (
+            <>
+            <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-app-border text-[12px] text-app-muted">
+              <span className="tabular-nums">
+                {selectedIds.size} seleccionado{selectedIds.size !== 1 ? 's' : ''}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set(filtered.map(u => u.id)))}
+                className="px-2 py-1 rounded-[8px] border border-app-border hover:border-sage-strong hover:text-sage-strong"
+              >
+                Todos ({filtered.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="px-2 py-1 rounded-[8px] border border-app-border hover:border-sage-strong hover:text-sage-strong"
+              >
+                Ninguno
+              </button>
+              <div className="flex-1" />
+              <button
+                type="button"
+                onClick={async () => {
+                  const chosen = users.filter(u => selectedIds.has(u.id));
+                  if (chosen.length === 0) { alert('Selecciona al menos un usuario para exportar.'); return; }
+                  setExporting(true);
+                  try {
+                    await exportUsersCostXlsx(chosen, lastActiveById);
+                  } catch (err) {
+                    alert(`No se pudo exportar: ${(err as Error).message}`);
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-sage-strong text-white font-medium hover:opacity-90"
+              >
+                {exporting ? <RefreshCw size={13} className="animate-spin" /> : <FileSpreadsheet size={13} />}
+                {exporting ? 'Exportando...' : 'Exportar a Excel'}
+              </button>
+            </div>
             <div className="overflow-auto max-h-[calc(100dvh-290px)]">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-app-surface">
                   <tr className="border-b border-app-border">
+                    <th className="pl-3 pr-0 py-3 w-8">
+                      <input
+                        type="checkbox"
+                        aria-label="Seleccionar todos"
+                        className="accent-sage-strong"
+                        checked={filtered.length > 0 && filtered.every(u => selectedIds.has(u.id))}
+                        ref={el => {
+                          if (el) {
+                            const some = filtered.some(u => selectedIds.has(u.id));
+                            el.indeterminate = some && !filtered.every(u => selectedIds.has(u.id));
+                          }
+                        }}
+                        onChange={e => setSelectedIds(e.target.checked ? new Set(filtered.map(u => u.id)) : new Set())}
+                      />
+                    </th>
                     <th className="text-left px-3 py-3 text-[11px] font-semibold text-app-muted uppercase tracking-wider whitespace-nowrap">
                       Nombre / Email
                     </th>
@@ -851,6 +912,15 @@ export function AdminUsersPage() {
                         user.deleted_at ? 'opacity-50' : ''
                       } ${isFetching ? 'opacity-70' : ''}`}
                     >
+                      <td className="pl-3 pr-0 py-3.5 w-8">
+                        <input
+                          type="checkbox"
+                          aria-label={`Seleccionar ${user.email}`}
+                          className="accent-sage-strong"
+                          checked={selectedIds.has(user.id)}
+                          onChange={() => toggleSelected(user.id)}
+                        />
+                      </td>
                       <td className="px-3 py-3.5">
                         <div className="font-medium text-app-text truncate max-w-[200px]">
                           {getDisplayName(user) || <span className="text-app-muted italic">Sin nombre</span>}
@@ -1041,6 +1111,7 @@ export function AdminUsersPage() {
                 </tbody>
               </table>
             </div>
+            </>
           ) : null}
         </div>
       </div>
